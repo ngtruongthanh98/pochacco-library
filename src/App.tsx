@@ -11,6 +11,7 @@ import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
+import { duplicateDraft } from './data/duplicate'
 import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
 import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
@@ -240,6 +241,7 @@ export default function App() {
   const [editing, setEditing] = useState(initial.editing)
   const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
+  const [dupFrom, setDupFrom] = useState<Book | null>(null)
   const [page, setPage] = useState<'library' | 'stats'>(initial.page)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
@@ -465,6 +467,15 @@ export default function App() {
               cfg={cfg}
               book={byId.get(openId)!}
               books={books}
+              onDuplicate={() => {
+                const src = byId.get(openId)!
+                setPrefill(duplicateDraft(src))
+                setDupFrom(src)
+                setAdding(true)
+                setOpenId(null)
+                setEditing(false)
+                window.scrollTo(0, 0)
+              }}
               onOpen={(b) => {
                 setOpenId(b.id)
                 window.scrollTo(0, 0)
@@ -550,21 +561,41 @@ export default function App() {
           />
         ) : adding ? (
           <BookForm
-            key={prefill ? `prefill-${prefill.isbn13}` : 'new'}
+            key={dupFrom ? `dup-${dupFrom.id}` : prefill ? `prefill-${prefill.isbn13}` : 'new'}
             cfg={cfg}
             books={books}
             prefill={prefill ?? undefined}
+            banner={
+              dupFrom ? (
+                <div className="dup-banner">
+                  <b>Nhân bản từ «{dupFrom.title}»</b>
+                  <span>
+                    Đã chép tác giả, xuất bản, phân loại, bộ sách, mô tả và vị trí kệ
+                    {dupFrom.seriesNo !== undefined ? `; số tập tăng lên ${dupFrom.seriesNo + 1}` : ''}. Đã bỏ ISBN, số
+                    trang, ảnh bìa, bản điện tử và ghi chú. Nhớ sửa nhan đề (bỏ chữ “Copy of”, thêm số tập).
+                  </span>
+                </div>
+              ) : undefined
+            }
             onCancel={() => {
               goBack(() => setAdding(false))
               setPrefill(null)
+              setDupFrom(null)
             }}
             onSaved={(b) => {
               setBooks((prev) => [b, ...prev])
-              setSaved(b)
               replaceNext()
               setAdding(false)
               setPrefill(null)
-              setQ('')
+              if (dupFrom) {
+                // Mở luôn cuốn vừa tạo để có thể nhân bản tiếp cho tập sau.
+                setDupFrom(null)
+                setOpenId(b.id)
+                window.scrollTo(0, 0)
+              } else {
+                setSaved(b)
+                setQ('')
+              }
             }}
           />
         ) : (

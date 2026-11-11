@@ -92,6 +92,7 @@ export default function BookDetail({
   books,
   onBack,
   onEdit,
+  onDuplicate,
   onDeleted,
   onOpen,
   onSearch,
@@ -103,6 +104,7 @@ export default function BookDetail({
   books: Book[]
   onBack: () => void
   onEdit: () => void
+  onDuplicate: () => void
   onDeleted: (b: Book) => void
   onOpen: (b: Book) => void
   onSearch: (q: string) => void
@@ -170,9 +172,18 @@ export default function BookDetail({
         <button className="link back" onClick={onBack}>
           ← Quay lại danh sách
         </button>
-        <button className="secondary small-btn" onClick={onEdit}>
-          Sửa thông tin
-        </button>
+        <div className="detail-actions">
+          <button
+            className="secondary small-btn"
+            onClick={onDuplicate}
+            title="Tạo cuốn tương tự (ví dụ tập khác của bộ sách) từ thông tin của cuốn này"
+          >
+            Nhân bản
+          </button>
+          <button className="secondary small-btn" onClick={onEdit}>
+            Sửa thông tin
+          </button>
+        </div>
       </div>
 
       <header className="detail-hero">

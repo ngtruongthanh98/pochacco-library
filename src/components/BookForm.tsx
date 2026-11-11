@@ -417,7 +417,7 @@ export default function BookForm({
         <img src={asset('sticker-carrying.webp')} alt="" />
         <div>
           <h2>{initial ? 'Sửa sách' : 'Thêm sách'}</h2>
-          {prefill && !initial && (
+          {prefill && !initial && !banner && (
             <p className="hint">
               {prefill.title
                 ? `Đã điền sẵn từ ${prefill.source === 'googlebooks' ? 'Google Books' : 'Open Library'}. Kiểm tra lại rồi bổ sung kệ, danh mục.`
