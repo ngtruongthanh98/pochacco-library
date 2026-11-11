@@ -9,7 +9,13 @@ npm install
 npm run dev
 ```
 
-Mở trang, nhập chủ repo, tên repo dữ liệu và một fine-grained personal access token chỉ cấp cho `pochacco-library-data` với quyền Contents (Read and write).
+## Tài khoản
+
+Trang là trang tĩnh nên không có máy chủ giữ mật khẩu. Thay vào đó, token GitHub được mã hóa bằng mật khẩu (PBKDF2-SHA256 600.000 vòng, AES-256-GCM) ngay trên trình duyệt và lưu trong `public/accounts.json`. Đăng nhập là giải mã token bằng mật khẩu; tệp không chứa mật khẩu hay token dạng rõ.
+
+Tạo tài khoản: mở trang, chọn "Tạo tài khoản mới", nhập tên đăng nhập, mật khẩu và một fine-grained token chỉ cấp cho `pochacco-library-data` (quyền Contents: Read and write), rồi đưa tệp `accounts.json` tải về vào `public/accounts.json` của repo này. Đổi mật khẩu cũng làm y như vậy.
+
+Lưu ý: `accounts.json` công khai, nên mật khẩu càng dài càng khó bị dò. Nếu nghi lộ, thu hồi token trên GitHub là đủ.
 
 ## Triển khai
 

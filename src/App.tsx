@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
+import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
+import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
 import { nameToString, type Book } from './types/book'
 
@@ -17,32 +18,143 @@ function State({ img, title, text }: { img: string; title: string; text?: string
   )
 }
 
-function Settings({ onSave }: { onSave: (c: StoreConfig) => void }) {
-  const prev = loadConfig()
-  const [owner, setOwner] = useState(prev?.owner ?? 'ngtruongthanh98')
-  const [repo, setRepo] = useState(prev?.repo ?? 'pochacco-library-data')
-  const [token, setToken] = useState(prev?.token ?? '')
+function Login({ onLogin, onCreate }: { onLogin: (c: StoreConfig) => void; onCreate: () => void }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   return (
-    <div className="settings">
-      <form
-        className="card"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const cfg = { owner: owner.trim(), repo: repo.trim(), token: token.trim() }
-          saveConfig(cfg)
-          onSave(cfg)
-        }}
-      >
+    <form
+      className="card"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        setBusy(true)
+        setError(null)
+        try {
+          const cfg = await login(username, password)
+          saveConfig(cfg, remember)
+          onLogin(cfg)
+        } catch (err) {
+          setError(err instanceof LoginError ? err.message : 'Không đăng nhập được, thử lại sau.')
+        } finally {
+          setBusy(false)
+        }
+      }}
+    >
+      <div className="card-head">
+        <img src={asset('sticker-card.webp')} alt="" />
+        <div>
+          <h2>Đăng nhập</h2>
+          <p className="muted">Trình báo danh để vào thư viện.</p>
+        </div>
+      </div>
+      <label>
+        Tên đăng nhập
+        <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+      </label>
+      <label>
+        Mật khẩu
+        <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        Ghi nhớ trên thiết bị này
+      </label>
+      {error && <p className="error">{error}</p>}
+      <button type="submit" disabled={busy}>
+        {busy ? 'Đang mở khóa...' : 'Đăng nhập'}
+      </button>
+      <button type="button" className="link" onClick={onCreate}>
+        Tạo tài khoản mới
+      </button>
+    </form>
+  )
+}
+
+function CreateAccount({ onBack }: { onBack: () => void }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [password2, setPassword2] = useState('')
+  const [owner, setOwner] = useState('ngtruongthanh98')
+  const [repo, setRepo] = useState('pochacco-library-data')
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+
+  if (result) {
+    const href = URL.createObjectURL(new Blob([result], { type: 'application/json' }))
+    return (
+      <div className="card">
         <div className="card-head">
-          <img src={asset('sticker-card.webp')} alt="" />
+          <img src={asset('sticker-salute.webp')} alt="" />
           <div>
-            <h2>Kết nối kho dữ liệu</h2>
+            <h2>Đã tạo tệp tài khoản</h2>
             <p className="muted">
-              Token chỉ lưu trên trình duyệt này. Dùng fine-grained token, chỉ cấp cho repo dữ
-              liệu, quyền Contents.
+              Tệp này chỉ chứa token đã mã hóa bằng mật khẩu, không chứa mật khẩu. Đưa tệp lên repo
+              ứng dụng tại <code>public/accounts.json</code> (thay tệp cũ); sau khi trang cập nhật, đăng
+              nhập bằng tài khoản mới.
             </p>
           </div>
         </div>
+        <textarea className="mono" readOnly value={result} rows={8} />
+        <a className="button" href={href} download="accounts.json">
+          Tải accounts.json
+        </a>
+        <button type="button" className="link" onClick={onBack}>
+          Quay lại đăng nhập
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="card"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        setError(null)
+        if (!isValidUsername(username))
+          return setError('Tên đăng nhập 3 đến 32 ký tự: chữ thường không dấu, số, dấu chấm, gạch.')
+        if (password.length < 8) return setError('Mật khẩu cần ít nhất 8 ký tự.')
+        if (password !== password2) return setError('Hai lần nhập mật khẩu không khớp.')
+        setBusy(true)
+        try {
+          const cfg = { owner: owner.trim(), repo: repo.trim(), token: token.trim() }
+          await fetchCatalog(cfg) // kiểm tra token đọc được repo dữ liệu
+          const file = await buildAccountFile(username, password, cfg)
+          setResult(JSON.stringify(file, null, 2) + '\n')
+        } catch (err) {
+          setError(`Token không đọc được repo dữ liệu: ${(err as Error).message}`)
+        } finally {
+          setBusy(false)
+        }
+      }}
+    >
+      <div className="card-head">
+        <img src={asset('sticker-card.webp')} alt="" />
+        <div>
+          <h2>Tạo tài khoản</h2>
+          <p className="muted">
+            Token GitHub chỉ cần nhập một lần ở đây. Nó được mã hóa bằng mật khẩu ngay trên trình
+            duyệt, không gửi đi đâu.
+          </p>
+        </div>
+      </div>
+      <label>
+        Tên đăng nhập
+        <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+      </label>
+      <label>
+        Mật khẩu
+        <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      </label>
+      <label>
+        Nhập lại mật khẩu
+        <input type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+      </label>
+      <div className="row">
         <label>
           Chủ repo
           <input value={owner} onChange={(e) => setOwner(e.target.value)} required />
@@ -51,13 +163,19 @@ function Settings({ onSave }: { onSave: (c: StoreConfig) => void }) {
           Repo dữ liệu
           <input value={repo} onChange={(e) => setRepo(e.target.value)} required />
         </label>
-        <label>
-          Token GitHub
-          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} required />
-        </label>
-        <button type="submit">Lưu và mở thư viện</button>
-      </form>
-    </div>
+      </div>
+      <label>
+        Token GitHub (fine-grained, chỉ repo dữ liệu, quyền Contents)
+        <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} required />
+      </label>
+      {error && <p className="error">{error}</p>}
+      <button type="submit" disabled={busy}>
+        {busy ? 'Đang kiểm tra và mã hóa...' : 'Tạo tệp tài khoản'}
+      </button>
+      <button type="button" className="link" onClick={onBack}>
+        Đã có tài khoản? Đăng nhập
+      </button>
+    </form>
   )
 }
 
@@ -83,7 +201,7 @@ function BookRow({ b }: { b: Book }) {
 
 export default function App() {
   const [cfg, setCfg] = useState<StoreConfig | null>(() => loadConfig())
-  const [editing, setEditing] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -106,7 +224,6 @@ export default function App() {
     ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean)
     : books.slice(0, 50)
 
-  const showSettings = !cfg || editing
 
   return (
     <>
@@ -115,21 +232,28 @@ export default function App() {
           <h1>Pochacco Library</h1>
           <p>Thư viện sách cá nhân</p>
           <img className="hero-sticker" src={asset('sticker-reading.webp')} alt="" />
-          {cfg && !editing && (
-            <button className="link" onClick={() => setEditing(true)}>
-              Cài đặt
+          {cfg && (
+            <button
+              className="link"
+              onClick={() => {
+                clearConfig()
+                setCfg(null)
+                setBooks([])
+                setQ('')
+              }}
+            >
+              Đăng xuất
             </button>
           )}
         </div>
       </header>
       <main>
-        {showSettings ? (
-          <Settings
-            onSave={(c) => {
-              setCfg(c)
-              setEditing(false)
-            }}
-          />
+        {!cfg ? (
+          creating ? (
+            <CreateAccount onBack={() => setCreating(false)} />
+          ) : (
+            <Login onLogin={setCfg} onCreate={() => setCreating(true)} />
+          )
         ) : (
           <>
             <input

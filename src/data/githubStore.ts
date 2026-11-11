@@ -8,22 +8,37 @@ export type StoreConfig = {
 }
 
 const API = 'https://api.github.com'
-const SETTINGS_KEY = 'pochacco-library:settings'
+const SESSION_KEY = 'pochacco-library:session'
 
+/** Phiên đăng nhập: mặc định chỉ sống trong tab (sessionStorage); "ghi nhớ" thì lưu localStorage. */
 export const loadConfig = (): StoreConfig | null => {
+  for (const store of [() => sessionStorage, () => localStorage]) {
+    try {
+      const raw = store().getItem(SESSION_KEY)
+      if (raw) return JSON.parse(raw) as StoreConfig
+    } catch {
+      /* bộ nhớ trình duyệt bị chặn */
+    }
+  }
+  return null
+}
+
+export const saveConfig = (cfg: StoreConfig, remember = false) => {
+  clearConfig()
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    return raw ? (JSON.parse(raw) as StoreConfig) : null
+    ;(remember ? localStorage : sessionStorage).setItem(SESSION_KEY, JSON.stringify(cfg))
   } catch {
-    return null
+    /* bộ nhớ trình duyệt bị chặn: phiên chỉ còn trong bộ nhớ tạm */
   }
 }
 
-export const saveConfig = (cfg: StoreConfig) => {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(cfg))
-  } catch {
-    /* trình duyệt chặn bộ nhớ: bỏ qua */
+export const clearConfig = () => {
+  for (const store of [() => sessionStorage, () => localStorage]) {
+    try {
+      store().removeItem(SESSION_KEY)
+    } catch {
+      /* bỏ qua */
+    }
   }
 }
 

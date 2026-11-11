@@ -71,3 +71,11 @@ label { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 500; }
 button { font: inherit; font-weight: 600; padding: 11px 16px; border-radius: 10px; border: 0; background: var(--red); color: var(--cream); cursor: pointer; }
 button:hover { background: var(--red-dark); }
 button.link { background: none; color: var(--red); text-decoration: underline; padding: 0; font-weight: 500; }
+.error { color: var(--red-dark); font-size: 0.9rem; margin: 0; }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.check input { width: auto; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+textarea.mono { font: 0.78rem ui-monospace, Menlo, monospace; width: 100%; padding: 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--cream); color: var(--ink); resize: vertical; }
+a.button { display: block; text-align: center; text-decoration: none; font-weight: 600; padding: 11px 16px; border-radius: 10px; background: var(--red); color: var(--cream); }
+button:disabled { opacity: 0.6; cursor: wait; }
