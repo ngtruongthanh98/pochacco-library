@@ -6,6 +6,7 @@ import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
 import { driveViewUrl, guessFormat, parseDriveLink } from '../data/drive'
+import { lookupIsbn, searchByTitle, type Candidate } from '../data/lookup'
 import { nameToString, type Book, type EbookHolding, type ItemType, type Name } from '../types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
@@ -237,6 +238,8 @@ export default function BookForm({
   books,
   initial,
   prefill,
+  banner,
+  cancelLabel = 'Hủy',
   onSaved,
   onCancel,
 }: {
@@ -245,6 +248,9 @@ export default function BookForm({
   initial?: Book
   /** Dữ liệu điền sẵn cho sách mới (từ quét ISBN) */
   prefill?: Partial<Book>
+  /** Dòng thông báo phía trên biểu mẫu, ví dụ tiến độ bổ sung hàng loạt */
+  banner?: React.ReactNode
+  cancelLabel?: string
   onSaved: (b: Book) => void
   onCancel: () => void
 }) {
@@ -271,6 +277,61 @@ export default function BookForm({
     startHoldings.length === 0 || startHoldings.some((h) => h.kind === 'print') || initial?.status === 'wishlist',
   )
   const [driveLink, setDriveLink] = useState('')
+  const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [filledMsg, setFilledMsg] = useState<string | null>(null)
+  const [pendingCover, setPendingCover] = useState<string | undefined>(undefined)
+  const lookup = async () => {
+    setFilledMsg(null)
+    setLookupState('busy')
+    setCandidates([])
+    const isbn = f.isbn.trim() ? parseIsbn(f.isbn) : null
+    let found: Candidate[] = []
+    if (isbn?.ok) {
+      const r = await lookupIsbn(isbn.isbn13)
+      if (r?.draft.title)
+        found = [{
+          key: 'isbn', title: r.draft.title, authors: r.draft.authors ?? [], year: r.draft.year,
+          publisher: r.draft.publisher, pages: r.draft.pages, isbn13: isbn.isbn13, language: r.draft.language,
+          cover: r.draft.cover?.startsWith('ol:') ? `https://covers.openlibrary.org/b/isbn/${isbn.isbn13}-M.jpg` : r.draft.cover,
+          source: r.draft.source === 'googlebooks' ? 'googlebooks' : 'openlibrary',
+        }]
+    }
+    if (!found.length && f.title.trim()) {
+      const firstAuthor = f.authors.split('\n')[0]?.split(',').reverse().join(' ').trim()
+      found = await searchByTitle(f.title, firstAuthor)
+    }
+    setCandidates(found)
+    setLookupState('done')
+  }
+  const applyCandidate = (c: Candidate) => {
+    const filled: string[] = []
+    const next = { ...f }
+    const fill = (k: keyof Fields, v: string | undefined, label: string) => {
+      if (v && !f[k].trim()) {
+        next[k] = v
+        filled.push(label)
+      }
+    }
+    fill('title', c.title, 'nhan đề')
+    fill('authors', c.authors.map((n) => ('literal' in n ? n.literal : n.given ? `${n.family}, ${n.given}` : n.family)).join('\n'), 'tác giả')
+    fill('publisher', c.publisher, 'nhà xuất bản')
+    fill('year', c.year ? String(c.year) : undefined, 'năm')
+    fill('pages', c.pages ? String(c.pages) : undefined, 'số trang')
+    fill('isbn', c.isbn13, 'ISBN')
+    if (c.language && c.language !== f.language) {
+      next.language = c.language
+      filled.push('ngôn ngữ')
+    }
+    setF(next)
+    if (c.cover && !initial?.cover && !coverBlob) {
+      setPendingCover(c.cover)
+      filled.push('ảnh bìa')
+    }
+    setCandidates([])
+    setLookupState('idle')
+    setFilledMsg(filled.length ? `Đã điền: ${filled.join(', ')}. Các ô đã có sẵn được giữ nguyên.` : 'Các ô đều đã có thông tin, không thay đổi gì.')
+  }
   const [driveErr, setDriveErr] = useState<string | null>(null)
   const addDrive = () => {
     setDriveErr(null)
@@ -329,6 +390,7 @@ export default function BookForm({
       if (coverBlob) book.cover = await uploadCover(cfg, book.id, coverBlob, book.title)
       else if (coverRemoved) delete book.cover
       else if (!initial && prefill?.cover) book.cover = prefill.cover
+      if (!coverBlob && !coverRemoved && !book.cover && pendingCover) book.cover = pendingCover
       if (!initial && prefill?.source) book.source = prefill.source
       await (initial ? updateBook(cfg, book) : addBook(cfg, book))
       onSaved(book)
@@ -347,6 +409,7 @@ export default function BookForm({
         void save(false)
       }}
     >
+      {banner}
       <div className="card-head">
         <img src={asset('sticker-carrying.webp')} alt="" />
         <div>
@@ -370,6 +433,7 @@ export default function BookForm({
           preview={coverPreview}
           book={{
             ...(initial ?? { id: 'new', holdings: [], createdAt: '', updatedAt: '', cover: prefill?.cover }),
+            ...(!initial?.cover && pendingCover ? { cover: pendingCover } : {}),
             ...(coverRemoved ? { cover: undefined } : {}),
             type: f.type as ItemType,
             title: f.title || 'Sách mới',
@@ -429,6 +493,47 @@ export default function BookForm({
           Nhan đề *
           <input value={f.title} onChange={set('title')} required autoFocus={!initial} />
         </label>
+        <div className="lookup">
+          <button type="button" className="secondary small-btn" disabled={lookupState === 'busy' || (!f.title.trim() && !f.isbn.trim())} onClick={() => void lookup()}>
+            {lookupState === 'busy' ? 'Đang tra...' : 'Tra thông tin trực tuyến'}
+          </button>
+          <span className="hint">Theo ISBN nếu có, không thì theo nhan đề và tác giả; chỉ điền vào ô còn trống.</span>
+        </div>
+        {filledMsg && <p className="filled">{filledMsg}</p>}
+        {lookupState === 'done' && (
+          <div className="candidates">
+            {candidates.length ? (
+              <>
+                <div className="muted small">Chọn đúng ấn bản (Open Library, Google Books):</div>
+                {candidates.map((c) => (
+                  <div key={c.key} className="cand">
+                    {c.cover ? <img src={c.cover} alt="" loading="lazy" /> : <div className="cand-noimg" />}
+                    <div className="cand-body">
+                      <div className="title">{c.title}</div>
+                      <div className="meta">
+                        {[c.authors.map(nameToString).join(', '), c.publisher, c.year, c.pages && `${c.pages} tr.`].filter(Boolean).join(' · ')}
+                      </div>
+                      <div className="muted small">
+                        {c.isbn13 ? `ISBN ${c.isbn13} · ` : ''}
+                        {c.source === 'googlebooks' ? 'Google Books' : 'Open Library'}
+                      </div>
+                    </div>
+                    <button type="button" className="small-btn" onClick={() => applyCandidate(c)}>
+                      Dùng
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="link" onClick={() => setLookupState('idle')}>
+                  Không có ấn bản nào đúng
+                </button>
+              </>
+            ) : (
+              <p className="muted small">
+                Không tìm thấy dữ liệu trực tuyến. Sách Việt thường chưa có trên các kho này; anh nhập tay giúp nhé.
+              </p>
+            )}
+          </div>
+        )}
         <div className="row">
           <label>
             Phụ đề
@@ -743,7 +848,7 @@ export default function BookForm({
       {error && <p className="error">{error}</p>}
       <div className="actions">
         <button type="button" className="secondary" onClick={onCancel} disabled={busy}>
-          Hủy
+          {cancelLabel}
         </button>
         <button type="submit" disabled={busy}>
           {busy ? 'Đang lưu...' : initial ? 'Lưu thay đổi' : 'Lưu sách'}

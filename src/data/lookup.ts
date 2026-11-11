@@ -114,3 +114,69 @@ export const lookupIsbn = async (isbn13: string): Promise<LookupResult | null> =
     sources: [...(ol ? (['openlibrary'] as const) : []), ...(gb ? (['googlebooks'] as const) : [])],
   }
 }
+
+// ---------- Tìm theo nhan đề / tác giả (khi không có ISBN) ----------
+
+export type Candidate = {
+  key: string
+  title: string
+  authors: Name[]
+  year?: number
+  publisher?: string
+  pages?: number
+  isbn13?: string
+  language?: string
+  cover?: string
+  source: 'openlibrary' | 'googlebooks'
+}
+
+const isbn13Of = (list?: string[]) => list?.find((x) => /^97[89]\d{10}$/.test(x))
+
+/** Tra Open Library và Google Books theo nhan đề (và tác giả nếu có), gộp tối đa 8 ứng viên. */
+export const searchByTitle = async (title: string, author?: string): Promise<Candidate[]> => {
+  const t = title.trim()
+  if (!t) return []
+  const a = author?.trim()
+  const olUrl = `https://openlibrary.org/search.json?limit=5&fields=key,title,author_name,first_publish_year,publisher,number_of_pages_median,isbn,cover_i,language&title=${encodeURIComponent(t)}${a ? `&author=${encodeURIComponent(a)}` : ''}`
+  const gbUrl = `https://www.googleapis.com/books/v1/volumes?maxResults=5&q=${encodeURIComponent(`intitle:${t}${a ? ` inauthor:${a}` : ''}`)}`
+  const [ol, gb] = await Promise.all([
+    withTimeout(olUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    withTimeout(gbUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ])
+  const out: Candidate[] = []
+  for (const d of (ol?.docs ?? []) as {
+    key: string; title: string; author_name?: string[]; first_publish_year?: number; publisher?: string[]
+    number_of_pages_median?: number; isbn?: string[]; cover_i?: number
+  }[]) {
+    const isbn = isbn13Of(d.isbn)
+    out.push({
+      key: `ol${d.key}`,
+      title: d.title,
+      authors: (d.author_name ?? []).map((n) => toName(n)),
+      year: d.first_publish_year,
+      publisher: d.publisher?.[0],
+      pages: d.number_of_pages_median,
+      isbn13: isbn,
+      cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : undefined,
+      source: 'openlibrary',
+    })
+  }
+  for (const it of (gb?.items ?? []) as (GBVolume & { id: string; volumeInfo: { industryIdentifiers?: { type: string; identifier: string }[] } })[]) {
+    const v = it.volumeInfo ?? {}
+    const lang = v.language && LANGS.has(v.language) ? v.language : undefined
+    const thumb = v.imageLinks?.thumbnail ?? v.imageLinks?.smallThumbnail
+    out.push({
+      key: `gb${it.id}`,
+      title: [v.title, v.subtitle].filter(Boolean).join(': ') || t,
+      authors: (v.authors ?? []).map((n) => toName(n, lang)),
+      year: yearOf(v.publishedDate),
+      publisher: v.publisher,
+      pages: v.pageCount || undefined,
+      isbn13: isbn13Of(v.industryIdentifiers?.map((x) => x.identifier)),
+      language: lang,
+      cover: thumb ? thumb.replace(/^http:/, 'https:').replace('&edge=curl', '') : undefined,
+      source: 'googlebooks',
+    })
+  }
+  return out.slice(0, 10)
+}

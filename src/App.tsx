@@ -237,7 +237,8 @@ export default function App() {
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [page, setPage] = useState<'library' | 'stats'>('library')
   const [reading, setReading] = useState<{ book: Book; holding: EbookHolding } | null>(null)
-  const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
+  const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
+  const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -310,6 +311,37 @@ export default function App() {
           ) : (
             <Login onLogin={setCfg} onCreate={() => setCreating(true)} />
           )
+        ) : queue && queue.ids.length && byId.get(queue.ids[0]) ? (
+          <BookForm
+            key={`queue-${queue.ids[0]}`}
+            cfg={cfg}
+            books={books}
+            initial={byId.get(queue.ids[0])}
+            cancelLabel="Bỏ qua cuốn này"
+            banner={
+              <div className="queue-bar">
+                <span>
+                  Bổ sung thông tin: cuốn <b>{queue.total - queue.ids.length + 1}</b>/{queue.total}
+                </span>
+                <button type="button" className="link" onClick={() => setQueue(null)}>
+                  Dừng, làm sau
+                </button>
+              </div>
+            }
+            onCancel={() => {
+              const rest = queue.ids.slice(1)
+              setQueue(rest.length ? { ...queue, ids: rest } : null)
+              if (!rest.length) setNotice({ title: 'Đã xem hết danh sách', text: `${queue.total} sách mới; cuốn nào bỏ qua có thể bổ sung sau ở trang Thống kê, mục Cần bổ sung.` })
+              window.scrollTo(0, 0)
+            }}
+            onSaved={(b) => {
+              setBooks((prev) => prev.map((x) => (x.id === b.id ? b : x)))
+              const rest = queue.ids.slice(1)
+              setQueue(rest.length ? { ...queue, ids: rest } : null)
+              if (!rest.length) setNotice({ title: 'Đã bổ sung xong', text: `${queue.total} sách mới đã được xem qua.` })
+              window.scrollTo(0, 0)
+            }}
+          />
         ) : page === 'stats' ? (
           loading ? (
             <State img="sticker-reading.webp" title="Pochacco đang đếm sách..." />
@@ -410,6 +442,7 @@ export default function App() {
               setNotice({
                 title: 'Đã nhập sách điện tử',
                 text: `${added.length} sách mới${updated.length ? `, gắn bản điện tử vào ${updated.length} sách có sẵn` : ''}.`,
+                queue: added.map((b) => b.id),
               })
               window.scrollTo(0, 0)
             }}
@@ -456,6 +489,18 @@ export default function App() {
                 <div>
                   <div className="state-title">{notice.title}</div>
                   <div className="muted">{notice.text}</div>
+                  {!!notice.queue?.length && (
+                    <button
+                      className="small-btn toast-action"
+                      onClick={() => {
+                        setQueue({ ids: notice.queue!, total: notice.queue!.length })
+                        setNotice(null)
+                        window.scrollTo(0, 0)
+                      }}
+                    >
+                      Bổ sung thông tin cho {notice.queue.length} sách mới
+                    </button>
+                  )}
                 </div>
                 <button className="link" onClick={() => setNotice(null)}>
                   Đóng
