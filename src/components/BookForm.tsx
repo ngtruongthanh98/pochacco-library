@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
-import { addBook, type StoreConfig } from '../data/githubStore'
+import { addBook, updateBook, type StoreConfig } from '../data/githubStore'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
@@ -79,7 +79,37 @@ const EMPTY: Fields = {
 
 type Built = { book: Book } | { error: string }
 
-const build = (f: Fields, categories: string[]): Built => {
+const MANAGED = [
+  'type', 'isbn13', 'isbn10', 'title', 'subtitle', 'originalTitle', 'authors', 'translators', 'editors',
+  'publisher', 'partner', 'place', 'year', 'edition', 'pages', 'sizeCm', 'language',
+  'containerTitle', 'volume', 'issue', 'pageRange', 'genre', 'categories', 'subjects', 'tags',
+  'series', 'seriesNo', 'holdings', 'status', 'notes',
+] as const
+
+const namesToText = (ns?: Name[]) =>
+  (ns ?? []).map((n) => ('literal' in n ? n.literal : n.given ? `${n.family}, ${n.given}` : `${n.family},`)).join('\n')
+
+const toFields = (b: Book): Fields => {
+  const p = b.holdings.find((h) => h.kind === 'print')
+  const s = (v: unknown) => (v === undefined || v === null ? '' : String(v))
+  return {
+    ...EMPTY,
+    type: b.type, title: b.title, subtitle: s(b.subtitle), originalTitle: s(b.originalTitle),
+    authors: namesToText(b.authors), translators: namesToText(b.translators), editors: namesToText(b.editors),
+    publisher: s(b.publisher), partner: s(b.partner), place: s(b.place), year: s(b.year),
+    edition: s(b.edition), pages: s(b.pages), sizeCm: s(b.sizeCm), language: b.language ?? 'vi',
+    isbn: s(b.isbn13 ?? b.isbn10), containerTitle: s(b.containerTitle), volume: s(b.volume),
+    issue: s(b.issue), pageRange: s(b.pageRange), genre: s(b.genre),
+    subjects: (b.subjects ?? []).join(', '), tags: (b.tags ?? []).join(', '),
+    series: s(b.series), seriesNo: s(b.seriesNo),
+    location: p?.kind === 'print' ? s(p.location) : '',
+    copies: p?.kind === 'print' ? s(p.copies ?? 1) : '1',
+    condition: p?.kind === 'print' ? s(p.condition) : '',
+    status: b.status, notes: s(b.notes),
+  }
+}
+
+const build = (f: Fields, categories: string[], original?: Book): Built => {
   const title = f.title.trim()
   if (!title) return { error: 'Cần nhập nhan đề.' }
   const year = f.year.trim() ? toInt(f.year) : undefined
@@ -149,6 +179,24 @@ const build = (f: Fields, categories: string[]): Built => {
     createdAt: now,
     updatedAt: now,
   }
+  if (original) {
+    // Giữ nguyên những gì biểu mẫu không quản lý (sách điện tử, cho mượn, bìa, ngày tạo...).
+    const kept: Record<string, unknown> = { ...original }
+    for (const k of MANAGED) delete kept[k]
+    const otherHoldings = original.holdings.filter((h, i) =>
+      h.kind === 'ebook' ? true : i !== original.holdings.findIndex((x) => x.kind === 'print'),
+    )
+    const merged = {
+      ...kept,
+      ...book,
+      id: original.id,
+      source: original.source,
+      createdAt: original.createdAt,
+      updatedAt: now,
+      holdings: [...book.holdings, ...otherHoldings.filter((h) => !(f.status === 'wishlist' && h.kind === 'print'))],
+    }
+    return { book: JSON.parse(JSON.stringify(merged)) as Book }
+  }
   // Bỏ các khóa undefined để bản ghi gọn và khớp schema.
   const clean = JSON.parse(JSON.stringify(book)) as Book
   return { book: clean }
@@ -170,19 +218,21 @@ const uniq = (xs: (string | undefined)[]) =>
 export default function BookForm({
   cfg,
   books,
+  initial,
   onSaved,
   onCancel,
 }: {
   cfg: StoreConfig
   books: Book[]
+  initial?: Book
   onSaved: (b: Book) => void
   onCancel: () => void
 }) {
-  const [f, setF] = useState<Fields>(EMPTY)
+  const [f, setF] = useState<Fields>(() => (initial ? toFields(initial) : EMPTY))
   const [error, setError] = useState<string | null>(null)
   const [dupes, setDupes] = useState<Book[] | null>(null)
   const [busy, setBusy] = useState(false)
-  const [cats, setCats] = useState<string[]>([])
+  const [cats, setCats] = useState<string[]>(initial?.categories ?? [])
   const [catTab, setCatTab] = useState(0)
   const toggleCat = (id: string) =>
     setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
@@ -205,15 +255,15 @@ export default function BookForm({
 
   const save = async (force: boolean) => {
     setError(null)
-    const r = build(f, cats)
+    const r = build(f, cats, initial)
     if ('error' in r) return setError(r.error)
     if (!force) {
-      const d = findDuplicates(r.book, books)
+      const d = findDuplicates(r.book, books.filter((b) => b.id !== initial?.id))
       if (d.length) return setDupes(d)
     }
     setBusy(true)
     try {
-      await addBook(cfg, r.book)
+      await (initial ? updateBook(cfg, r.book) : addBook(cfg, r.book))
       onSaved(r.book)
     } catch (err) {
       setError((err as Error).message)
@@ -233,7 +283,7 @@ export default function BookForm({
       <div className="card-head">
         <img src={asset('sticker-carrying.webp')} alt="" />
         <div>
-          <h2>Thêm sách</h2>
+          <h2>{initial ? 'Sửa sách' : 'Thêm sách'}</h2>
           <p className="muted">Chỉ nhan đề là bắt buộc. Thiếu thông tin gì có thể bổ sung sau.</p>
         </div>
       </div>
@@ -256,7 +306,7 @@ export default function BookForm({
         </div>
         <label>
           Nhan đề *
-          <input value={f.title} onChange={set('title')} required autoFocus />
+          <input value={f.title} onChange={set('title')} required autoFocus={!initial} />
         </label>
         <div className="row">
           <label>
@@ -494,7 +544,7 @@ export default function BookForm({
           Hủy
         </button>
         <button type="submit" disabled={busy}>
-          {busy ? 'Đang lưu...' : 'Lưu sách'}
+          {busy ? 'Đang lưu...' : initial ? 'Lưu thay đổi' : 'Lưu sách'}
         </button>
       </div>
     </form>

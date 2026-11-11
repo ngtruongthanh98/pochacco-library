@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import BookDetail from './components/BookDetail'
 import BookForm from './components/BookForm'
 import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -191,12 +192,12 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
   )
 }
 
-function BookRow({ b }: { b: Book }) {
+function BookRow({ b, onOpen }: { b: Book; onOpen: () => void }) {
   const people = (b.authors ?? []).map(nameToString).join(', ')
   const print = b.holdings.find((h) => h.kind === 'print')
   const hasEbook = b.holdings.some((h) => h.kind === 'ebook')
   return (
-    <li className="book">
+    <li className="book" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
       <div className="title">{b.title}</div>
       <div className="meta">
         {[people, b.publisher, b.year, b.pages && `${b.pages} tr.`].filter(Boolean).join(' · ')}
@@ -221,6 +222,9 @@ export default function App() {
   const [saved, setSaved] = useState<Book | null>(null)
   const [group, setGroup] = useState(-1)
   const [cat, setCat] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -277,6 +281,33 @@ export default function App() {
           ) : (
             <Login onLogin={setCfg} onCreate={() => setCreating(true)} />
           )
+        ) : openId && byId.get(openId) && editing ? (
+          <BookForm
+            key={`edit-${openId}`}
+            cfg={cfg}
+            books={books}
+            initial={byId.get(openId)}
+            onCancel={() => setEditing(false)}
+            onSaved={(b) => {
+              setBooks((prev) => prev.map((x) => (x.id === b.id ? b : x)))
+              setEditing(false)
+            }}
+          />
+        ) : openId && byId.get(openId) ? (
+          <>
+                        <BookDetail
+              cfg={cfg}
+              book={byId.get(openId)!}
+              onBack={() => setOpenId(null)}
+              onEdit={() => { setEditing(true); window.scrollTo(0, 0) }}
+              onDeleted={(b) => {
+                setBooks((prev) => prev.filter((x) => x.id !== b.id))
+                setOpenId(null)
+                setSaved(null)
+                setNotice({ title: 'Đã xóa khỏi thư viện', text: b.title })
+              }}
+            />
+          </>
         ) : adding ? (
           <BookForm
             cfg={cfg}
@@ -291,6 +322,18 @@ export default function App() {
           />
         ) : (
           <>
+            {notice && (
+              <div className="toast">
+                <img src={asset('sticker-sleeping.webp')} alt="" />
+                <div>
+                  <div className="state-title">{notice.title}</div>
+                  <div className="muted">{notice.text}</div>
+                </div>
+                <button className="link" onClick={() => setNotice(null)}>
+                  Đóng
+                </button>
+              </div>
+            )}
             {saved && (
               <div className="toast">
                 <img src={asset('sticker-salute.webp')} alt="" />
@@ -304,7 +347,7 @@ export default function App() {
               </div>
             )}
             <div className="toolbar">
-              <button onClick={() => { setSaved(null); setAdding(true) }}>+ Thêm sách</button>
+              <button onClick={() => { setSaved(null); setNotice(null); setAdding(true) }}>+ Thêm sách</button>
             </div>
             <input
               className="search"
@@ -323,34 +366,43 @@ export default function App() {
                     className={group < 0 ? 'tab active' : 'tab'}
                     onClick={() => { setGroup(-1); setCat(null) }}
                   >
-                    Tất cả <span className="count">{matched.length}</span>
+                    Tất cả
+                    {matched.length > 0 && <span className="count">{matched.length}</span>}
                   </button>
-                  {CATEGORY_GROUPS.map((g, i) => (
-                    <button
-                      key={g.label}
-                      role="tab"
-                      aria-selected={group === i}
-                      className={group === i ? 'tab active' : 'tab'}
-                      onClick={() => { setGroup(i); setCat(null) }}
-                    >
-                      {g.label} <span className="count">{groupCount(i)}</span>
-                    </button>
-                  ))}
+                  {CATEGORY_GROUPS.map((g, i) => {
+                    const n = groupCount(i)
+                    return (
+                      <button
+                        key={g.label}
+                        role="tab"
+                        aria-selected={group === i}
+                        className={`tab${group === i ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
+                        onClick={() => { setGroup(i); setCat(null) }}
+                      >
+                        {g.label}
+                        {n > 0 && <span className="count">{n}</span>}
+                      </button>
+                    )
+                  })}
                 </div>
                 {group >= 0 && (
                   <div className="subtabs">
                     <button className={cat === null ? 'subtab active' : 'subtab'} onClick={() => setCat(null)}>
                       Cả nhóm
                     </button>
-                    {CATEGORY_GROUPS[group].items.map((c) => (
-                      <button
-                        key={c.id}
-                        className={cat === c.id ? 'subtab active' : 'subtab'}
-                        onClick={() => setCat(c.id)}
-                      >
-                        {c.label} <span className="count">{catCount(c.id)}</span>
-                      </button>
-                    ))}
+                    {CATEGORY_GROUPS[group].items.map((c) => {
+                      const n = catCount(c.id)
+                      return (
+                        <button
+                          key={c.id}
+                          className={`subtab${cat === c.id ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
+                          onClick={() => setCat(c.id)}
+                        >
+                          {c.label}
+                          {n > 0 && <span className="count">{n}</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </nav>
@@ -380,7 +432,7 @@ export default function App() {
             )}
             <ul className="list">
               {results.map((b) => (
-                <BookRow key={b.id} b={b} />
+                <BookRow key={b.id} b={b} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
               ))}
             </ul>
           </>

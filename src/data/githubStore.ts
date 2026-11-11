@@ -153,3 +153,55 @@ export const addBook = async (cfg: StoreConfig, book: Book): Promise<void> => {
   }
   throw new Error('Danh mục vừa bị thay đổi ở nơi khác. Tải lại trang rồi thử lại.')
 }
+
+const listShards = async (cfg: StoreConfig, ref: string) => {
+  const dir = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/catalog?ref=${ref}`, {
+    headers: headers(cfg),
+    cache: 'no-store',
+  })
+  if (!dir.ok) throw new Error(`Không đọc được thư mục catalog (HTTP ${dir.status})`)
+  return ((await dir.json()) as DirEntry[])
+    .filter((e) => /^books-\d+\.json$/.test(e.name))
+    .map((e) => e.path)
+    .sort()
+}
+
+/**
+ * Sửa hoặc xóa một bản ghi theo id: tìm tệp phân mảnh đang chứa nó, đọc kèm sha, ghi lại.
+ * `change` trả về bản ghi mới, hoặc null để xóa.
+ */
+const modifyBook = async (
+  cfg: StoreConfig,
+  id: string,
+  change: (old: Book) => Book | null,
+  message: string,
+): Promise<void> => {
+  const ref = cfg.branch ?? 'main'
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let found = false
+    for (const path of await listShards(cfg, ref)) {
+      const shard = await readShard(cfg, path, ref)
+      const i = shard.books.findIndex((b) => b.id === id)
+      if (i < 0) continue
+      found = true
+      const next = change(shard.books[i])
+      const books = next
+        ? shard.books.map((b, k) => (k === i ? next : b))
+        : shard.books.filter((_, k) => k !== i)
+      const res = await writeShard(cfg, path, ref, books, shard.sha, message)
+      if (res.ok) return
+      if (res.status === 409 || res.status === 422) break // tệp vừa đổi: đọc lại từ đầu
+      if (res.status === 403 || res.status === 404)
+        throw new Error('Token không có quyền ghi vào repo dữ liệu (cần Contents: Read and write).')
+      throw new Error(`Không lưu được (HTTP ${res.status})`)
+    }
+    if (!found) throw new Error('Không tìm thấy sách này trong repo dữ liệu (có thể đã bị xóa ở nơi khác).')
+  }
+  throw new Error('Danh mục vừa bị thay đổi ở nơi khác. Tải lại trang rồi thử lại.')
+}
+
+export const updateBook = (cfg: StoreConfig, book: Book) =>
+  modifyBook(cfg, book.id, () => book, `Sửa sách: ${book.title}`)
+
+export const deleteBook = (cfg: StoreConfig, book: Book) =>
+  modifyBook(cfg, book.id, () => null, `Xóa sách: ${book.title}`)
