@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookDetail from './components/BookDetail'
+import Cover from './components/Cover'
 import BookForm from './components/BookForm'
 import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -192,12 +193,14 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
   )
 }
 
-function BookRow({ b, onOpen }: { b: Book; onOpen: () => void }) {
+function BookRow({ b, cfg, onOpen }: { b: Book; cfg: StoreConfig; onOpen: () => void }) {
   const people = (b.authors ?? []).map(nameToString).join(', ')
   const print = b.holdings.find((h) => h.kind === 'print')
   const hasEbook = b.holdings.some((h) => h.kind === 'ebook')
   return (
     <li className="book" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
+      <Cover book={b} cfg={cfg} />
+      <div className="book-body">
       <div className="title">{b.title}</div>
       <div className="meta">
         {[people, b.publisher, b.year, b.pages && `${b.pages} tr.`].filter(Boolean).join(' · ')}
@@ -210,6 +213,7 @@ function BookRow({ b, onOpen }: { b: Book; onOpen: () => void }) {
         {hasEbook && <span className="tag olive">Sách điện tử</span>}
         {b.status === 'lent' && <span className="tag warn">Đang cho mượn</span>}
         {b.status === 'wishlist' && <span className="tag gold">Muốn mua</span>}
+      </div>
       </div>
     </li>
   )
@@ -432,7 +436,7 @@ export default function App() {
             )}
             <ul className="list">
               {results.map((b) => (
-                <BookRow key={b.id} b={b} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
+                <BookRow key={b.id} b={b} cfg={cfg} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
               ))}
             </ul>
           </>

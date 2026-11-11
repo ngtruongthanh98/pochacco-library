@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
-import { addBook, updateBook, type StoreConfig } from '../data/githubStore'
+import { addBook, prepareCover, updateBook, uploadCover, type StoreConfig } from '../data/githubStore'
+import Cover from './Cover'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
@@ -234,6 +235,21 @@ export default function BookForm({
   const [busy, setBusy] = useState(false)
   const [cats, setCats] = useState<string[]>(initial?.categories ?? [])
   const [catTab, setCatTab] = useState(0)
+  const [coverBlob, setCoverBlob] = useState<Blob | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [coverRemoved, setCoverRemoved] = useState(false)
+  const pickCover = async (file?: File) => {
+    if (!file) return
+    setError(null)
+    try {
+      const blob = await prepareCover(file)
+      setCoverBlob(blob)
+      setCoverPreview(URL.createObjectURL(blob))
+      setCoverRemoved(false)
+    } catch {
+      setError('Không đọc được ảnh này, thử ảnh khác (JPEG hoặc PNG).')
+    }
+  }
   const toggleCat = (id: string) =>
     setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
   const set = (k: keyof Fields) => (e: { target: { value: string } }) => {
@@ -263,8 +279,11 @@ export default function BookForm({
     }
     setBusy(true)
     try {
-      await (initial ? updateBook(cfg, r.book) : addBook(cfg, r.book))
-      onSaved(r.book)
+      const book = { ...r.book }
+      if (coverBlob) book.cover = await uploadCover(cfg, book.id, coverBlob, book.title)
+      else if (coverRemoved) delete book.cover
+      await (initial ? updateBook(cfg, book) : addBook(cfg, book))
+      onSaved(book)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -287,6 +306,53 @@ export default function BookForm({
           <p className="muted">Chỉ nhan đề là bắt buộc. Thiếu thông tin gì có thể bổ sung sau.</p>
         </div>
       </div>
+
+      <fieldset className="cover-field">
+        <legend>Ảnh bìa</legend>
+        <Cover
+          cfg={cfg}
+          size="lg"
+          preview={coverPreview}
+          book={{
+            ...(initial ?? { id: 'new', holdings: [], createdAt: '', updatedAt: '' }),
+            ...(coverRemoved ? { cover: undefined } : {}),
+            type: f.type as ItemType,
+            title: f.title || 'Sách mới',
+            publisher: f.publisher || undefined,
+            year: toInt(f.year),
+            containerTitle: f.containerTitle || undefined,
+            originalTitle: f.originalTitle || undefined,
+            translators: parseNames(f.translators),
+            isbn13: f.isbn ? (parseIsbn(f.isbn) as { isbn13?: string }).isbn13 : undefined,
+            categories: cats,
+            tags: splitList(f.tags),
+            status: f.status as Book['status'],
+          }}
+        />
+        <div className="cover-actions">
+          <p className="hint">
+            Chụp bìa sách hoặc chọn ảnh có sẵn. Chưa có ảnh thì ứng dụng lấy bìa từ Open Library theo
+            ISBN, không có nữa thì dùng hình Pochacco hợp với tình trạng cuốn sách.
+          </p>
+          <label className="button file">
+            {coverPreview || (initial?.cover && !coverRemoved) ? 'Đổi ảnh bìa' : 'Chụp hoặc chọn ảnh bìa'}
+            <input type="file" accept="image/*" onChange={(e) => void pickCover(e.target.files?.[0])} />
+          </label>
+          {(coverPreview || (initial?.cover?.startsWith('repo:') && !coverRemoved)) && (
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                setCoverBlob(null)
+                setCoverPreview(null)
+                setCoverRemoved(true)
+              }}
+            >
+              Bỏ ảnh đã chọn
+            </button>
+          )}
+        </div>
+      </fieldset>
 
       <fieldset>
         <legend>Thông tin chính</legend>

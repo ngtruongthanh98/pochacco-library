@@ -205,3 +205,63 @@ export const updateBook = (cfg: StoreConfig, book: Book) =>
 
 export const deleteBook = (cfg: StoreConfig, book: Book) =>
   modifyBook(cfg, book.id, () => null, `Xóa sách: ${book.title}`)
+
+// ---------- Ảnh bìa (lưu trong repo dữ liệu riêng tư) ----------
+
+const coverCache = new Map<string, Promise<string>>()
+
+/** Tải ảnh bìa từ repo riêng tư bằng token, trả về object URL (có bộ nhớ đệm trong phiên). */
+export const loadCoverUrl = (cfg: StoreConfig, path: string): Promise<string> => {
+  const key = `${cfg.owner}/${cfg.repo}/${path}`
+  let p = coverCache.get(key)
+  if (!p) {
+    const ref = cfg.branch ?? 'main'
+    p = fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}?ref=${ref}`, {
+      headers: headers(cfg, 'application/vnd.github.raw+json'),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return URL.createObjectURL(await res.blob())
+    })
+    p.catch(() => coverCache.delete(key))
+    coverCache.set(key, p)
+  }
+  return p
+}
+
+const blobToB64 = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1])
+    r.onerror = () => reject(r.error)
+    r.readAsDataURL(blob)
+  })
+
+/** Ghi (hoặc thay) ảnh bìa vào repo dữ liệu, trả về giá trị cho trường `cover`. */
+export const uploadCover = async (cfg: StoreConfig, bookId: string, blob: Blob, title: string) => {
+  const ref = cfg.branch ?? 'main'
+  const path = `covers/${bookId}.jpg`
+  const url = `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`
+  const head = await fetch(`${url}?ref=${ref}`, { headers: headers(cfg), cache: 'no-store' })
+  const sha = head.ok ? ((await head.json()) as { sha: string }).sha : undefined
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { ...headers(cfg), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: `Ảnh bìa: ${title}`, branch: ref, content: await blobToB64(blob), ...(sha ? { sha } : {}) }),
+  })
+  if (!res.ok) throw new Error(`Không tải được ảnh bìa lên (HTTP ${res.status})`)
+  coverCache.delete(`${cfg.owner}/${cfg.repo}/${path}`)
+  return `repo:${path}`
+}
+
+/** Thu nhỏ ảnh chụp về cạnh dài 900px, nén JPEG để repo gọn (thường 60-150 KB). */
+export const prepareCover = async (file: File): Promise<Blob> => {
+  const bmp = await createImageBitmap(file)
+  const scale = Math.min(1, 900 / Math.max(bmp.width, bmp.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bmp.width * scale)
+  canvas.height = Math.round(bmp.height * scale)
+  canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Không xử lý được ảnh'))), 'image/jpeg', 0.82),
+  )
+}

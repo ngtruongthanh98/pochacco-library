@@ -142,3 +142,30 @@ button.secondary:hover { background: #fbe9e4; }
 .confirm { display: grid; gap: 10px; padding: 12px 14px; border-radius: 12px; background: #fdecea; border: 1.5px solid #f0b9b0; }
 button.danger { background: #a3221c; }
 button.danger:hover { background: #7d1813; }
+
+/* Bìa sách */
+.cover { flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 6px; background: #f6e7d6; border: 1px solid var(--line); box-shadow: 0 1px 3px rgba(40, 22, 17, 0.12); }
+.cover img { width: 100%; height: 100%; object-fit: cover; }
+.cover-fallback { background: radial-gradient(circle at 50% 40%, #fffaf3 0%, #f6e7d6 75%); }
+.cover-fallback img { object-fit: contain; padding: 10%; }
+.cover-sm { width: 64px; height: 92px; }
+.cover-lg { width: 180px; height: 260px; position: relative; border-radius: 10px; }
+.cover-lg.cover-fallback img { padding: 14% 12% 26%; }
+.cover-label { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.78rem; font-weight: 700; color: var(--red-dark); background: #f3dfcf; padding: 3px 10px; border-radius: 999px; }
+.book { display: flex; gap: 14px; align-items: flex-start; }
+.book-body { min-width: 0; flex: 1; }
+.detail-head { display: flex !important; gap: 20px; align-items: flex-start; }
+.detail-title { display: grid; gap: 10px; align-content: start; min-width: 0; }
+@media (max-width: 560px) {
+  .detail-head { flex-direction: column; align-items: center; text-align: center; }
+  .detail-title .chips { justify-content: center; }
+}
+.cover-field { grid-template-columns: auto 1fr; align-items: start; }
+.cover-field legend { grid-column: 1 / -1; }
+.cover-actions { display: grid; gap: 10px; align-content: start; justify-items: start; }
+label.button.file { display: inline-block; cursor: pointer; font-weight: 600; padding: 10px 16px; border-radius: 10px; background: var(--red); color: var(--cream); }
+label.button.file:hover { background: var(--red-dark); }
+label.button.file input { display: none; }
+@media (max-width: 560px) { .cover-field { grid-template-columns: 1fr; justify-items: center; } .cover-actions { justify-items: center; text-align: center; } }
+.detail-sub { color: var(--ink); font-style: italic; margin-top: -6px; }
+.detail-by { color: var(--muted); font-weight: 500; }

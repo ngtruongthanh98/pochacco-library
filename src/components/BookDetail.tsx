@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { categoryLabel } from '../data/categories'
+import Cover from './Cover'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { nameToString, type Book, type Name } from '../types/book'
 
@@ -83,8 +84,14 @@ export default function BookDetail({
       <button className="link back" onClick={onBack}>
         ← Quay lại danh sách
       </button>
-      <header>
+      <header className="detail-head">
+        <Cover book={book} cfg={cfg} size="lg" />
+        <div className="detail-title">
         <h2>{book.title}</h2>
+        {book.subtitle && <div className="detail-sub">{book.subtitle}</div>}
+        <div className="detail-by">
+          {[names(book.authors), [book.publisher, book.year].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}
+        </div>
         {!!book.categories?.length && (
           <div className="chips">
             {book.categories.map((c) => (
@@ -94,6 +101,7 @@ export default function BookDetail({
             ))}
           </div>
         )}
+        </div>
       </header>
 
       <dl className="fields">
