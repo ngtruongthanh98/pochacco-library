@@ -24,3 +24,7 @@ Mỗi lần push lên nhánh `main`, workflow `.github/workflows/deploy.yml` bui
 ## Lộ trình
 
 Theo tài liệu "Kế hoạch và thiết kế hệ thống Thư viện sách cá nhân": giai đoạn 0 (khởi tạo) đã xong; tiếp theo là bộ nhớ IndexedDB, PWA offline, biểu mẫu thêm/sửa và commit dữ liệu.
+
+## Hình ảnh
+
+Bộ hình minh họa Pochacco trong `public/assets/` và biểu tượng ứng dụng do chủ repo cung cấp, chỉ dùng cho mục đích cá nhân, phi thương mại. Pochacco là nhân vật thuộc bản quyền của Sanrio.
