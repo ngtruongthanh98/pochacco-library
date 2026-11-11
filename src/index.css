@@ -98,3 +98,21 @@ button.secondary { background: transparent; color: var(--red); border: 1.5px sol
 button.secondary:hover { background: #fbe9e4; }
 .dupes { background: #fdf0d9; border: 1.5px solid var(--gold); border-radius: 12px; padding: 12px 14px; }
 .dupes ul { margin: 6px 0 10px; padding-left: 20px; }
+
+.filter { margin: 4px 0 10px; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 2px solid var(--line); scrollbar-width: thin; }
+.tab { flex: none; background: none; color: var(--muted); font-weight: 600; padding: 9px 12px; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.tab:hover { background: #fbe9e4; color: var(--red-dark); }
+.tab.active { color: var(--red); border-bottom-color: var(--red); background: var(--paper); }
+.count { display: inline-block; min-width: 20px; margin-left: 4px; padding: 0 6px; border-radius: 999px; font-size: 0.72rem; background: var(--line); color: var(--ink); text-align: center; }
+.tab.active .count, .subtab.active .count { background: var(--red); color: var(--cream); }
+.subtabs { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; }
+.subtab { flex: none; white-space: nowrap; font-weight: 500; font-size: 0.88rem; padding: 6px 12px; border-radius: 999px; background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); }
+.subtab:hover { background: #fbe9e4; }
+.subtab.active { border-color: var(--red); color: var(--red); background: #fdeeea; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-weight: 500; font-size: 0.88rem; padding: 6px 12px; border-radius: 999px; background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); }
+.chip:hover { background: #fbe9e4; }
+.chip.on { background: var(--red); border-color: var(--red); color: var(--cream); }
+.cats { font-size: 0.8rem; color: var(--olive); font-weight: 600; margin-top: 2px; }
+.tabs, .subtabs { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); padding-right: 32px; }

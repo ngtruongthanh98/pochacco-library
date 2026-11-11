@@ -59,6 +59,7 @@ export type Book = {
   pages?: number
   sizeCm?: string
   language?: string
+  categories?: string[]
   subjects?: string[]
   tags?: string[]
   series?: string

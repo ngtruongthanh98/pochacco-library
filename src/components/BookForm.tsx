@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { addBook, type StoreConfig } from '../data/githubStore'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
@@ -78,7 +79,7 @@ const EMPTY: Fields = {
 
 type Built = { book: Book } | { error: string }
 
-const build = (f: Fields): Built => {
+const build = (f: Fields, categories: string[]): Built => {
   const title = f.title.trim()
   if (!title) return { error: 'Cần nhập nhan đề.' }
   const year = f.year.trim() ? toInt(f.year) : undefined
@@ -126,6 +127,7 @@ const build = (f: Fields): Built => {
     issue: opt(f.issue.trim()),
     pageRange: opt(f.pageRange.trim()),
     genre: opt(f.genre.trim()),
+    categories: opt(categories),
     subjects: opt(splitList(f.subjects)),
     tags: opt(splitList(f.tags)),
     series: opt(f.series.trim()),
@@ -180,6 +182,10 @@ export default function BookForm({
   const [error, setError] = useState<string | null>(null)
   const [dupes, setDupes] = useState<Book[] | null>(null)
   const [busy, setBusy] = useState(false)
+  const [cats, setCats] = useState<string[]>([])
+  const [catTab, setCatTab] = useState(0)
+  const toggleCat = (id: string) =>
+    setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
   const set = (k: keyof Fields) => (e: { target: { value: string } }) => {
     setError(null)
     setF({ ...f, [k]: e.target.value })
@@ -199,7 +205,7 @@ export default function BookForm({
 
   const save = async (force: boolean) => {
     setError(null)
-    const r = build(f)
+    const r = build(f, cats)
     if ('error' in r) return setError(r.error)
     if (!force) {
       const d = findDuplicates(r.book, books)
@@ -361,9 +367,45 @@ export default function BookForm({
 
       <fieldset>
         <legend>Phân loại</legend>
+        <div className="tabs" role="tablist">
+          {CATEGORY_GROUPS.map((g, i) => {
+            const n = g.items.filter((c) => cats.includes(c.id)).length
+            return (
+              <button
+                key={g.label}
+                type="button"
+                role="tab"
+                aria-selected={catTab === i}
+                className={catTab === i ? 'tab active' : 'tab'}
+                onClick={() => setCatTab(i)}
+              >
+                {g.label}
+                {n > 0 && <span className="count">{n}</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div className="chips">
+          {CATEGORY_GROUPS[catTab].items.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={cats.includes(c.id) ? 'chip on' : 'chip'}
+              aria-pressed={cats.includes(c.id)}
+              onClick={() => toggleCat(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          {cats.length
+            ? `Đã chọn: ${cats.map(categoryLabel).join(', ')}`
+            : 'Chọn một hoặc nhiều danh mục; chuyển tab để xem các nhóm khác.'}
+        </p>
         <label>
-          Chủ đề (cách nhau bằng dấu phẩy)
-          <input placeholder="Triết học Mác, Kinh tế chính trị" value={f.subjects} onChange={set('subjects')} />
+          Chủ đề chi tiết (cách nhau bằng dấu phẩy)
+          <input placeholder="Thuyết duyên khởi, Vi Diệu Pháp" value={f.subjects} onChange={set('subjects')} />
         </label>
         <div className="row3">
           <label>

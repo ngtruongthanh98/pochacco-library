@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookForm from './components/BookForm'
+import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
@@ -200,6 +201,9 @@ function BookRow({ b }: { b: Book }) {
       <div className="meta">
         {[people, b.publisher, b.year, b.pages && `${b.pages} tr.`].filter(Boolean).join(' · ')}
       </div>
+      {!!b.categories?.length && (
+        <div className="cats">{b.categories.map(categoryLabel).join(" · ")}</div>
+      )}
       <div className="where">
         {print?.kind === 'print' && print.location && <span className="tag">Kệ {print.location}</span>}
         {hasEbook && <span className="tag olive">Sách điện tử</span>}
@@ -215,6 +219,8 @@ export default function App() {
   const [creating, setCreating] = useState(false)
   const [adding, setAdding] = useState(false)
   const [saved, setSaved] = useState<Book | null>(null)
+  const [group, setGroup] = useState(-1)
+  const [cat, setCat] = useState<string | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -233,10 +239,14 @@ export default function App() {
   const index = useMemo(() => buildIndex(books), [books])
   const byId = useMemo(() => new Map(books.map((b) => [b.id, b])), [books])
   const searching = q.trim().length > 0
-  const results = searching
-    ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean)
-    : books.slice(0, 50)
-
+  const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
+  const inGroup = (b: Book, g: number) =>
+    g < 0 || (b.categories ?? []).some((c) => CATEGORY_GROUPS[g].items.some((i) => i.id === c))
+  const groupCount = (g: number) => matched.filter((b) => inGroup(b, g)).length
+  const catCount = (id: string) => matched.filter((b) => b.categories?.includes(id)).length
+  const filtered = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
+  const results = searching || group >= 0 ? filtered : filtered.slice(0, 200)
+  const filtering = searching || group >= 0
 
   return (
     <>
@@ -304,6 +314,47 @@ export default function App() {
               onChange={(e) => setQ(e.target.value)}
             />
             <img className="divider" src={asset('sticker-divider.webp')} alt="" />
+            {books.length > 0 && (
+              <nav className="filter">
+                <div className="tabs" role="tablist">
+                  <button
+                    role="tab"
+                    aria-selected={group < 0}
+                    className={group < 0 ? 'tab active' : 'tab'}
+                    onClick={() => { setGroup(-1); setCat(null) }}
+                  >
+                    Tất cả <span className="count">{matched.length}</span>
+                  </button>
+                  {CATEGORY_GROUPS.map((g, i) => (
+                    <button
+                      key={g.label}
+                      role="tab"
+                      aria-selected={group === i}
+                      className={group === i ? 'tab active' : 'tab'}
+                      onClick={() => { setGroup(i); setCat(null) }}
+                    >
+                      {g.label} <span className="count">{groupCount(i)}</span>
+                    </button>
+                  ))}
+                </div>
+                {group >= 0 && (
+                  <div className="subtabs">
+                    <button className={cat === null ? 'subtab active' : 'subtab'} onClick={() => setCat(null)}>
+                      Cả nhóm
+                    </button>
+                    {CATEGORY_GROUPS[group].items.map((c) => (
+                      <button
+                        key={c.id}
+                        className={cat === c.id ? 'subtab active' : 'subtab'}
+                        onClick={() => setCat(c.id)}
+                      >
+                        {c.label} <span className="count">{catCount(c.id)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </nav>
+            )}
             {loading && <State img="sticker-reading.webp" title="Pochacco đang lật danh mục..." />}
             {error && (
               <State img="sticker-sleeping.webp" title="Chưa tải được danh mục" text={error} />
@@ -315,16 +366,16 @@ export default function App() {
                 <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
               </div>
             )}
-            {!loading && !error && books.length > 0 && searching && results.length === 0 && (
+            {!loading && !error && books.length > 0 && filtering && results.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
-                title="Chưa có cuốn này trong thư viện"
-                text="Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN."
+                title={searching ? 'Chưa có cuốn này trong thư viện' : 'Mục này chưa có sách'}
+                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
-            {!loading && !error && books.length > 0 && !(searching && results.length === 0) && (
+            {!loading && !error && books.length > 0 && !(filtering && results.length === 0) && (
               <p className="muted">
-                {searching ? `${results.length} kết quả` : `${books.length} đầu sách trong thư viện`}
+                {filtering ? `${results.length} kết quả` : `${books.length} đầu sách trong thư viện`}
               </p>
             )}
             <ul className="list">
