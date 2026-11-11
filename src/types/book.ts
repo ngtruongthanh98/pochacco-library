@@ -67,6 +67,10 @@ export type Book = {
   volume?: string
   issue?: string
   pageRange?: string
+  genre?: string
+  eventTitle?: string
+  eventPlace?: string
+  collectionTitle?: string
   doi?: string
   url?: string
   holdings: Holding[]

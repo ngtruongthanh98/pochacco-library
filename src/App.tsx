@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import BookForm from './components/BookForm'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
@@ -212,6 +213,8 @@ function BookRow({ b }: { b: Book }) {
 export default function App() {
   const [cfg, setCfg] = useState<StoreConfig | null>(() => loadConfig())
   const [creating, setCreating] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [saved, setSaved] = useState<Book | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -264,8 +267,35 @@ export default function App() {
           ) : (
             <Login onLogin={setCfg} onCreate={() => setCreating(true)} />
           )
+        ) : adding ? (
+          <BookForm
+            cfg={cfg}
+            books={books}
+            onCancel={() => setAdding(false)}
+            onSaved={(b) => {
+              setBooks((prev) => [b, ...prev])
+              setSaved(b)
+              setAdding(false)
+              setQ('')
+            }}
+          />
         ) : (
           <>
+            {saved && (
+              <div className="toast">
+                <img src={asset('sticker-salute.webp')} alt="" />
+                <div>
+                  <div className="state-title">Đã lưu vào thư viện</div>
+                  <div className="muted">{saved.title}</div>
+                </div>
+                <button className="link" onClick={() => setSaved(null)}>
+                  Đóng
+                </button>
+              </div>
+            )}
+            <div className="toolbar">
+              <button onClick={() => { setSaved(null); setAdding(true) }}>+ Thêm sách</button>
+            </div>
             <input
               className="search"
               autoFocus

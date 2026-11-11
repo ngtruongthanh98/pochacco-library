@@ -79,3 +79,22 @@ button.link { background: none; color: var(--red); text-decoration: underline; p
 textarea.mono { font: 0.78rem ui-monospace, Menlo, monospace; width: 100%; padding: 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--cream); color: var(--ink); resize: vertical; }
 a.button { display: block; text-align: center; text-decoration: none; font-weight: 600; padding: 11px 16px; border-radius: 10px; background: var(--red); color: var(--cream); }
 button:disabled { opacity: 0.6; cursor: wait; }
+
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.toast { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-bottom: 12px; background: #eef3e4; border: 1.5px solid #c9d6a8; border-radius: 12px; }
+.toast img { width: 56px; height: auto; }
+.toast > div { flex: 1; }
+.book-form fieldset { border: 0; border-top: 1.5px solid var(--line); margin: 4px 0 0; padding: 12px 0 0; display: grid; gap: 12px; }
+.book-form legend { font-weight: 650; color: var(--red-dark); padding-right: 8px; }
+.row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 620px) { .row3 { grid-template-columns: 1fr 1fr; } }
+select, textarea { font: inherit; padding: 10px 12px; width: 100%; border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); }
+textarea { resize: vertical; }
+select:focus, textarea:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(191, 44, 39, 0.15); }
+input:disabled { opacity: 0.5; }
+.hint { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; }
+button.secondary { background: transparent; color: var(--red); border: 1.5px solid var(--red); }
+button.secondary:hover { background: #fbe9e4; }
+.dupes { background: #fdf0d9; border: 1.5px solid var(--gold); border-radius: 12px; padding: 12px 14px; }
+.dupes ul { margin: 6px 0 10px; padding-left: 20px; }
