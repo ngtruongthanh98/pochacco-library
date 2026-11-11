@@ -359,3 +359,10 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .cand-body { flex: 1; min-width: 0; }
 .toast-action { margin-top: 6px; }
 .queue-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #fdf0d9; border: 1.5px solid var(--gold); }
+
+/* Đầu danh sách: số lượng + sắp xếp; nút xem thêm */
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 4px 0 10px; }
+.list-head .muted { margin: 0; }
+.sort { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--muted); }
+.sort select { width: auto; padding: 6px 30px 6px 12px; border-radius: 999px; border: 1.5px solid var(--line); background-color: var(--paper); color: var(--ink); font-size: 0.9rem; }
+.more { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 18px 0 8px; }

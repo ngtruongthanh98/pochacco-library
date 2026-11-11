@@ -11,8 +11,11 @@ import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
+import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
 import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
+
+const PAGE_SIZE = 100
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -245,9 +248,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState(initial.q)
+  const [sort, setSort] = useState<SortKey | null>(initial.sort)
+  const [sortPref, setSortPref] = useState<SortKey>(() => loadSortPref())
+  const [limit, setLimit] = useState(PAGE_SIZE)
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -274,6 +280,7 @@ export default function App() {
       setQ(r.q)
       setGroup(r.group)
       setCat(r.cat)
+      setSort(r.sort)
       setQueue(null)
       const y = savedScroll() ?? 0
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)))
@@ -321,8 +328,18 @@ export default function App() {
   const groupCount = (g: number) => matched.filter((b) => inGroup(b, g)).length
   const catCount = (id: string) => matched.filter((b) => b.categories?.includes(id)).length
   const filtered = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
-  const results = searching || group >= 0 ? filtered : filtered.slice(0, 200)
   const filtering = searching || group >= 0
+  // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
+  const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
+  const sorted = sortBooks(filtered, sortKey === 'phu-hop' && !searching ? 'moi' : sortKey)
+  const results = sorted.slice(0, limit)
+  // Đổi bộ lọc hay cách xếp thì quay về trang đầu của danh sách.
+  const listKey = `${q}|${group}|${cat}|${sortKey}`
+  const [prevListKey, setPrevListKey] = useState(listKey)
+  if (listKey !== prevListKey) {
+    setPrevListKey(listKey)
+    setLimit(PAGE_SIZE)
+  }
 
   return (
     <>
@@ -669,23 +686,64 @@ export default function App() {
                 <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
               </div>
             )}
-            {!loading && !error && books.length > 0 && filtering && results.length === 0 && (
+            {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
                 title={searching ? 'Chưa có cuốn này trong thư viện' : 'Mục này chưa có sách'}
                 text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
-            {!loading && !error && books.length > 0 && !(filtering && results.length === 0) && (
-              <p className="muted">
-                {filtering ? `${results.length} kết quả` : `${books.length} đầu sách trong thư viện`}
-              </p>
+            {!loading && !error && books.length > 0 && !(filtering && sorted.length === 0) && (
+              <div className="list-head">
+                <p className="muted">
+                  {filtering
+                    ? `${sorted.length.toLocaleString('vi-VN')} kết quả`
+                    : `${books.length.toLocaleString('vi-VN')} đầu sách trong thư viện`}
+                </p>
+                <label className="sort">
+                  <span>Sắp xếp</span>
+                  <select
+                    value={sortKey}
+                    onChange={(e) => {
+                      const k = e.target.value as SortKey
+                      if (k !== 'phu-hop') {
+                        saveSortPref(k)
+                        setSortPref(k)
+                      }
+                      // Không tìm kiếm: lựa chọn được nhớ làm mặc định nên không cần ghi vào địa chỉ web.
+                      // Đang tìm kiếm: mặc định là "Phù hợp nhất", chọn khác thì ghi lại.
+                      setSort(searching && k !== 'phu-hop' ? k : null)
+                    }}
+                  >
+                    {SORT_OPTIONS.filter((o) => searching || o.key !== 'phu-hop').map((o) => (
+                      <option key={o.key} value={o.key}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             )}
             <ul className="list">
               {results.map((b) => (
                 <BookRow key={b.id} b={b} cfg={cfg} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
               ))}
             </ul>
+            {sorted.length > results.length && (
+              <div className="more">
+                <span className="muted">
+                  Đang hiện {results.length.toLocaleString('vi-VN')}/{sorted.length.toLocaleString('vi-VN')} cuốn
+                </span>
+                <button className="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+                  Xem thêm {Math.min(PAGE_SIZE, sorted.length - results.length)} cuốn
+                </button>
+                {sorted.length - results.length > PAGE_SIZE && (
+                  <button className="link" onClick={() => setLimit(sorted.length)}>
+                    Hiện tất cả
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>

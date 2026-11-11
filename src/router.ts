@@ -1,5 +1,5 @@
 // Định tuyến bằng phần # của địa chỉ web (chạy được trên GitHub Pages, không cần cấu hình máy chủ).
-//   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục
+//   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp
 //   #/thong-ke                  trang thống kê
 //   #/sach/<id>                 chi tiết sách
 //   #/sach/<id>/sua             sửa sách
@@ -7,6 +7,7 @@
 //   #/them  #/quet  #/quet-ke  #/nhap-ebook
 import { CATEGORY_GROUPS } from './data/categories'
 import { foldVi } from './search/normalizeVi'
+import { isSortKey, type SortKey } from './search/sortBooks'
 
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
@@ -20,6 +21,7 @@ export type Route = {
   q: string
   group: number
   cat: string | null
+  sort: SortKey | null
 }
 
 export const EMPTY_ROUTE: Route = {
@@ -32,6 +34,7 @@ export const EMPTY_ROUTE: Route = {
   q: '',
   group: -1,
   cat: null,
+  sort: null,
 }
 
 const groupSlug = (i: number) =>
@@ -52,6 +55,7 @@ export function formatRoute(r: Route): string {
   if (r.q.trim()) params.set('q', r.q)
   if (r.cat) params.set('loai', r.cat)
   else if (r.group >= 0) params.set('nhom', groupSlug(r.group))
+  if (r.sort) params.set('xep', r.sort)
   const qs = params.toString()
   return qs ? `#/?${qs}` : '#/'
 }
@@ -73,6 +77,8 @@ export function parseRoute(hash: string): Route {
   if (scan) return { ...r, scanMode: scan }
   const params = new URLSearchParams(qs)
   r.q = params.get('q') ?? ''
+  const xep = params.get('xep')
+  if (isSortKey(xep)) r.sort = xep
   const loai = params.get('loai')
   const nhom = params.get('nhom')
   if (loai) {
@@ -87,10 +93,10 @@ export function parseRoute(hash: string): Route {
   return r
 }
 
-/** Hai địa chỉ chỉ khác nhau ở từ khóa tìm kiếm: thay thế thay vì thêm mục lịch sử mới. */
+/** Hai địa chỉ chỉ khác nhau ở từ khóa tìm kiếm hoặc cách sắp xếp: thay thế thay vì thêm mục lịch sử mới. */
 export function onlyQueryChanged(a: Route, b: Route): boolean {
   const list = (r: Route) => !r.openId && r.page === 'library' && !r.scanMode && !r.adding
-  return list(a) && list(b) && a.group === b.group && a.cat === b.cat && a.q !== b.q
+  return list(a) && list(b) && a.group === b.group && a.cat === b.cat && (a.q !== b.q || a.sort !== b.sort)
 }
 
 type HistState = { pochacco: true; depth: number; scrollY?: number }
