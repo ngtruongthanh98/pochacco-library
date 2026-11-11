@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
+import EbookReader from './components/EbookReader'
 import ImportEbooks from './components/ImportEbooks'
 import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
@@ -10,7 +11,7 @@ import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
-import { nameToString, type Book } from './types/book'
+import { nameToString, type Book, type EbookHolding } from './types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -235,6 +236,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<'one' | 'shelf' | 'ebooks' | null>(null)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [page, setPage] = useState<'library' | 'stats'>('library')
+  const [reading, setReading] = useState<{ book: Book; holding: EbookHolding } | null>(null)
   const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -360,6 +362,7 @@ export default function App() {
                 setQ(text)
                 window.scrollTo(0, 0)
               }}
+              onRead={(h) => setReading({ book: byId.get(openId)!, holding: h })}
               onCategory={(id) => {
                 setOpenId(null)
                 setQ('')
@@ -572,6 +575,7 @@ export default function App() {
           </>
         )}
       </main>
+      {reading && <EbookReader book={reading.book} holding={reading.holding} onClose={() => setReading(null)} />}
     </>
   )
 }

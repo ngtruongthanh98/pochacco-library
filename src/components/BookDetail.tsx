@@ -3,7 +3,7 @@ import { categoryLabel } from '../data/categories'
 import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
-import { nameToString, type Book, type Name } from '../types/book'
+import { nameToString, type Book, type EbookHolding, type Name } from '../types/book'
 import Cover from './Cover'
 
 const TYPE_LABEL: Record<string, string> = {
@@ -63,6 +63,7 @@ export default function BookDetail({
   onOpen,
   onSearch,
   onCategory,
+  onRead,
 }: {
   cfg: StoreConfig
   book: Book
@@ -73,6 +74,7 @@ export default function BookDetail({
   onOpen: (b: Book) => void
   onSearch: (q: string) => void
   onCategory: (id: string) => void
+  onRead: (h: EbookHolding) => void
 }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -179,6 +181,14 @@ export default function BookDetail({
             </div>
             <span className={`status s-${st.cls}`}>{st.label}</span>
           </div>
+          {(() => {
+            const eb = book.holdings.find((h): h is EbookHolding => h.kind === 'ebook' && !!h.fileId && h.storage === 'gdrive')
+            return eb ? (
+              <button className="read-now" onClick={() => onRead(eb)}>
+                Đọc sách điện tử
+              </button>
+            ) : null
+          })()}
           {book.loan && (
             <div className="loan">
               Cho <b>{book.loan.to}</b> mượn từ {dmy(book.loan.date)}
@@ -224,9 +234,14 @@ export default function BookDetail({
                   {h.sameEditionAsPrint ? ', cùng ấn bản với bản giấy' : ''}
                   {h.textLayer === 'ocr' ? ', chữ từ OCR' : h.textLayer === 'none' ? ', ảnh scan chưa có chữ' : ''}
                   {h.storage === 'gdrive' && h.fileId && (
-                    <a className="open-drive" href={driveViewUrl(h.fileId)} target="_blank" rel="noopener noreferrer">
-                      Mở sách
-                    </a>
+                    <>
+                      <button className="open-drive" onClick={() => onRead(h)}>
+                        Đọc ngay
+                      </button>
+                      <a className="drive-link" href={driveViewUrl(h.fileId)} target="_blank" rel="noopener noreferrer">
+                        Mở trên Drive
+                      </a>
+                    </>
                   )}
                 </li>
               ),

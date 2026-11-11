@@ -149,9 +149,9 @@ export default function ImportEbooks({
             onChange={(e) => setText(e.target.value)}
           />
           <p className="hint">
-            Trên Google Drive: chuột phải vào tệp, chọn Chia sẻ, rồi Sao chép đường liên kết. Tệp để chế độ "Bị hạn chế"
-            vẫn mở được khi anh đăng nhập Google; chỉ cần đổi sang "Bất kỳ ai có đường liên kết" nếu muốn mở trên máy khác
-            chưa đăng nhập.
+            Trên Google Drive: chuột phải vào tệp, chọn Chia sẻ, rồi Sao chép đường liên kết. Để đọc ngay trong ứng dụng,
+            nên để tệp ở chế độ "Bất kỳ ai có đường liên kết" (Người xem); tệp "Bị hạn chế" vẫn mở được trong tab mới khi
+            trình duyệt đã đăng nhập Google của anh.
           </p>
           <div className="actions">
             <button type="button" className="secondary" onClick={onCancel}>
