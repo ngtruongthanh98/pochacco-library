@@ -3,6 +3,7 @@ import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
 import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
+import Stats from './components/Stats'
 import BookForm from './components/BookForm'
 import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -232,6 +233,7 @@ export default function App() {
   const [editing, setEditing] = useState(false)
   const [scanMode, setScanMode] = useState<'one' | 'shelf' | null>(null)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
+  const [page, setPage] = useState<'library' | 'stats'>('library')
   const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -283,11 +285,49 @@ export default function App() {
         </div>
       </header>
       <main>
+        {cfg && (
+          <nav className="pages" aria-label="Trang">
+            <button
+              className={page === 'library' ? 'page-tab active' : 'page-tab'}
+              onClick={() => { setPage('library'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false) }}
+            >
+              Thư viện
+            </button>
+            <button
+              className={page === 'stats' ? 'page-tab active' : 'page-tab'}
+              onClick={() => { setPage('stats'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); window.scrollTo(0, 0) }}
+            >
+              Thống kê
+            </button>
+          </nav>
+        )}
         {!cfg ? (
           creating ? (
             <CreateAccount onBack={() => setCreating(false)} />
           ) : (
             <Login onLogin={setCfg} onCreate={() => setCreating(true)} />
+          )
+        ) : page === 'stats' ? (
+          loading ? (
+            <State img="sticker-reading.webp" title="Pochacco đang đếm sách..." />
+          ) : (
+            <Stats
+              books={books}
+              onSearch={(text) => {
+                setPage('library'); setGroup(-1); setCat(null); setQ(text); window.scrollTo(0, 0)
+              }}
+              onGroup={(i) => {
+                setPage('library'); setQ(''); setGroup(i); setCat(null); window.scrollTo(0, 0)
+              }}
+              onCategory={(id) => {
+                setPage('library'); setQ('')
+                setGroup(CATEGORY_GROUPS.findIndex((g) => g.items.some((x) => x.id === id)))
+                setCat(id); window.scrollTo(0, 0)
+              }}
+              onOpen={(b) => {
+                setPage('library'); setOpenId(b.id); window.scrollTo(0, 0)
+              }}
+            />
           )
         ) : openId && byId.get(openId) && editing ? (
           <BookForm

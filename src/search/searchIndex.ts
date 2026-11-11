@@ -19,7 +19,7 @@ const toDoc = (b: Book): Doc => ({
     .map(nameToString)
     .join(' '),
   publisher: [b.publisher, b.partner].filter(Boolean).join(' '),
-  subjects: [...(b.categories ?? []).map(categoryLabel), ...(b.subjects ?? []), ...(b.tags ?? []), b.series ?? ''].join(' '),
+  subjects: [...b.holdings.map((h) => (h.kind === 'print' ? (h.location ?? '') : '')), ...(b.categories ?? []).map(categoryLabel), ...(b.subjects ?? []), ...(b.tags ?? []), b.series ?? ''].join(' '),
   isbn: [b.isbn13, b.isbn10].filter(Boolean).map((x) => normalizeIsbn(x!)).join(' '),
 })
 
