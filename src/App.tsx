@@ -22,6 +22,7 @@ function Login({ onLogin, onCreate }: { onLogin: (c: StoreConfig) => void; onCre
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
+  const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   return (
@@ -55,7 +56,11 @@ function Login({ onLogin, onCreate }: { onLogin: (c: StoreConfig) => void; onCre
       </label>
       <label>
         Mật khẩu
-        <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input type={showPw ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} />
+        Hiện mật khẩu
       </label>
       <label className="check">
         <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
@@ -76,6 +81,7 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [password2, setPassword2] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [owner, setOwner] = useState('ngtruongthanh98')
   const [repo, setRepo] = useState('pochacco-library-data')
   const [token, setToken] = useState('')
@@ -148,11 +154,15 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
       </label>
       <label>
         Mật khẩu
-        <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <input type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </label>
       <label>
         Nhập lại mật khẩu
-        <input type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+        <input type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={showPw} onChange={(e) => setShowPw(e.target.checked)} />
+        Hiện mật khẩu
       </label>
       <div className="row">
         <label>
