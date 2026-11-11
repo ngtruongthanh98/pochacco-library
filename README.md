@@ -13,7 +13,7 @@ Mở trang, nhập chủ repo, tên repo dữ liệu và một fine-grained pers
 
 ## Triển khai
 
-Mỗi lần push lên nhánh `main`, workflow `.github/workflows/deploy.yml` build và đăng lên GitHub Pages. Lần đầu cần vào Settings > Pages, chọn Source là "GitHub Actions".
+Mỗi lần push lên nhánh `main`, workflow `.github/workflows/deploy.yml` build và đăng lên GitHub Pages. Workflow đẩy bản build lên nhánh `gh-pages`; Pages phục vụ trang từ nhánh này (Settings > Pages > Deploy from a branch: `gh-pages`, thư mục `/ (root)`).
 
 ## Cấu trúc
 
