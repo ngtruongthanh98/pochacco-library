@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
 import EbookReader from './components/EbookReader'
@@ -11,6 +11,7 @@ import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
+import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
@@ -227,22 +228,69 @@ function BookRow({ b, cfg, onOpen }: { b: Book; cfg: StoreConfig; onOpen: () => 
 export default function App() {
   const [cfg, setCfg] = useState<StoreConfig | null>(() => loadConfig())
   const [creating, setCreating] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const [initial] = useState(() => parseRoute(window.location.hash))
+  const [adding, setAdding] = useState(initial.adding)
   const [saved, setSaved] = useState<Book | null>(null)
-  const [group, setGroup] = useState(-1)
-  const [cat, setCat] = useState<string | null>(null)
-  const [openId, setOpenId] = useState<string | null>(null)
-  const [editing, setEditing] = useState(false)
-  const [scanMode, setScanMode] = useState<'one' | 'shelf' | 'ebooks' | null>(null)
+  const [group, setGroup] = useState(initial.group)
+  const [cat, setCat] = useState<string | null>(initial.cat)
+  const [openId, setOpenId] = useState<string | null>(initial.openId)
+  const [editing, setEditing] = useState(initial.editing)
+  const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
-  const [page, setPage] = useState<'library' | 'stats'>('library')
-  const [reading, setReading] = useState<{ book: Book; holding: EbookHolding } | null>(null)
+  const [page, setPage] = useState<'library' | 'stats'>(initial.page)
+  const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [q, setQ] = useState('')
+  const [q, setQ] = useState(initial.q)
+
+  // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat }
+  const routeHash = formatRoute(route)
+  const navMode = useRef<'push' | 'replace'>('replace')
+  const lastRoute = useRef(route)
+  useEffect(() => {
+    const cur = window.location.hash || '#/'
+    if (routeHash !== cur) {
+      const mode = navMode.current === 'replace' || onlyQueryChanged(lastRoute.current, route) ? 'replace' : 'push'
+      writeHistory(routeHash, mode)
+    }
+    navMode.current = 'push'
+    lastRoute.current = route
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeHash])
+
+  useEffect(() => {
+    const onPop = () => {
+      const r = parseRoute(window.location.hash)
+      setPage(r.page)
+      setOpenId(r.openId)
+      setEditing(r.editing)
+      setReading(r.reading)
+      setScanMode(r.scanMode)
+      setAdding(r.adding)
+      setQ(r.q)
+      setGroup(r.group)
+      setCat(r.cat)
+      setQueue(null)
+      const y = savedScroll() ?? 0
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  /** Quay về trang trước trong lịch sử nếu nó thuộc ứng dụng; nếu không (mở thẳng từ link) thì tự chuyển trang. */
+  const goBack = (fallback: () => void) => {
+    if (historyDepth() > 0) window.history.back()
+    else fallback()
+  }
+  /** Lần chuyển trang kế tiếp thay thế mục lịch sử hiện tại thay vì thêm mục mới. */
+  const replaceNext = () => {
+    navMode.current = 'replace'
+  }
 
   useEffect(() => {
     if (!cfg) return
@@ -256,6 +304,16 @@ export default function App() {
 
   const index = useMemo(() => buildIndex(books), [books])
   const byId = useMemo(() => new Map(books.map((b) => [b.id, b])), [books])
+  const openBook = openId ? byId.get(openId) : undefined
+  const readingHolding =
+    openBook && reading !== null && openBook.holdings[reading]?.kind === 'ebook'
+      ? (openBook.holdings[reading] as EbookHolding)
+      : null
+
+  useEffect(() => {
+    const base = 'Pochacco Library'
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : base
+  }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
   const inGroup = (b: Book, g: number) =>
@@ -278,9 +336,16 @@ export default function App() {
               className="link"
               onClick={() => {
                 clearConfig()
+                replaceNext()
                 setCfg(null)
                 setBooks([])
                 setQ('')
+                setOpenId(null)
+                setEditing(false)
+                setReading(null)
+                setScanMode(null)
+                setAdding(false)
+                setPage('library')
               }}
             >
               Đăng xuất
@@ -293,13 +358,13 @@ export default function App() {
           <nav className="pages" aria-label="Trang">
             <button
               className={page === 'library' ? 'page-tab active' : 'page-tab'}
-              onClick={() => { setPage('library'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false) }}
+              onClick={() => { setPage('library'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null) }}
             >
               Thư viện
             </button>
             <button
               className={page === 'stats' ? 'page-tab active' : 'page-tab'}
-              onClick={() => { setPage('stats'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); window.scrollTo(0, 0) }}
+              onClick={() => { setPage('stats'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
             >
               Thống kê
             </button>
@@ -370,10 +435,10 @@ export default function App() {
             cfg={cfg}
             books={books}
             initial={byId.get(openId)}
-            onCancel={() => setEditing(false)}
+            onCancel={() => goBack(() => setEditing(false))}
             onSaved={(b) => {
               setBooks((prev) => prev.map((x) => (x.id === b.id ? b : x)))
-              setEditing(false)
+              goBack(() => setEditing(false))
             }}
           />
         ) : openId && byId.get(openId) ? (
@@ -394,7 +459,7 @@ export default function App() {
                 setQ(text)
                 window.scrollTo(0, 0)
               }}
-              onRead={(h) => setReading({ book: byId.get(openId)!, holding: h })}
+              onRead={(h) => setReading(byId.get(openId)!.holdings.indexOf(h))}
               onCategory={(id) => {
                 setOpenId(null)
                 setQ('')
@@ -402,10 +467,11 @@ export default function App() {
                 setCat(id)
                 window.scrollTo(0, 0)
               }}
-              onBack={() => setOpenId(null)}
+              onBack={() => goBack(() => setOpenId(null))}
               onEdit={() => { setEditing(true); window.scrollTo(0, 0) }}
               onDeleted={(b) => {
                 setBooks((prev) => prev.filter((x) => x.id !== b.id))
+                replaceNext()
                 setOpenId(null)
                 setSaved(null)
                 setNotice({ title: 'Đã xóa khỏi thư viện', text: b.title })
@@ -416,13 +482,15 @@ export default function App() {
           <ScanOne
             cfg={cfg}
             books={books}
-            onCancel={() => setScanMode(null)}
+            onCancel={() => goBack(() => setScanMode(null))}
             onOpen={(b) => {
+              replaceNext()
               setScanMode(null)
               setOpenId(b.id)
               window.scrollTo(0, 0)
             }}
             onPrefill={(d) => {
+              replaceNext()
               setScanMode(null)
               setPrefill(d)
               setAdding(true)
@@ -433,11 +501,11 @@ export default function App() {
           <ImportEbooks
             cfg={cfg}
             books={books}
-            onCancel={() => setScanMode(null)}
+            onCancel={() => goBack(() => setScanMode(null))}
             onDone={(added, updated) => {
               const upd = new Map(updated.map((b) => [b.id, b]))
               setBooks((prev) => [...added, ...prev.map((b) => upd.get(b.id) ?? b)])
-              setScanMode(null)
+              goBack(() => setScanMode(null))
               setSaved(null)
               setNotice({
                 title: 'Đã nhập sách điện tử',
@@ -451,11 +519,11 @@ export default function App() {
           <ShelfScan
             cfg={cfg}
             books={books}
-            onCancel={() => setScanMode(null)}
+            onCancel={() => goBack(() => setScanMode(null))}
             onDone={(added, updated, shelfName) => {
               const upd = new Map(updated.map((b) => [b.id, b]))
               setBooks((prev) => [...added, ...prev.map((b) => upd.get(b.id) ?? b)])
-              setScanMode(null)
+              goBack(() => setScanMode(null))
               setSaved(null)
               setNotice({
                 title: `Đã lưu kệ ${shelfName || '(chưa đặt tên)'}`,
@@ -470,12 +538,13 @@ export default function App() {
             books={books}
             prefill={prefill ?? undefined}
             onCancel={() => {
-              setAdding(false)
+              goBack(() => setAdding(false))
               setPrefill(null)
             }}
             onSaved={(b) => {
               setBooks((prev) => [b, ...prev])
               setSaved(b)
+              replaceNext()
               setAdding(false)
               setPrefill(null)
               setQ('')
@@ -620,7 +689,9 @@ export default function App() {
           </>
         )}
       </main>
-      {reading && <EbookReader book={reading.book} holding={reading.holding} onClose={() => setReading(null)} />}
+      {openBook && readingHolding && (
+        <EbookReader book={openBook} holding={readingHolding} onClose={() => goBack(() => setReading(null))} />
+      )}
     </>
   )
 }
