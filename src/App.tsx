@@ -304,8 +304,28 @@ export default function App() {
         ) : openId && byId.get(openId) ? (
           <>
                         <BookDetail
+              key={openId}
               cfg={cfg}
               book={byId.get(openId)!}
+              books={books}
+              onOpen={(b) => {
+                setOpenId(b.id)
+                window.scrollTo(0, 0)
+              }}
+              onSearch={(text) => {
+                setOpenId(null)
+                setGroup(-1)
+                setCat(null)
+                setQ(text)
+                window.scrollTo(0, 0)
+              }}
+              onCategory={(id) => {
+                setOpenId(null)
+                setQ('')
+                setGroup(CATEGORY_GROUPS.findIndex((g) => g.items.some((i) => i.id === id)))
+                setCat(id)
+                window.scrollTo(0, 0)
+              }}
               onBack={() => setOpenId(null)}
               onEdit={() => { setEditing(true); window.scrollTo(0, 0) }}
               onDeleted={(b) => {

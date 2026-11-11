@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { categoryLabel } from '../data/categories'
-import Cover from './Cover'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
+import { relatedBooks } from '../search/related'
 import { nameToString, type Book, type Name } from '../types/book'
+import Cover from './Cover'
 
 const TYPE_LABEL: Record<string, string> = {
   book: 'Sách',
@@ -13,107 +14,194 @@ const TYPE_LABEL: Record<string, string> = {
   webpage: 'Trang web',
   document: 'Tài liệu khác',
 }
-const STATUS_LABEL: Record<Book['status'], string> = {
-  owned: 'Đang có',
-  lent: 'Đang cho mượn',
-  wishlist: 'Muốn mua',
-  lost: 'Thất lạc',
+const STATUS: Record<Book['status'], { label: string; cls: string }> = {
+  owned: { label: 'Đang có', cls: 'ok' },
+  lent: { label: 'Đang cho mượn', cls: 'warn' },
+  wishlist: { label: 'Muốn mua', cls: 'gold' },
+  lost: { label: 'Thất lạc', cls: 'bad' },
 }
 const LANG_LABEL: Record<string, string> = {
   vi: 'Tiếng Việt', en: 'Tiếng Anh', fr: 'Tiếng Pháp', de: 'Tiếng Đức', ru: 'Tiếng Nga',
   zh: 'Tiếng Trung', pi: 'Pāli', km: 'Tiếng Khmer', th: 'Tiếng Thái',
 }
 
-const names = (ns?: Name[]) => (ns?.length ? ns.map(nameToString).join('; ') : undefined)
 const fmtDate = (iso?: string) => {
   if (!iso) return undefined
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? iso : d.toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 const dmy = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : d)
 const isbnPretty = (s?: string) =>
   s && s.length === 13 ? `${s.slice(0, 3)}-${s.slice(3, 6)}-${s.slice(6, 12)}-${s.slice(12)}` : s
 
+/** Tên người bấm được: bấm thì tìm các sách khác có người này. */
+function People({ label, names, onSearch }: { label: string; names?: Name[]; onSearch: (q: string) => void }) {
+  if (!names?.length) return null
+  return (
+    <div className="people">
+      <span className="people-role">{label}</span>
+      {names.map((n, i) => (
+        <span key={i}>
+          {i > 0 && ', '}
+          <button className="linkish" onClick={() => onSearch(nameToString(n))}>
+            {nameToString(n)}
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export default function BookDetail({
   cfg,
   book,
+  books,
   onBack,
   onEdit,
   onDeleted,
+  onOpen,
+  onSearch,
+  onCategory,
 }: {
   cfg: StoreConfig
   book: Book
+  books: Book[]
   onBack: () => void
   onEdit: () => void
   onDeleted: (b: Book) => void
+  onOpen: (b: Book) => void
+  onSearch: (q: string) => void
+  onCategory: (id: string) => void
 }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const related = useMemo(() => relatedBooks(book, books), [book, books])
 
-  const rows: [string, string | number | undefined][] = [
-    ['Loại', TYPE_LABEL[book.type] ?? book.type],
-    ['Phụ đề', book.subtitle],
-    ['Nhan đề gốc', book.originalTitle],
-    ['Tác giả', names(book.authors)],
-    ['Dịch giả', names(book.translators)],
-    ['Chủ biên, biên soạn', names(book.editors)],
+  const prints = book.holdings.filter((h) => h.kind === 'print')
+  const mainLoc = prints[0]?.kind === 'print' ? prints[0].location : undefined
+  const st = STATUS[book.status]
+  const facts = [
+    book.year && String(book.year),
+    book.pages && `${book.pages} trang`,
+    book.language && (LANG_LABEL[book.language] ?? book.language),
+    book.edition && `Tái bản lần ${book.edition}`,
+  ].filter(Boolean) as string[]
+
+  const rows: [string, React.ReactNode][] = [
+    ['Loại tài liệu', TYPE_LABEL[book.type] ?? book.type],
+    [
+      book.type === 'thesis' ? 'Cơ sở đào tạo' : 'Nhà xuất bản',
+      book.publisher && (
+        <button className="linkish" onClick={() => onSearch(book.publisher!)}>
+          {book.publisher}
+        </button>
+      ),
+    ],
+    ['Loại luận văn', book.genre],
+    [
+      'Đơn vị liên kết',
+      book.partner && (
+        <button className="linkish" onClick={() => onSearch(book.partner!)}>
+          {book.partner}
+        </button>
+      ),
+    ],
+    ['Nơi xuất bản', book.place],
+    ['Năm xuất bản', book.year],
+    ['Số trang', book.pages],
+    ['Khổ', book.sizeCm ? `${book.sizeCm} cm` : undefined],
     ['Nằm trong', book.containerTitle],
     ['Tập / số', [book.volume, book.issue].filter(Boolean).join(' / ') || undefined],
     ['Trang', book.pageRange],
-    [book.type === 'thesis' ? 'Cơ sở đào tạo' : 'Nhà xuất bản', book.publisher],
-    ['Loại luận văn', book.genre],
-    ['Đơn vị liên kết', book.partner],
-    ['Nơi xuất bản', book.place],
-    ['Năm xuất bản', book.year],
-    ['Lần tái bản', book.edition],
-    ['Số trang', book.pages],
-    ['Khổ', book.sizeCm ? `${book.sizeCm} cm` : undefined],
-    ['Ngôn ngữ', book.language ? (LANG_LABEL[book.language] ?? book.language) : undefined],
     ['ISBN', isbnPretty(book.isbn13) ?? book.isbn10],
+    [
+      'Tùng thư',
+      book.series && (
+        <button className="linkish" onClick={() => onSearch(book.series!)}>
+          {book.series}
+          {book.seriesNo !== undefined ? `, số ${book.seriesNo}` : ''}
+        </button>
+      ),
+    ],
     ['Chủ đề chi tiết', book.subjects?.join(', ')],
     ['Nhãn', book.tags?.join(', ')],
-    ['Tùng thư', book.series ? `${book.series}${book.seriesNo !== undefined ? `, số ${book.seriesNo}` : ''}` : undefined],
-    ['Trạng thái', STATUS_LABEL[book.status]],
-    ['Cho mượn', book.loan ? `${book.loan.to}, từ ${dmy(book.loan.date)}${book.loan.due ? `, hẹn trả ${dmy(book.loan.due)}` : ''}` : undefined],
-    ['Ghi chú', book.notes],
   ]
 
   return (
     <article className="card detail">
-      <button className="link back" onClick={onBack}>
-        ← Quay lại danh sách
-      </button>
-      <header className="detail-head">
+      <div className="detail-top">
+        <button className="link back" onClick={onBack}>
+          ← Quay lại danh sách
+        </button>
+        <button className="secondary small-btn" onClick={onEdit}>
+          Sửa thông tin
+        </button>
+      </div>
+
+      <header className="detail-hero">
         <Cover book={book} cfg={cfg} size="lg" />
-        <div className="detail-title">
-        <h2>{book.title}</h2>
-        {book.subtitle && <div className="detail-sub">{book.subtitle}</div>}
-        <div className="detail-by">
-          {[names(book.authors), [book.publisher, book.year].filter(Boolean).join(', ')].filter(Boolean).join(' · ')}
-        </div>
-        {!!book.categories?.length && (
-          <div className="chips">
-            {book.categories.map((c) => (
-              <span key={c} className="chip static">
-                {categoryLabel(c)}
-              </span>
-            ))}
+        <div className="hero-info">
+          {!!book.categories?.length && (
+            <div className="chips">
+              {book.categories.map((c) => (
+                <button key={c} className="chip static" onClick={() => onCategory(c)}>
+                  {categoryLabel(c)}
+                </button>
+              ))}
+            </div>
+          )}
+          <h2>{book.title}</h2>
+          {book.subtitle && <div className="detail-sub">{book.subtitle}</div>}
+          {book.originalTitle && (
+            <div className="muted">
+              Nguyên tác: <i>{book.originalTitle}</i>
+            </div>
+          )}
+          <People label="Tác giả" names={book.authors} onSearch={onSearch} />
+          <People label="Dịch giả" names={book.translators} onSearch={onSearch} />
+          <People label="Biên soạn" names={book.editors} onSearch={onSearch} />
+          {(book.publisher || facts.length > 0) && (
+            <div className="facts">
+              {book.publisher && <span>{book.publisher}</span>}
+              {facts.map((f) => (
+                <span key={f}>{f}</span>
+              ))}
+            </div>
+          )}
+          <div className="where-box">
+            <div>
+              <div className="muted small">Vị trí</div>
+              <div className="where-loc">
+                {book.status === 'wishlist' ? 'Chưa có' : mainLoc ? `Kệ ${mainLoc}` : 'Chưa ghi kệ'}
+              </div>
+            </div>
+            <span className={`status s-${st.cls}`}>{st.label}</span>
           </div>
-        )}
+          {book.loan && (
+            <div className="loan">
+              Cho <b>{book.loan.to}</b> mượn từ {dmy(book.loan.date)}
+              {book.loan.due ? `, hẹn trả ${dmy(book.loan.due)}` : ''}
+            </div>
+          )}
         </div>
       </header>
 
-      <dl className="fields">
-        {rows
-          .filter(([, v]) => v !== undefined && v !== '')
-          .map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{v}</dd>
-            </div>
-          ))}
-      </dl>
+      {book.notes && <blockquote className="notes">{book.notes}</blockquote>}
+
+      <section>
+        <h3>Thông tin xuất bản</h3>
+        <dl className="fields">
+          {rows
+            .filter(([, v]) => v !== undefined && v !== '' && v !== false && v !== 0)
+            .map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+        </dl>
+      </section>
 
       {book.holdings.length > 0 && (
         <section>
@@ -138,14 +226,47 @@ export default function BookDetail({
         </section>
       )}
 
-      <p className="muted small">
-        Thêm lúc {fmtDate(book.createdAt)}
-        {book.updatedAt !== book.createdAt ? ` · sửa lần cuối ${fmtDate(book.updatedAt)}` : ''}
-      </p>
+      <section>
+        <h3>Sách liên quan trong thư viện</h3>
+        {related.length ? (
+          <ul className="related">
+            {related.map((r) => (
+              <li key={r.book.id}>
+                <button className="related-card" onClick={() => onOpen(r.book)}>
+                  <Cover book={r.book} cfg={cfg} />
+                  <span className="related-body">
+                    <span className="related-title">{r.book.title}</span>
+                    <span className="related-by">
+                      {[(r.book.authors ?? []).map(nameToString).join(', '), r.book.year].filter(Boolean).join(' · ')}
+                    </span>
+                    <span className="related-why">{r.reason}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            Chưa tìm thấy cuốn nào liên quan. Gắn danh mục, chủ đề chi tiết hoặc tùng thư cho sách để gợi ý chính
+            xác hơn.
+          </p>
+        )}
+      </section>
+
+      <footer className="detail-foot">
+        <span className="muted small">
+          Thêm ngày {fmtDate(book.createdAt)}
+          {book.updatedAt !== book.createdAt ? ` · sửa lần cuối ${fmtDate(book.updatedAt)}` : ''}
+        </span>
+        {!confirming && (
+          <button className="link danger-link" onClick={() => setConfirming(true)}>
+            Xóa sách này
+          </button>
+        )}
+      </footer>
 
       {error && <p className="error">{error}</p>}
-
-      {confirming ? (
+      {confirming && (
         <div className="confirm">
           <div>
             <div className="state-title">Xóa cuốn này khỏi thư viện?</div>
@@ -175,13 +296,6 @@ export default function BookDetail({
               {busy ? 'Đang xóa...' : 'Xóa'}
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="actions">
-          <button className="secondary" onClick={() => setConfirming(true)}>
-            Xóa
-          </button>
-          <button onClick={onEdit}>Sửa</button>
         </div>
       )}
     </article>
