@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { categoryLabel } from '../data/categories'
+import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
 import { nameToString, type Book, type Name } from '../types/book'
@@ -215,10 +216,18 @@ export default function BookDetail({
                   {h.condition ? `, ${h.condition}` : ''}
                 </li>
               ) : (
-                <li key={i}>
+                <li key={i} className="ebook-li">
                   <span className="tag olive">Sách điện tử</span> {h.format.toUpperCase()}
                   {h.storage === 'gdrive' ? ' trên Google Drive' : h.storage === 'local' ? ' trên máy' : ''}
                   {h.pdfPages ? `, ${h.pdfPages} trang` : ''}
+                  {h.pageOffset ? `, lệch ${h.pageOffset} trang so với bản in` : ''}
+                  {h.sameEditionAsPrint ? ', cùng ấn bản với bản giấy' : ''}
+                  {h.textLayer === 'ocr' ? ', chữ từ OCR' : h.textLayer === 'none' ? ', ảnh scan chưa có chữ' : ''}
+                  {h.storage === 'gdrive' && h.fileId && (
+                    <a className="open-drive" href={driveViewUrl(h.fileId)} target="_blank" rel="noopener noreferrer">
+                      Mở sách
+                    </a>
+                  )}
                 </li>
               ),
             )}

@@ -5,7 +5,8 @@ import Cover from './Cover'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
-import { nameToString, type Book, type ItemType, type Name } from '../types/book'
+import { driveViewUrl, guessFormat, parseDriveLink } from '../data/drive'
+import { nameToString, type Book, type EbookHolding, type ItemType, type Name } from '../types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -110,7 +111,15 @@ const toFields = (b: Book): Fields => {
   }
 }
 
-const build = (f: Fields, categories: string[], original?: Book): Built => {
+const build = (
+  f: Fields,
+  categories: string[],
+  original: Book | undefined,
+  ebooks: EbookHolding[],
+  hasPrint: boolean,
+): Built => {
+  if (!hasPrint && !ebooks.length && f.status !== 'wishlist')
+    return { error: 'Sách cần có bản giấy hoặc ít nhất một bản điện tử.' }
   const title = f.title.trim()
   if (!title) return { error: 'Cần nhập nhan đề.' }
   const year = f.year.trim() ? toInt(f.year) : undefined
@@ -163,17 +172,19 @@ const build = (f: Fields, categories: string[], original?: Book): Built => {
     tags: opt(splitList(f.tags)),
     series: opt(f.series.trim()),
     seriesNo: f.seriesNo.trim() && !isNaN(Number(f.seriesNo)) ? Number(f.seriesNo) : undefined,
-    holdings:
-      f.status === 'wishlist'
+    holdings: [
+      ...(f.status === 'wishlist' || !hasPrint
         ? []
         : [
             {
-              kind: 'print',
+              kind: 'print' as const,
               location: opt(f.location.trim()),
               copies: toInt(f.copies) ?? 1,
               condition: opt(f.condition.trim()),
             },
-          ],
+          ]),
+      ...ebooks,
+    ],
     status: f.status as Book['status'],
     notes: opt(f.notes.trim()),
     source: 'manual',
@@ -184,9 +195,10 @@ const build = (f: Fields, categories: string[], original?: Book): Built => {
     // Giữ nguyên những gì biểu mẫu không quản lý (sách điện tử, cho mượn, bìa, ngày tạo...).
     const kept: Record<string, unknown> = { ...original }
     for (const k of MANAGED) delete kept[k]
-    const otherHoldings = original.holdings.filter((h, i) =>
-      h.kind === 'ebook' ? true : i !== original.holdings.findIndex((x) => x.kind === 'print'),
-    )
+    // Bản giấy thứ hai trở đi (nếu có) giữ nguyên; bản giấy đầu và các bản điện tử do biểu mẫu quản lý.
+    const firstPrint = original.holdings.findIndex((x) => x.kind === 'print')
+    const otherPrints = original.holdings.filter((h, i) => h.kind === 'print' && i !== firstPrint)
+    const keepPrints = f.status !== 'wishlist' && hasPrint
     const merged = {
       ...kept,
       ...book,
@@ -194,7 +206,11 @@ const build = (f: Fields, categories: string[], original?: Book): Built => {
       source: original.source,
       createdAt: original.createdAt,
       updatedAt: now,
-      holdings: [...book.holdings, ...otherHoldings.filter((h) => !(f.status === 'wishlist' && h.kind === 'print'))],
+      holdings: [
+        ...book.holdings.filter((h) => h.kind === 'print'),
+        ...(keepPrints ? otherPrints : []),
+        ...ebooks,
+      ],
     }
     return { book: JSON.parse(JSON.stringify(merged)) as Book }
   }
@@ -247,6 +263,27 @@ export default function BookForm({
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [coverRemoved, setCoverRemoved] = useState(false)
+  const startHoldings = initial?.holdings ?? prefill?.holdings ?? []
+  const [ebooks, setEbooks] = useState<EbookHolding[]>(
+    startHoldings.filter((h): h is EbookHolding => h.kind === 'ebook'),
+  )
+  const [hasPrint, setHasPrint] = useState(
+    startHoldings.length === 0 || startHoldings.some((h) => h.kind === 'print') || initial?.status === 'wishlist',
+  )
+  const [driveLink, setDriveLink] = useState('')
+  const [driveErr, setDriveErr] = useState<string | null>(null)
+  const addDrive = () => {
+    setDriveErr(null)
+    const ref = parseDriveLink(driveLink)
+    if (!ref) return setDriveErr('Không nhận ra link Google Drive. Dán link chia sẻ của tệp (drive.google.com/file/d/...).')
+    if (ref.kind === 'folder')
+      return setDriveErr('Đây là link thư mục. Hãy dán link của từng tệp sách, hoặc dùng trang "Nhập sách điện tử" để dán nhiều link một lần.')
+    if (ebooks.some((e) => e.fileId === ref.id)) return setDriveErr('Tệp này đã được gắn vào cuốn sách.')
+    setEbooks([...ebooks, { kind: 'ebook', format: ref.kind === 'doc' ? 'other' : guessFormat(driveLink), storage: 'gdrive', fileId: ref.id }])
+    setDriveLink('')
+  }
+  const patchEbook = (i: number, p: Partial<EbookHolding>) =>
+    setEbooks(ebooks.map((e, k) => (k === i ? (JSON.parse(JSON.stringify({ ...e, ...p })) as EbookHolding) : e)))
   const pickCover = async (file?: File) => {
     if (!file) return
     setError(null)
@@ -280,7 +317,7 @@ export default function BookForm({
 
   const save = async (force: boolean) => {
     setError(null)
-    const r = build(f, cats, initial)
+    const r = build(f, cats, initial, ebooks, hasPrint)
     if ('error' in r) return setError(r.error)
     if (!force) {
       const d = findDuplicates(r.book, books.filter((b) => b.id !== initial?.id))
@@ -559,6 +596,10 @@ export default function BookForm({
 
       <fieldset>
         <legend>Bản giấy</legend>
+        <label className="check">
+          <input type="checkbox" checked={hasPrint} onChange={(e) => setHasPrint(e.target.checked)} disabled={f.status === 'wishlist'} />
+          Có bản giấy trên kệ
+        </label>
         <div className="row">
           <label>
             Trạng thái
@@ -570,23 +611,100 @@ export default function BookForm({
           </label>
           <label>
             Vị trí (tủ, kệ)
-            <input list="dl-locations" placeholder="T1-K2" value={f.location} onChange={set('location')} disabled={f.status === 'wishlist'} />
+            <input list="dl-locations" placeholder="T1-K2" value={f.location} onChange={set('location')} disabled={f.status === 'wishlist' || !hasPrint} />
           </label>
         </div>
         <div className="row">
           <label>
             Số bản
-            <input inputMode="numeric" value={f.copies} onChange={set('copies')} disabled={f.status === 'wishlist'} />
+            <input inputMode="numeric" value={f.copies} onChange={set('copies')} disabled={f.status === 'wishlist' || !hasPrint} />
           </label>
           <label>
             Tình trạng
-            <input placeholder="tốt, ố vàng, mất bìa..." value={f.condition} onChange={set('condition')} disabled={f.status === 'wishlist'} />
+            <input placeholder="tốt, ố vàng, mất bìa..." value={f.condition} onChange={set('condition')} disabled={f.status === 'wishlist' || !hasPrint} />
           </label>
         </div>
         <label>
           Ghi chú
           <textarea rows={2} value={f.notes} onChange={set('notes')} />
         </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Sách điện tử</legend>
+        <p className="hint">
+          Dán link chia sẻ của tệp trên Google Drive. Độ lệch trang = số trang PDF đứng trước trang in số 1 (bìa, trang
+          lót...), để trích dẫn luôn theo số trang in.
+        </p>
+        {ebooks.map((e, i) => (
+          <div key={e.fileId ?? i} className="ebook-row">
+            <div className="ebook-head">
+              <span className="tag olive">{e.format.toUpperCase()}</span>
+              {e.fileId && (
+                <a href={driveViewUrl(e.fileId)} target="_blank" rel="noopener noreferrer">
+                  Mở trên Google Drive
+                </a>
+              )}
+              <button type="button" className="link remove" onClick={() => setEbooks(ebooks.filter((_, k) => k !== i))}>
+                Bỏ
+              </button>
+            </div>
+            <div className="row3">
+              <label>
+                Định dạng
+                <select value={e.format} onChange={(ev) => patchEbook(i, { format: ev.target.value as EbookHolding['format'] })}>
+                  <option value="pdf">PDF</option>
+                  <option value="epub">EPUB</option>
+                  <option value="djvu">DjVu</option>
+                  <option value="other">Khác</option>
+                </select>
+              </label>
+              <label>
+                Độ lệch trang
+                <input
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={e.pageOffset ?? ''}
+                  onChange={(ev) => patchEbook(i, { pageOffset: /^-?\d+$/.test(ev.target.value) ? Number(ev.target.value) : undefined })}
+                />
+              </label>
+              <label>
+                Lớp chữ
+                <select value={e.textLayer ?? ''} onChange={(ev) => patchEbook(i, { textLayer: (ev.target.value || undefined) as EbookHolding['textLayer'] })}>
+                  <option value="">Chưa rõ</option>
+                  <option value="native">Có sẵn (tìm được chữ)</option>
+                  <option value="ocr">Đã OCR</option>
+                  <option value="none">Ảnh scan, chưa có chữ</option>
+                </select>
+              </label>
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={!!e.sameEditionAsPrint}
+                onChange={(ev) => patchEbook(i, { sameEditionAsPrint: ev.target.checked || undefined })}
+              />
+              Cùng ấn bản với bản giấy (số trang khớp nhau)
+            </label>
+          </div>
+        ))}
+        <div className="manual">
+          <input
+            placeholder="https://drive.google.com/file/d/..."
+            value={driveLink}
+            onChange={(e) => setDriveLink(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addDrive()
+              }
+            }}
+          />
+          <button type="button" className="secondary" onClick={addDrive}>
+            Thêm
+          </button>
+        </div>
+        {driveErr && <p className="error">{driveErr}</p>}
       </fieldset>
 
       <datalist id="dl-publishers">{lists.publishers.map((x) => <option key={x} value={x} />)}</datalist>

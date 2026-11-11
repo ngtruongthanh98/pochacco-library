@@ -283,3 +283,51 @@ export const prepareCover = async (file: File): Promise<Blob> => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Không xử lý được ảnh'))), 'image/jpeg', 0.82),
   )
 }
+
+/**
+ * Ghi gộp: sửa các bản ghi đã có (theo id) và thêm bản ghi mới trong một lượt,
+ * mỗi tệp phân mảnh thay đổi là một commit. Gặp xung đột thì đọc lại và thử lại.
+ */
+export const saveBatch = async (cfg: StoreConfig, adds: Book[], updates: Book[], message: string): Promise<void> => {
+  const ref = cfg.branch ?? 'main'
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const paths = await listShards(cfg, ref)
+    if (!paths.length) paths.push(`catalog/${shardName(0)}`)
+    const shards = await Promise.all(paths.map(async (p) => ({ path: p, ...(await readShard(cfg, p, ref)) })))
+    const byId = new Map(updates.map((b) => [b.id, b]))
+    const existing = new Set(shards.flatMap((s) => s.books.map((b) => b.id)))
+    const changed = new Map<string, Book[]>()
+    for (const s of shards) {
+      if (s.books.some((b) => byId.has(b.id))) changed.set(s.path, s.books.map((b) => byId.get(b.id) ?? b))
+    }
+    let pending = adds.filter((b) => !existing.has(b.id))
+    let n = Number(paths.at(-1)!.slice(-8, -5))
+    while (pending.length) {
+      const path = `catalog/${shardName(n)}`
+      const base = changed.get(path) ?? shards.find((s) => s.path === path)?.books ?? []
+      const room = SHARD_SIZE - base.length
+      if (room <= 0) {
+        n++
+        continue
+      }
+      changed.set(path, [...base, ...pending.slice(0, room)])
+      pending = pending.slice(room)
+    }
+    let conflict = false
+    for (const [path, books] of changed) {
+      const sha = shards.find((s) => s.path === path)?.sha ?? null
+      const res = await writeShard(cfg, path, ref, books, sha, message)
+      if (res.ok) continue
+      if (res.status === 409 || res.status === 422) {
+        conflict = true
+        break
+      }
+      if (res.status === 403 || res.status === 404)
+        throw new Error('Token không có quyền ghi vào repo dữ liệu (cần Contents: Read and write).')
+      throw new Error(`Không lưu được (HTTP ${res.status})`)
+    }
+    if (!conflict) return
+    // Một phần có thể đã ghi; lần thử sau đọc lại nên bản ghi đã có sẽ được bỏ qua hoặc ghi đè đúng.
+  }
+  throw new Error('Danh mục vừa bị thay đổi ở nơi khác. Tải lại trang rồi thử lại.')
+}

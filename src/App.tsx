@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
+import ImportEbooks from './components/ImportEbooks'
 import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
 import Stats from './components/Stats'
@@ -231,7 +232,7 @@ export default function App() {
   const [cat, setCat] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [scanMode, setScanMode] = useState<'one' | 'shelf' | null>(null)
+  const [scanMode, setScanMode] = useState<'one' | 'shelf' | 'ebooks' | null>(null)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [page, setPage] = useState<'library' | 'stats'>('library')
   const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
@@ -393,6 +394,23 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : scanMode === 'ebooks' ? (
+          <ImportEbooks
+            cfg={cfg}
+            books={books}
+            onCancel={() => setScanMode(null)}
+            onDone={(added, updated) => {
+              const upd = new Map(updated.map((b) => [b.id, b]))
+              setBooks((prev) => [...added, ...prev.map((b) => upd.get(b.id) ?? b)])
+              setScanMode(null)
+              setSaved(null)
+              setNotice({
+                title: 'Đã nhập sách điện tử',
+                text: `${added.length} sách mới${updated.length ? `, gắn bản điện tử vào ${updated.length} sách có sẵn` : ''}.`,
+              })
+              window.scrollTo(0, 0)
+            }}
+          />
         ) : scanMode === 'shelf' ? (
           <ShelfScan
             cfg={cfg}
@@ -459,6 +477,9 @@ export default function App() {
               </button>
               <button className="secondary" onClick={() => { setSaved(null); setNotice(null); setScanMode('one') }}>
                 Quét ISBN
+              </button>
+              <button className="secondary" onClick={() => { setSaved(null); setNotice(null); setScanMode('ebooks') }}>
+                Nhập sách điện tử
               </button>
               <button onClick={() => { setSaved(null); setNotice(null); setPrefill(null); setAdding(true) }}>+ Thêm sách</button>
             </div>
