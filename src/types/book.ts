@@ -78,6 +78,8 @@ export type Book = {
   status: 'owned' | 'lent' | 'lost' | 'wishlist'
   loan?: { to: string; date: string; due?: string }
   acquired?: { date?: string; from?: string; price?: number; gift?: boolean }
+  /** Mô tả, giới thiệu nội dung sách (nhiều đoạn, ngăn bằng dòng trống) */
+  description?: string
   notes?: string
   cover?: string
   source?: 'manual' | 'openlibrary' | 'googlebooks' | 'ocr' | 'import'

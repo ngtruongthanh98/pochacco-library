@@ -6,6 +6,39 @@ import { relatedBooks } from '../search/related'
 import { nameToString, type Book, type EbookHolding, type Name } from '../types/book'
 import Cover from './Cover'
 
+function Description({ text, onEdit }: { text?: string; onEdit: () => void }) {
+  const [open, setOpen] = useState(false)
+  if (!text?.trim())
+    return (
+      <section className="description empty-desc">
+        <h3>Giới thiệu</h3>
+        <p className="muted">
+          Chưa có mô tả.{' '}
+          <button type="button" className="link" onClick={onEdit}>
+            Thêm mô tả
+          </button>
+        </p>
+      </section>
+    )
+  const paras = text.trim().split(/\n\s*\n/)
+  const long = text.length > 700 || paras.length > 4
+  return (
+    <section className="description">
+      <h3>Giới thiệu</h3>
+      <div className={long && !open ? 'desc-body clamped' : 'desc-body'}>
+        {paras.map((p, i) => (
+          <p key={i}>{p}</p>
+        ))}
+      </div>
+      {long && (
+        <button type="button" className="link desc-toggle" onClick={() => setOpen(!open)}>
+          {open ? 'Thu gọn' : 'Xem thêm'}
+        </button>
+      )}
+    </section>
+  )
+}
+
 const TYPE_LABEL: Record<string, string> = {
   book: 'Sách',
   chapter: 'Chương trong sách tuyển',
@@ -199,6 +232,8 @@ export default function BookDetail({
       </header>
 
       {book.notes && <blockquote className="notes">{book.notes}</blockquote>}
+
+      <Description key={book.id} text={book.description} onEdit={onEdit} />
 
       <section>
         <h3>Thông tin xuất bản</h3>

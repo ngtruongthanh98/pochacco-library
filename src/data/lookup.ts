@@ -49,7 +49,27 @@ type GBVolume = {
     pageCount?: number
     language?: string
     imageLinks?: { thumbnail?: string; smallThumbnail?: string }
+    description?: string
   }
+}
+
+/** Google Books đôi khi trả mô tả kèm thẻ HTML: đổi về văn bản thuần, giữ ngắt đoạn. */
+export const cleanDescription = (html?: string): string | undefined => {
+  if (!html) return undefined
+  const text = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return text || undefined
 }
 
 const withTimeout = async (url: string, ms = 8000) => {
@@ -106,6 +126,7 @@ export const lookupIsbn = async (isbn13: string): Promise<LookupResult | null> =
     year: yearOf(ol?.publish_date) ?? yearOf(gb?.publishedDate),
     pages: ol?.number_of_pages ?? (gb?.pageCount || undefined),
     language: lang,
+    description: cleanDescription(gb?.description),
     cover,
     source: ol ? 'openlibrary' : 'googlebooks',
   }
@@ -127,6 +148,7 @@ export type Candidate = {
   isbn13?: string
   language?: string
   cover?: string
+  description?: string
   source: 'openlibrary' | 'googlebooks'
 }
 
@@ -175,6 +197,7 @@ export const searchByTitle = async (title: string, author?: string): Promise<Can
       isbn13: isbn13Of(v.industryIdentifiers?.map((x) => x.identifier)),
       language: lang,
       cover: thumb ? thumb.replace(/^http:/, 'https:').replace('&edge=curl', '') : undefined,
+      description: cleanDescription(v.description),
       source: 'googlebooks',
     })
   }

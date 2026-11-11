@@ -68,7 +68,7 @@ type Fields = Record<
   | 'publisher' | 'partner' | 'place' | 'year' | 'edition' | 'pages' | 'sizeCm' | 'language'
   | 'isbn' | 'containerTitle' | 'volume' | 'issue' | 'pageRange' | 'genre'
   | 'subjects' | 'tags' | 'series' | 'seriesNo'
-  | 'location' | 'copies' | 'condition' | 'status' | 'notes',
+  | 'location' | 'copies' | 'condition' | 'status' | 'notes' | 'description',
   string
 >
 
@@ -77,7 +77,7 @@ const EMPTY: Fields = {
   publisher: '', partner: '', place: '', year: '', edition: '', pages: '', sizeCm: '', language: 'vi',
   isbn: '', containerTitle: '', volume: '', issue: '', pageRange: '', genre: '',
   subjects: '', tags: '', series: '', seriesNo: '',
-  location: '', copies: '1', condition: '', status: 'owned', notes: '',
+  location: '', copies: '1', condition: '', status: 'owned', notes: '', description: '',
 }
 
 type Built = { book: Book } | { error: string }
@@ -86,7 +86,7 @@ const MANAGED = [
   'type', 'isbn13', 'isbn10', 'title', 'subtitle', 'originalTitle', 'authors', 'translators', 'editors',
   'publisher', 'partner', 'place', 'year', 'edition', 'pages', 'sizeCm', 'language',
   'containerTitle', 'volume', 'issue', 'pageRange', 'genre', 'categories', 'subjects', 'tags',
-  'series', 'seriesNo', 'holdings', 'status', 'notes',
+  'series', 'seriesNo', 'holdings', 'status', 'notes', 'description',
 ] as const
 
 const namesToText = (ns?: Name[]) =>
@@ -108,7 +108,7 @@ const toFields = (b: Book): Fields => {
     location: p?.kind === 'print' ? s(p.location) : '',
     copies: p?.kind === 'print' ? s(p.copies ?? 1) : '1',
     condition: p?.kind === 'print' ? s(p.condition) : '',
-    status: b.status, notes: s(b.notes),
+    status: b.status, notes: s(b.notes), description: s(b.description),
   }
 }
 
@@ -188,6 +188,7 @@ const build = (
     ],
     status: f.status as Book['status'],
     notes: opt(f.notes.trim()),
+    description: opt(f.description.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()),
     source: 'manual',
     createdAt: now,
     updatedAt: now,
@@ -294,6 +295,7 @@ export default function BookForm({
           key: 'isbn', title: r.draft.title, authors: r.draft.authors ?? [], year: r.draft.year,
           publisher: r.draft.publisher, pages: r.draft.pages, isbn13: isbn.isbn13, language: r.draft.language,
           cover: r.draft.cover?.startsWith('ol:') ? `https://covers.openlibrary.org/b/isbn/${isbn.isbn13}-M.jpg` : r.draft.cover,
+          description: r.draft.description,
           source: r.draft.source === 'googlebooks' ? 'googlebooks' : 'openlibrary',
         }]
     }
@@ -319,6 +321,7 @@ export default function BookForm({
     fill('year', c.year ? String(c.year) : undefined, 'năm')
     fill('pages', c.pages ? String(c.pages) : undefined, 'số trang')
     fill('isbn', c.isbn13, 'ISBN')
+    fill('description', c.description, 'mô tả')
     if (c.language && c.language !== f.language) {
       next.language = c.language
       filled.push('ngôn ngữ')
@@ -562,6 +565,19 @@ export default function BookForm({
             <textarea rows={2} value={f.editors} onChange={set('editors')} />
           </label>
         </div>
+        <label>
+          Mô tả, giới thiệu nội dung
+          <textarea
+            className="description-input"
+            rows={5}
+            value={f.description}
+            onChange={set('description')}
+            placeholder="Tóm tắt nội dung, lời giới thiệu ở bìa sau, mục lục chính, nhận xét của bạn... Để một dòng trống giữa các đoạn."
+          />
+          {f.description.trim() && (
+            <span className="hint">{f.description.trim().split(/\s+/).length.toLocaleString('vi-VN')} chữ</span>
+          )}
+        </label>
       </fieldset>
 
       {inContainer && (
