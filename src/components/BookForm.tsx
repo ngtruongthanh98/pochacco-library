@@ -220,20 +220,29 @@ export default function BookForm({
   cfg,
   books,
   initial,
+  prefill,
   onSaved,
   onCancel,
 }: {
   cfg: StoreConfig
   books: Book[]
   initial?: Book
+  /** Dữ liệu điền sẵn cho sách mới (từ quét ISBN) */
+  prefill?: Partial<Book>
   onSaved: (b: Book) => void
   onCancel: () => void
 }) {
-  const [f, setF] = useState<Fields>(() => (initial ? toFields(initial) : EMPTY))
+  const [f, setF] = useState<Fields>(() =>
+    initial
+      ? toFields(initial)
+      : prefill
+        ? toFields({ id: '', type: 'book', title: '', holdings: [], status: 'owned', createdAt: '', updatedAt: '', ...prefill })
+        : EMPTY,
+  )
   const [error, setError] = useState<string | null>(null)
   const [dupes, setDupes] = useState<Book[] | null>(null)
   const [busy, setBusy] = useState(false)
-  const [cats, setCats] = useState<string[]>(initial?.categories ?? [])
+  const [cats, setCats] = useState<string[]>(initial?.categories ?? prefill?.categories ?? [])
   const [catTab, setCatTab] = useState(0)
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
@@ -282,6 +291,8 @@ export default function BookForm({
       const book = { ...r.book }
       if (coverBlob) book.cover = await uploadCover(cfg, book.id, coverBlob, book.title)
       else if (coverRemoved) delete book.cover
+      else if (!initial && prefill?.cover) book.cover = prefill.cover
+      if (!initial && prefill?.source) book.source = prefill.source
       await (initial ? updateBook(cfg, book) : addBook(cfg, book))
       onSaved(book)
     } catch (err) {
@@ -303,6 +314,13 @@ export default function BookForm({
         <img src={asset('sticker-carrying.webp')} alt="" />
         <div>
           <h2>{initial ? 'Sửa sách' : 'Thêm sách'}</h2>
+          {prefill && !initial && (
+            <p className="hint">
+              {prefill.title
+                ? `Đã điền sẵn từ ${prefill.source === 'googlebooks' ? 'Google Books' : 'Open Library'}. Kiểm tra lại rồi bổ sung kệ, danh mục.`
+                : 'Không tìm thấy dữ liệu trực tuyến cho ISBN này. Nhập phần còn lại bằng tay.'}
+            </p>
+          )}
           <p className="muted">Chỉ nhan đề là bắt buộc. Thiếu thông tin gì có thể bổ sung sau.</p>
         </div>
       </div>
@@ -314,7 +332,7 @@ export default function BookForm({
           size="lg"
           preview={coverPreview}
           book={{
-            ...(initial ?? { id: 'new', holdings: [], createdAt: '', updatedAt: '' }),
+            ...(initial ?? { id: 'new', holdings: [], createdAt: '', updatedAt: '', cover: prefill?.cover }),
             ...(coverRemoved ? { cover: undefined } : {}),
             type: f.type as ItemType,
             title: f.title || 'Sách mới',

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
+import ScanOne from './components/ScanOne'
+import ShelfScan from './components/ShelfScan'
 import BookForm from './components/BookForm'
 import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -228,6 +230,8 @@ export default function App() {
   const [cat, setCat] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [scanMode, setScanMode] = useState<'one' | 'shelf' | null>(null)
+  const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [notice, setNotice] = useState<{ title: string; text: string } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -312,15 +316,54 @@ export default function App() {
               }}
             />
           </>
-        ) : adding ? (
-          <BookForm
+        ) : scanMode === 'one' ? (
+          <ScanOne
             cfg={cfg}
             books={books}
-            onCancel={() => setAdding(false)}
+            onCancel={() => setScanMode(null)}
+            onOpen={(b) => {
+              setScanMode(null)
+              setOpenId(b.id)
+              window.scrollTo(0, 0)
+            }}
+            onPrefill={(d) => {
+              setScanMode(null)
+              setPrefill(d)
+              setAdding(true)
+              window.scrollTo(0, 0)
+            }}
+          />
+        ) : scanMode === 'shelf' ? (
+          <ShelfScan
+            cfg={cfg}
+            books={books}
+            onCancel={() => setScanMode(null)}
+            onDone={(added, updated, shelfName) => {
+              const upd = new Map(updated.map((b) => [b.id, b]))
+              setBooks((prev) => [...added, ...prev.map((b) => upd.get(b.id) ?? b)])
+              setScanMode(null)
+              setSaved(null)
+              setNotice({
+                title: `Đã lưu kệ ${shelfName || '(chưa đặt tên)'}`,
+                text: `${added.length} sách mới${updated.length ? `, chuyển ${updated.length} cuốn sang kệ này` : ''}.`,
+              })
+            }}
+          />
+        ) : adding ? (
+          <BookForm
+            key={prefill ? `prefill-${prefill.isbn13}` : 'new'}
+            cfg={cfg}
+            books={books}
+            prefill={prefill ?? undefined}
+            onCancel={() => {
+              setAdding(false)
+              setPrefill(null)
+            }}
             onSaved={(b) => {
               setBooks((prev) => [b, ...prev])
               setSaved(b)
               setAdding(false)
+              setPrefill(null)
               setQ('')
             }}
           />
@@ -351,7 +394,13 @@ export default function App() {
               </div>
             )}
             <div className="toolbar">
-              <button onClick={() => { setSaved(null); setNotice(null); setAdding(true) }}>+ Thêm sách</button>
+              <button className="secondary" onClick={() => { setSaved(null); setNotice(null); setScanMode('shelf') }}>
+                Quét theo kệ
+              </button>
+              <button className="secondary" onClick={() => { setSaved(null); setNotice(null); setScanMode('one') }}>
+                Quét ISBN
+              </button>
+              <button onClick={() => { setSaved(null); setNotice(null); setPrefill(null); setAdding(true) }}>+ Thêm sách</button>
             </div>
             <input
               className="search"

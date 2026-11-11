@@ -122,13 +122,14 @@ const writeShard = async (
   })
 
 /**
- * Thêm một bản ghi vào tệp phân mảnh cuối cùng (tạo tệp mới khi đầy).
- * Mỗi lần ghi gửi kèm sha của tệp; nếu tệp vừa bị nơi khác sửa (409/422),
- * đọc lại và thử thêm, tối đa 3 lần, nên không ghi đè thay đổi của thiết bị khác.
+ * Thêm một hoặc nhiều bản ghi vào tệp phân mảnh cuối (sang tệp mới khi đầy), mỗi tệp một commit.
+ * Mỗi lần ghi gửi kèm sha của tệp; nếu tệp vừa bị nơi khác sửa (409/422) thì đọc lại và thử
+ * tối đa 3 lần, nên không ghi đè thay đổi của thiết bị khác.
  */
-export const addBook = async (cfg: StoreConfig, book: Book): Promise<void> => {
+export const addBooks = async (cfg: StoreConfig, newBooks: Book[], message?: string): Promise<void> => {
   const ref = cfg.branch ?? 'main'
-  for (let attempt = 0; attempt < 3; attempt++) {
+  let pending = [...newBooks]
+  for (let attempt = 0; attempt < 3 && pending.length; attempt++) {
     const dir = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/catalog?ref=${ref}`, {
       headers: headers(cfg),
       cache: 'no-store',
@@ -136,23 +137,40 @@ export const addBook = async (cfg: StoreConfig, book: Book): Promise<void> => {
     const entries = dir.ok
       ? ((await dir.json()) as DirEntry[]).filter((e) => /^books-\d+\.json$/.test(e.name))
       : []
-    const last = entries.map((e) => Number(e.name.slice(6, 9))).sort((a, b) => a - b).at(-1) ?? 0
-    let path = `catalog/${shardName(last)}`
-    let shard = await readShard(cfg, path, ref)
-    if (shard.books.some((b) => b.id === book.id)) return // đã ghi ở lần thử trước
-    if (shard.books.length >= SHARD_SIZE) {
-      path = `catalog/${shardName(last + 1)}`
-      shard = await readShard(cfg, path, ref)
+    let n = entries.map((e) => Number(e.name.slice(6, 9))).sort((a, b) => a - b).at(-1) ?? 0
+    let conflict = false
+    while (pending.length) {
+      const path = `catalog/${shardName(n)}`
+      const shard = await readShard(cfg, path, ref)
+      const have = new Set(shard.books.map((b) => b.id))
+      pending = pending.filter((b) => !have.has(b.id)) // đã ghi ở lần thử trước
+      const room = SHARD_SIZE - shard.books.length
+      if (room <= 0) {
+        n++
+        continue
+      }
+      const chunk = pending.slice(0, room)
+      if (!chunk.length) break
+      const msg = message ?? (chunk.length === 1 ? `Thêm sách: ${chunk[0].title}` : `Thêm ${chunk.length} sách`)
+      const res = await writeShard(cfg, path, ref, [...shard.books, ...chunk], shard.sha, msg)
+      if (res.ok) {
+        pending = pending.slice(chunk.length)
+        continue
+      }
+      if (res.status === 409 || res.status === 422) {
+        conflict = true
+        break
+      }
+      if (res.status === 403 || res.status === 404)
+        throw new Error('Token không có quyền ghi vào repo dữ liệu (cần Contents: Read and write).')
+      throw new Error(`Không lưu được (HTTP ${res.status})`)
     }
-    const res = await writeShard(cfg, path, ref, [...shard.books, book], shard.sha, `Thêm sách: ${book.title}`)
-    if (res.ok) return
-    if (res.status === 409 || res.status === 422) continue
-    if (res.status === 403 || res.status === 404)
-      throw new Error('Token không có quyền ghi vào repo dữ liệu (cần Contents: Read and write).')
-    throw new Error(`Không lưu được (HTTP ${res.status})`)
+    if (!conflict) return
   }
-  throw new Error('Danh mục vừa bị thay đổi ở nơi khác. Tải lại trang rồi thử lại.')
+  if (pending.length) throw new Error('Danh mục vừa bị thay đổi ở nơi khác. Tải lại trang rồi thử lại.')
 }
+
+export const addBook = (cfg: StoreConfig, book: Book) => addBooks(cfg, [book])
 
 const listShards = async (cfg: StoreConfig, ref: string) => {
   const dir = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/catalog?ref=${ref}`, {
