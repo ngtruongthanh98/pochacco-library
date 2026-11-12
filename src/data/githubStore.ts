@@ -7,7 +7,7 @@ export type StoreConfig = {
   branch?: string
 }
 
-const API = 'https://api.github.com'
+export const API = 'https://api.github.com'
 const SESSION_KEY = 'pochacco-library:session'
 
 /** Phiên đăng nhập: mặc định chỉ sống trong tab (sessionStorage); "ghi nhớ" thì lưu localStorage. */
@@ -42,7 +42,7 @@ export const clearConfig = () => {
   }
 }
 
-const headers = (cfg: StoreConfig, accept = 'application/vnd.github+json') => ({
+export const headers = (cfg: StoreConfig, accept = 'application/vnd.github+json') => ({
   Authorization: `Bearer ${cfg.token}`,
   Accept: accept,
   'X-GitHub-Api-Version': '2022-11-28',
@@ -117,13 +117,13 @@ export const fetchCatalog = async (cfg: StoreConfig): Promise<Book[]> => {
 
 export const SHARD_SIZE = 1000
 
-const utf8ToB64 = (text: string) => {
+export const utf8ToB64 = (text: string) => {
   const bytes = new TextEncoder().encode(text)
   let bin = ''
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return btoa(bin)
 }
-const b64ToUtf8 = (b64: string) =>
+export const b64ToUtf8 = (b64: string) =>
   new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g, '')), (c) => c.charCodeAt(0)))
 
 const shardName = (n: number) => `books-${String(n).padStart(3, '0')}.json`

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { categoryLabel } from '../data/categories'
 import { isEbookOnly } from '../data/format'
+import type { Excerpt } from '../types/excerpt'
+import { BookQuotes, type ExcerptActions } from './Quotes'
 import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
@@ -95,6 +97,10 @@ export default function BookDetail({
   onEdit,
   onDuplicate,
   onDeleted,
+  excerpts,
+  allTopics,
+  excerptActions,
+  onTopic,
   onOpen,
   onSearch,
   onCategory,
@@ -107,6 +113,10 @@ export default function BookDetail({
   onEdit: () => void
   onDuplicate: () => void
   onDeleted: (b: Book) => void
+  excerpts: Excerpt[]
+  allTopics: string[]
+  excerptActions: ExcerptActions
+  onTopic: (t: string) => void
   onOpen: (b: Book) => void
   onSearch: (q: string) => void
   onCategory: (id: string) => void
@@ -257,6 +267,8 @@ export default function BookDetail({
 
       <Description key={book.id} text={book.description} onEdit={onEdit} />
 
+      <BookQuotes key={`q-${book.id}`} book={book} excerpts={excerpts} allTopics={allTopics} actions={excerptActions} onTopic={onTopic} />
+
       <section>
         <h3>Thông tin xuất bản</h3>
         <dl className="fields">
@@ -352,7 +364,11 @@ export default function BookDetail({
           <div>
             <div className="state-title">Xóa cuốn này khỏi thư viện?</div>
             <div className="muted">
-              Bản ghi sẽ mất khỏi danh mục. Nếu xóa nhầm, bản cũ vẫn còn trong lịch sử commit của repo dữ liệu.
+              Bản ghi sẽ mất khỏi danh mục
+              {excerpts.some((e) => e.bookId === book.id)
+                ? `, cùng ${excerpts.filter((e) => e.bookId === book.id).length} trích dẫn của cuốn này`
+                : ''}
+              . Nếu xóa nhầm, bản cũ vẫn còn trong lịch sử commit của repo dữ liệu.
             </div>
           </div>
           <div className="actions">

@@ -11,6 +11,10 @@ import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTax
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { Settings } from './components/Settings'
+import { QuotesPage, type ExcerptActions } from './components/Quotes'
+import { fetchExcerpts, saveExcerpts } from './data/excerptStore'
+import { topicCounts } from './data/cite'
+import type { Excerpt } from './types/excerpt'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft } from './data/duplicate'
 import { FORMAT_OPTIONS, formatOf, isEbookOnly, type FormatFilter } from './data/format'
@@ -246,7 +250,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
-  const [page, setPage] = useState<'library' | 'stats' | 'settings'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes'>(initial.page)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
@@ -256,6 +260,9 @@ export default function App() {
   const [q, setQ] = useState(initial.q)
   const [sort, setSort] = useState<SortKey | null>(initial.sort)
   const [fmt, setFmt] = useState<FormatFilter>(initial.fmt)
+  const [topic, setTopic] = useState<string | null>(initial.topic)
+  const [excerpts, setExcerpts] = useState<Excerpt[]>([])
+  const [exError, setExError] = useState<string | null>(null)
   const [sortPref, setSortPref] = useState<SortKey>(() => loadSortPref())
   const [pageSize, setPageSize] = useState<PageSize>(() => loadPageSize())
   // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
@@ -269,7 +276,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, pg: pgState.pg }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -299,6 +306,7 @@ export default function App() {
       setCat(r.cat)
       setSort(r.sort)
       setFmt(r.fmt)
+      setTopic(r.topic)
       setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
@@ -346,7 +354,12 @@ export default function App() {
         setTaxSha(t?.sha ?? null)
       })
       .catch(() => applyTaxonomy(DEFAULT_GROUPS))
-    Promise.all([fetchCatalog(cfg).then(setBooks), tax])
+    setExError(null)
+    // Trích dẫn: lỗi không chặn việc xem sách.
+    const ex = fetchExcerpts(cfg)
+      .then(setExcerpts)
+      .catch((e: Error) => setExError(e.message))
+    Promise.all([fetchCatalog(cfg).then(setBooks), tax, ex])
       .catch((e: Error) => setError(e.message))
       .finally(() => {
         // Đọc lại nhóm/danh mục từ địa chỉ web theo bộ phân loại vừa nạp (có thể là nhóm tùy biến).
@@ -362,6 +375,33 @@ export default function App() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const index = useMemo(() => buildIndex(books), [books, taxVer])
+  const allTopics = useMemo(() => topicCounts(excerpts).map((t) => t.topic), [excerpts])
+  const excerptActions: ExcerptActions = {
+    onSave: async (ex) => {
+      if (!cfg) return
+      const isNew = !excerpts.some((e) => e.id === ex.id)
+      const b = books.find((x) => x.id === ex.bookId)
+      await saveExcerpts(cfg, { upserts: [ex] }, `${isNew ? 'Thêm' : 'Sửa'} trích dẫn: ${b?.title ?? ex.bookId}${ex.page ? `, tr. ${ex.page}` : ''}`)
+      setExcerpts((prev) => (isNew ? [...prev, ex] : prev.map((e) => (e.id === ex.id ? ex : e))))
+    },
+    onDelete: async (ex) => {
+      if (!cfg) return
+      const b = books.find((x) => x.id === ex.bookId)
+      try {
+        await saveExcerpts(cfg, { removeIds: [ex.id] }, `Xóa trích dẫn: ${b?.title ?? ex.bookId}${ex.page ? `, tr. ${ex.page}` : ''}`)
+        setExcerpts((prev) => prev.filter((e) => e.id !== ex.id))
+      } catch (e) {
+        setNotice({ title: 'Không xóa được trích dẫn', text: (e as Error).message })
+      }
+    },
+  }
+  const openTopic = (t: string | null) => {
+    setPage('quotes')
+    setOpenId(null)
+    setEditing(false)
+    setTopic(t)
+    window.scrollTo(0, 0)
+  }
   const byId = useMemo(() => new Map(books.map((b) => [b.id, b])), [books])
   const openBook = openId ? byId.get(openId) : undefined
   const readingHolding =
@@ -371,7 +411,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -427,10 +467,22 @@ export default function App() {
               Thống kê
             </button>
             <button
+              className={page === 'quotes' ? 'page-tab active' : 'page-tab'}
+              onClick={() => { setPage('quotes'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
+            >
+              Trích dẫn
+            </button>
+            <button
               className={page === 'settings' ? 'page-tab active' : 'page-tab'}
               onClick={() => { setPage('settings'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
+              aria-label="Cài đặt"
+              title="Cài đặt"
             >
-              Cài đặt
+              <svg className="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+              <span className="tab-text">Cài đặt</span>
             </button>
             <button
                 className="logout"
@@ -483,6 +535,25 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'quotes' ? (
+          loading ? (
+            <State img="sticker-reading.webp" title="Pochacco đang gom trích dẫn..." />
+          ) : exError ? (
+            <State img="sticker-sleeping.webp" title="Không tải được trích dẫn" text={exError} />
+          ) : (
+            <QuotesPage
+              excerpts={excerpts}
+              books={byId}
+              topic={topic}
+              onTopic={setTopic}
+              actions={excerptActions}
+              onOpenBook={(b) => {
+                setPage('library')
+                setOpenId(b.id)
+                window.scrollTo(0, 0)
+              }}
+            />
+          )
         ) : page === 'settings' ? (
           loading ? (
             <State img="sticker-reading.webp" title="Pochacco đang mở tủ sách..." />
@@ -545,6 +616,10 @@ export default function App() {
               key={openId}
               cfg={cfg}
               book={byId.get(openId)!}
+              excerpts={excerpts}
+              allTopics={allTopics}
+              excerptActions={excerptActions}
+              onTopic={(t) => openTopic(t)}
               books={books}
               onDuplicate={() => {
                 const src = byId.get(openId)!
@@ -578,6 +653,11 @@ export default function App() {
               onEdit={() => { setEditing(true); window.scrollTo(0, 0) }}
               onDeleted={(b) => {
                 setBooks((prev) => prev.filter((x) => x.id !== b.id))
+                const orphan = excerpts.filter((e) => e.bookId === b.id).map((e) => e.id)
+                if (orphan.length && cfg)
+                  void saveExcerpts(cfg, { removeIds: orphan }, `Xóa ${orphan.length} trích dẫn của sách đã xóa: ${b.title}`)
+                    .then(() => setExcerpts((prev) => prev.filter((e) => e.bookId !== b.id)))
+                    .catch(() => undefined)
                 replaceNext()
                 setOpenId(null)
                 setSaved(null)
