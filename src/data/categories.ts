@@ -1,10 +1,17 @@
-// Danh mục phân loại cố định. Mã (slug) được lưu trong dữ liệu nên không đổi;
-// tên hiển thị có thể sửa thoải mái. Thêm danh mục mới: thêm một dòng vào nhóm phù hợp.
+// Phân loại sách. Mã (id) được lưu trong dữ liệu sách nên không đổi; tên hiển thị sửa thoải mái.
+// Bộ mặc định nằm dưới đây. Người dùng có thể tùy biến ở trang Cài đặt: bản tùy biến lưu trong repo dữ liệu
+// (config/categories.json) và được nạp vào đây bằng applyTaxonomy().
+import { foldVi } from '../search/normalizeVi'
 
 export type Category = { id: string; label: string }
-export type CategoryGroup = { label: string; items: Category[] }
+export type CategoryGroup = { id: string; label: string; items: Category[] }
 
-export const CATEGORY_GROUPS: CategoryGroup[] = [
+export const slugify = (s: string) =>
+  foldVi(s)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+const DEFAULT_RAW: { label: string; items: Category[] }[] = [
   {
     label: 'Triết học',
     items: [
@@ -90,8 +97,64 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   },
 ]
 
-export const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
-  CATEGORY_GROUPS.flatMap((g) => g.items.map((c) => [c.id, c.label])),
-)
+
+export const DEFAULT_GROUPS: CategoryGroup[] = DEFAULT_RAW.map((g) => ({ ...g, id: slugify(g.label) }))
+
+const clone = (gs: CategoryGroup[]): CategoryGroup[] =>
+  gs.map((g) => ({ id: g.id, label: g.label, items: g.items.map((c) => ({ id: c.id, label: c.label })) }))
+
+/**
+ * Danh sách nhóm đang dùng. Là mảng "sống": applyTaxonomy() thay nội dung tại chỗ nên mọi nơi
+ * import CATEGORY_GROUPS đều thấy bản mới (giao diện render lại nhờ App tăng phiên bản phân loại).
+ */
+export const CATEGORY_GROUPS: CategoryGroup[] = clone(DEFAULT_GROUPS)
+
+export const CATEGORY_LABEL: Record<string, string> = {}
+const rebuildLabels = () => {
+  for (const k of Object.keys(CATEGORY_LABEL)) delete CATEGORY_LABEL[k]
+  for (const g of CATEGORY_GROUPS) for (const c of g.items) CATEGORY_LABEL[c.id] = c.label
+}
+rebuildLabels()
 
 export const categoryLabel = (id: string) => CATEGORY_LABEL[id] ?? id
+
+export const applyTaxonomy = (groups: CategoryGroup[]) => {
+  CATEGORY_GROUPS.splice(0, CATEGORY_GROUPS.length, ...clone(groups))
+  rebuildLabels()
+}
+
+export const cloneGroups = clone
+
+/** Kiểm tra dữ liệu đọc từ tệp cấu hình; sai cấu trúc thì trả null (dùng bộ mặc định). */
+export function parseTaxonomy(raw: unknown): CategoryGroup[] | null {
+  const groups = (raw as { groups?: unknown } | null)?.groups
+  if (!Array.isArray(groups) || groups.length === 0) return null
+  const seenG = new Set<string>()
+  const seenC = new Set<string>()
+  const out: CategoryGroup[] = []
+  for (const g of groups) {
+    const gg = g as { id?: unknown; label?: unknown; items?: unknown }
+    if (typeof gg.id !== 'string' || typeof gg.label !== 'string' || !gg.label.trim() || !Array.isArray(gg.items)) return null
+    if (!/^[a-z0-9-]+$/.test(gg.id) || seenG.has(gg.id)) return null
+    seenG.add(gg.id)
+    const items: Category[] = []
+    for (const c of gg.items) {
+      const cc = c as { id?: unknown; label?: unknown }
+      if (typeof cc.id !== 'string' || typeof cc.label !== 'string' || !cc.label.trim()) return null
+      if (!/^[a-z0-9-]+$/.test(cc.id) || seenC.has(cc.id)) return null
+      seenC.add(cc.id)
+      items.push({ id: cc.id, label: cc.label.trim() })
+    }
+    out.push({ id: gg.id, label: gg.label.trim(), items })
+  }
+  return out
+}
+
+/** Tạo mã mới cho nhóm/mục: từ tên, thêm hậu tố ngẫu nhiên để không bao giờ trùng mã đã dùng trong dữ liệu sách. */
+export function newId(label: string, taken: Set<string>): string {
+  const base = (slugify(label) || 'muc').slice(0, 28)
+  for (;;) {
+    const id = `${base}-${Math.random().toString(36).slice(2, 6)}`
+    if (!taken.has(id)) return id
+  }
+}

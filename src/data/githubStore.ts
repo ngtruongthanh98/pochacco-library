@@ -48,6 +48,45 @@ const headers = (cfg: StoreConfig, accept = 'application/vnd.github+json') => ({
   'X-GitHub-Api-Version': '2022-11-28',
 })
 
+/** Cấu hình phân loại tùy biến (config/categories.json). Chưa có tệp thì trả null: dùng bộ mặc định. */
+export const fetchTaxonomy = async (cfg: StoreConfig): Promise<{ sha: string; data: unknown } | null> => {
+  const ref = cfg.branch ?? 'main'
+  const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/config/categories.json?ref=${ref}`, {
+    headers: headers(cfg),
+    cache: 'no-store',
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Không đọc được cấu hình phân loại (HTTP ${res.status})`)
+  const j = (await res.json()) as { sha: string; content: string }
+  return { sha: j.sha, data: JSON.parse(b64ToUtf8(j.content)) }
+}
+
+/** Ghi cấu hình phân loại; trả sha mới. Tệp vừa bị nơi khác sửa (409/422) thì báo lỗi để người dùng tải lại. */
+export const saveTaxonomy = async (
+  cfg: StoreConfig,
+  groups: { id: string; label: string; items: { id: string; label: string }[] }[],
+  sha: string | null,
+  message: string,
+): Promise<string> => {
+  const ref = cfg.branch ?? 'main'
+  const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/config/categories.json`, {
+    method: 'PUT',
+    headers: { ...headers(cfg), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      branch: ref,
+      content: utf8ToB64(JSON.stringify({ version: 1, groups }, null, 2) + '\n'),
+      ...(sha ? { sha } : {}),
+    }),
+  })
+  if (res.status === 409 || res.status === 422)
+    throw new Error('Cấu hình phân loại vừa được thay đổi ở nơi khác. Hãy tải lại trang rồi thử lại.')
+  if (res.status === 403 || res.status === 404)
+    throw new Error('Token không có quyền ghi vào repo dữ liệu (cần Contents: Read and write).')
+  if (!res.ok) throw new Error(`Không lưu được cấu hình phân loại (HTTP ${res.status})`)
+  return ((await res.json()) as { content: { sha: string } }).content.sha
+}
+
 type DirEntry = { name: string; path: string; sha: string; type: string }
 
 /** Đọc toàn bộ các tệp catalog/books-*.json trong repo dữ liệu. */

@@ -1,18 +1,18 @@
 // Định tuyến bằng phần # của địa chỉ web (chạy được trên GitHub Pages, không cần cấu hình máy chủ).
 //   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp, ?trang=… số trang
 //   #/thong-ke                  trang thống kê
+//   #/cai-dat                   trang cài đặt (tùy biến phân loại)
 //   #/sach/<id>                 chi tiết sách
 //   #/sach/<id>/sua             sửa sách
 //   #/sach/<id>/doc/<i>         đọc bản điện tử thứ i
 //   #/them  #/quet  #/quet-ke  #/nhap-ebook
 import { CATEGORY_GROUPS } from './data/categories'
-import { foldVi } from './search/normalizeVi'
 import { isSortKey, type SortKey } from './search/sortBooks'
 
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
 export type Route = {
-  page: 'library' | 'stats'
+  page: 'library' | 'stats' | 'settings'
   openId: string | null
   editing: boolean
   reading: number | null
@@ -40,8 +40,7 @@ export const EMPTY_ROUTE: Route = {
   pg: 1,
 }
 
-const groupSlug = (i: number) =>
-  foldVi(CATEGORY_GROUPS[i].label).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const groupSlug = (i: number) => CATEGORY_GROUPS[i].id
 
 const SCAN_PATH: Record<ScanMode, string> = { one: 'quet', shelf: 'quet-ke', ebooks: 'nhap-ebook' }
 
@@ -52,6 +51,7 @@ export function formatRoute(r: Route): string {
     return r.editing ? `${base}/sua` : base
   }
   if (r.page === 'stats') return '#/thong-ke'
+  if (r.page === 'settings') return '#/cai-dat'
   if (r.scanMode) return `#/${SCAN_PATH[r.scanMode]}`
   if (r.adding) return '#/them'
   const params = new URLSearchParams()
@@ -76,6 +76,7 @@ export function parseRoute(hash: string): Route {
     return r
   }
   if (parts[0] === 'thong-ke') return { ...r, page: 'stats' }
+  if (parts[0] === 'cai-dat') return { ...r, page: 'settings' }
   if (parts[0] === 'them') return { ...r, adding: true }
   const scan = (Object.keys(SCAN_PATH) as ScanMode[]).find((k) => SCAN_PATH[k] === parts[0])
   if (scan) return { ...r, scanMode: scan }

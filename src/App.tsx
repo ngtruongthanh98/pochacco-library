@@ -7,9 +7,10 @@ import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
 import Stats from './components/Stats'
 import BookForm from './components/BookForm'
-import { CATEGORY_GROUPS, categoryLabel } from './data/categories'
+import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTaxonomy, type CategoryGroup } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
-import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
+import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
+import { Settings } from './components/Settings'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft } from './data/duplicate'
 import { ConfirmDialog } from './components/ConfirmDialog'
@@ -243,7 +244,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
-  const [page, setPage] = useState<'library' | 'stats'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings'>(initial.page)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
@@ -257,6 +258,10 @@ export default function App() {
   // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
   const [pgState, setPgState] = useState({ pg: initial.pg, key: '' })
   const [confirmLogout, setConfirmLogout] = useState(false)
+  // Phân loại tùy biến: taxVer tăng mỗi khi bộ phân loại đổi để mọi nơi render lại; taxReady = đã nạp xong cấu hình.
+  const [taxVer, setTaxVer] = useState(0)
+  const [taxReady, setTaxReady] = useState(false)
+  const [taxSha, setTaxSha] = useState<string | null>(null)
   const sortPrefRef = useRef(sortPref)
   sortPrefRef.current = sortPref
 
@@ -267,6 +272,7 @@ export default function App() {
   const lastRoute = useRef(route)
   useEffect(() => {
     const cur = window.location.hash || '#/'
+    if (cfg && !taxReady) return // chờ nạp phân loại để không làm mất tham số nhóm/danh mục trong địa chỉ
     if (routeHash !== cur) {
       const mode = navMode.current === 'replace' || onlyQueryChanged(lastRoute.current, route) ? 'replace' : 'push'
       writeHistory(routeHash, mode)
@@ -327,13 +333,31 @@ export default function App() {
     if (!cfg) return
     setLoading(true)
     setError(null)
-    fetchCatalog(cfg)
-      .then(setBooks)
+    setTaxReady(false)
+    // Phân loại tùy biến: lỗi hay thiếu tệp thì dùng bộ mặc định, không chặn việc xem sách.
+    const tax = fetchTaxonomy(cfg)
+      .then((t) => {
+        const parsed = t ? parseTaxonomy(t.data) : null
+        applyTaxonomy(parsed ?? DEFAULT_GROUPS)
+        setTaxSha(t?.sha ?? null)
+      })
+      .catch(() => applyTaxonomy(DEFAULT_GROUPS))
+    Promise.all([fetchCatalog(cfg).then(setBooks), tax])
       .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        // Đọc lại nhóm/danh mục từ địa chỉ web theo bộ phân loại vừa nạp (có thể là nhóm tùy biến).
+        const r = parseRoute(window.location.hash)
+        setGroup(r.group)
+        setCat(r.cat)
+        setTaxVer((v) => v + 1)
+        setTaxReady(true)
+        setLoading(false)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg])
 
-  const index = useMemo(() => buildIndex(books), [books])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const index = useMemo(() => buildIndex(books), [books, taxVer])
   const byId = useMemo(() => new Map(books.map((b) => [b.id, b])), [books])
   const openBook = openId ? byId.get(openId) : undefined
   const readingHolding =
@@ -343,7 +367,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -397,6 +421,12 @@ export default function App() {
               Thống kê
             </button>
             <button
+              className={page === 'settings' ? 'page-tab active' : 'page-tab'}
+              onClick={() => { setPage('settings'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
+            >
+              Cài đặt
+            </button>
+            <button
                 className="logout"
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
@@ -447,6 +477,28 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'settings' ? (
+          loading ? (
+            <State img="sticker-reading.webp" title="Pochacco đang mở tủ sách..." />
+          ) : (
+            <Settings
+              cfg={cfg}
+              books={books}
+              taxSha={taxSha}
+              onSaved={(groups: CategoryGroup[], changed, sha) => {
+                applyTaxonomy(groups)
+                setTaxSha(sha)
+                if (changed.length) {
+                  const upd = new Map(changed.map((b) => [b.id, b]))
+                  setBooks((prev) => prev.map((b) => upd.get(b.id) ?? b))
+                }
+                // Bộ lọc đang chọn có thể đã bị xóa hay đổi chỗ.
+                setGroup(-1)
+                setCat(null)
+                setTaxVer((v) => v + 1)
+              }}
+            />
+          )
         ) : page === 'stats' ? (
           loading ? (
             <State img="sticker-reading.webp" title="Pochacco đang đếm sách..." />

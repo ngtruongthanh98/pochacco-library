@@ -415,3 +415,38 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 /* Nút lên đầu trang */
 .scroll-top { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 40; width: 48px; height: 48px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: var(--red); color: var(--cream); box-shadow: 0 6px 18px rgba(40, 22, 17, 0.28); animation: fade-in .2s ease-out; }
 .scroll-top:hover { background: var(--red-dark); }
+
+/* Cài đặt: tùy biến phân loại */
+.settings h2 { margin: 0 0 4px; }
+.settings h3 { margin: 14px 0 6px; color: var(--red-dark); }
+.tax-bar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; padding: 10px 14px; border-radius: 12px; background: #fdf0d9; border: 1.5px solid var(--gold); }
+.tax-bar.err { background: #fbe3df; border-color: var(--red); color: var(--red-dark); }
+.tax-bar-actions { display: flex; gap: 8px; }
+.tax { display: grid; gap: 14px; margin-top: 8px; }
+.tax-group { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px 12px; background: var(--paper); }
+.tax-head, .tax-items li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tax-head { padding-bottom: 8px; border-bottom: 1.5px dashed var(--line); }
+.tax-name { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.tax-name.group { font-weight: 700; color: var(--red-dark); font-size: 1.05rem; }
+.tax-count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.tax-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+.tax-items { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+.tax-items li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.tax-items li:last-child { border-bottom: 0; }
+.tax-empty { padding: 8px 0; }
+.icon-btn { min-width: 32px; height: 32px; padding: 0 8px; border-radius: 8px; background: transparent; color: var(--red); border: 1.5px solid var(--line); font-weight: 650; font-size: 0.9rem; }
+.icon-btn:hover:not(:disabled) { background: #fbe9e4; border-color: var(--red); }
+.icon-btn:disabled { opacity: 0.3; cursor: default; }
+.icon-btn.del { color: #a3221c; }
+.tax-move { width: auto; height: 32px; padding: 0 24px 0 8px; font-size: 0.85rem; border-radius: 8px; border: 1.5px solid var(--line); background-color: var(--paper); color: var(--muted); }
+.tax-edit { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--red); }
+.tax-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.tax-add input { flex: 1 1 200px; min-width: 0; }
+.tax-add-group { margin-top: 16px; }
+.dialog-select { width: 100%; margin: 0 0 8px; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); }
+.dialog .small { font-size: 0.85rem; margin-bottom: 14px; }
+
+.tax-toolbar { display: flex; gap: 16px; margin-top: 6px; }
+.tax-toggle { min-width: 30px; height: 30px; padding: 0; }
+.tax-head { border-bottom: 0; padding-bottom: 0; }
+.tax-group:has(.tax-items) .tax-head { border-bottom: 1.5px dashed var(--line); padding-bottom: 8px; }
