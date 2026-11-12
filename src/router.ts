@@ -8,6 +8,7 @@
 //   #/them  #/quet  #/quet-ke  #/nhap-ebook
 import { CATEGORY_GROUPS } from './data/categories'
 import { isSortKey, type SortKey } from './search/sortBooks'
+import { FORMAT_OPTIONS, type FormatFilter } from './data/format'
 
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
@@ -22,6 +23,8 @@ export type Route = {
   group: number
   cat: string | null
   sort: SortKey | null
+  /** Lọc theo dạng: chỉ ebook, chỉ sách giấy, có cả hai */
+  fmt: FormatFilter
   /** Trang thứ mấy của danh sách (từ 1) */
   pg: number
 }
@@ -37,6 +40,7 @@ export const EMPTY_ROUTE: Route = {
   group: -1,
   cat: null,
   sort: null,
+  fmt: null,
   pg: 1,
 }
 
@@ -59,6 +63,7 @@ export function formatRoute(r: Route): string {
   if (r.cat) params.set('loai', r.cat)
   else if (r.group >= 0) params.set('nhom', groupSlug(r.group))
   if (r.sort) params.set('xep', r.sort)
+  if (r.fmt) params.set('ban', FORMAT_OPTIONS.find((o) => o.key === r.fmt)!.slug)
   if (r.pg > 1) params.set('trang', String(r.pg))
   const qs = params.toString()
   return qs ? `#/?${qs}` : '#/'
@@ -84,6 +89,7 @@ export function parseRoute(hash: string): Route {
   r.q = params.get('q') ?? ''
   const xep = params.get('xep')
   if (isSortKey(xep)) r.sort = xep
+  r.fmt = FORMAT_OPTIONS.find((o) => o.slug === params.get('ban'))?.key ?? null
   const trang = Number(params.get('trang'))
   if (Number.isInteger(trang) && trang > 1) r.pg = trang
   const loai = params.get('loai')

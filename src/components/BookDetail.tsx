@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { categoryLabel } from '../data/categories'
+import { isEbookOnly } from '../data/format'
 import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
@@ -185,6 +186,16 @@ export default function BookDetail({
           </button>
         </div>
       </div>
+
+      {isEbookOnly(book) && (
+        <div className="ebook-only-note">
+          <span className="tag ebook-only">Ebook only</span>
+          <span>
+            Cuốn này mới có bản điện tử. Khi có sách giấy, bấm{' '}
+            <button type="button" className="link" onClick={onEdit}>Sửa thông tin</button> và đánh dấu “Có bản giấy trên kệ”; nhãn này sẽ tự bỏ.
+          </span>
+        </div>
+      )}
 
       <header className="detail-hero">
         <Cover book={book} cfg={cfg} size="lg" />

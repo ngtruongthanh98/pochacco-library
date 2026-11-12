@@ -13,6 +13,7 @@ import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type 
 import { Settings } from './components/Settings'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft } from './data/duplicate'
+import { FORMAT_OPTIONS, formatOf, isEbookOnly, type FormatFilter } from './data/format'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ScrollTop } from './components/ScrollTop'
 import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
@@ -209,6 +210,7 @@ function BookRow({ b, cfg, onOpen }: { b: Book; cfg: StoreConfig; onOpen: () => 
   const people = (b.authors ?? []).map(nameToString).join(', ')
   const print = b.holdings.find((h) => h.kind === 'print')
   const hasEbook = b.holdings.some((h) => h.kind === 'ebook')
+  const ebookOnly = isEbookOnly(b)
   return (
     <li className="book" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
       <Cover book={b} cfg={cfg} />
@@ -222,7 +224,7 @@ function BookRow({ b, cfg, onOpen }: { b: Book; cfg: StoreConfig; onOpen: () => 
       )}
       <div className="where">
         {print?.kind === 'print' && print.location && <span className="tag">Kệ {print.location}</span>}
-        {hasEbook && <span className="tag olive">Sách điện tử</span>}
+        {ebookOnly ? <span className="tag ebook-only">Ebook only</span> : hasEbook && <span className="tag olive">Sách điện tử</span>}
         {b.status === 'lent' && <span className="tag warn">Đang cho mượn</span>}
         {b.status === 'wishlist' && <span className="tag gold">Muốn mua</span>}
       </div>
@@ -253,6 +255,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [q, setQ] = useState(initial.q)
   const [sort, setSort] = useState<SortKey | null>(initial.sort)
+  const [fmt, setFmt] = useState<FormatFilter>(initial.fmt)
   const [sortPref, setSortPref] = useState<SortKey>(() => loadSortPref())
   const [pageSize, setPageSize] = useState<PageSize>(() => loadPageSize())
   // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
@@ -266,7 +269,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, pg: pgState.pg }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, pg: pgState.pg }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -280,7 +283,7 @@ export default function App() {
     navMode.current = 'push'
     lastRoute.current = route
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeHash])
+  }, [routeHash, taxReady])
 
   useEffect(() => {
     const onPop = () => {
@@ -295,7 +298,8 @@ export default function App() {
       setGroup(r.group)
       setCat(r.cat)
       setSort(r.sort)
-      setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
+      setFmt(r.fmt)
+      setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)))
@@ -375,12 +379,14 @@ export default function App() {
     g < 0 || (b.categories ?? []).some((c) => CATEGORY_GROUPS[g].items.some((i) => i.id === c))
   const groupCount = (g: number) => matched.filter((b) => inGroup(b, g)).length
   const catCount = (id: string) => matched.filter((b) => b.categories?.includes(id)).length
-  const filtered = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
-  const filtering = searching || group >= 0
+  const inCats = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
+  const fmtCount = (k: FormatFilter) => (k ? inCats.filter((b) => formatOf(b) === k).length : inCats.length)
+  const filtered = fmt ? inCats.filter((b) => formatOf(b) === fmt) : inCats
+  const filtering = searching || group >= 0 || fmt !== null
   // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
   const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
   const sorted = sortBooks(filtered, sortKey === 'phu-hop' && !searching ? 'moi' : sortKey)
-  const listKey = `${q}|${group}|${cat}|${sortKey}`
+  const listKey = `${q}|${group}|${cat}|${fmt}|${sortKey}`
   // Lần đầu (key rỗng) chấp nhận số trang từ địa chỉ web; sau đó chỉ giữ khi bộ lọc không đổi.
   const wantedPg = pgState.key === '' || pgState.key === listKey ? pgState.pg : 1
   const pages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize))
@@ -790,11 +796,28 @@ export default function App() {
                 <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
               </div>
             )}
+            {!loading && !error && books.length > 0 && (
+              <div className="fmt-filter" role="group" aria-label="Lọc theo dạng sách">
+                {[{ key: null, label: 'Mọi dạng' }, ...FORMAT_OPTIONS].map((o) => {
+                  const n = fmtCount(o.key as FormatFilter)
+                  return (
+                    <button
+                      key={o.key ?? 'all'}
+                      className={`fmt-pill ${o.key === 'ebook' ? 'ebook' : ''} ${fmt === o.key ? 'active' : ''}`}
+                      aria-pressed={fmt === o.key}
+                      onClick={() => setFmt(o.key as FormatFilter)}
+                    >
+                      {o.label} <span className="n">{n.toLocaleString('vi-VN')}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
-                title={searching ? 'Chưa có cuốn này trong thư viện' : 'Mục này chưa có sách'}
-                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
+                title={searching ? 'Chưa có cuốn này trong thư viện' : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : 'Mục này chưa có sách'}
+                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
             {!loading && !error && books.length > 0 && !(filtering && sorted.length === 0) && (

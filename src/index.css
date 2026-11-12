@@ -450,3 +450,13 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .tax-toggle { min-width: 30px; height: 30px; padding: 0; }
 .tax-head { border-bottom: 0; padding-bottom: 0; }
 .tax-group:has(.tax-items) .tax-head { border-bottom: 1.5px dashed var(--line); padding-bottom: 8px; }
+
+/* Dạng sách: Ebook only */
+.tag.ebook-only { background: #2f5d62; color: #fef5e9; border-color: #2f5d62; font-weight: 650; }
+.fmt-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.fmt-pill { padding: 6px 12px; border-radius: 999px; font-size: 0.88rem; font-weight: 600; background: transparent; color: var(--muted); border: 1.5px solid var(--line); }
+.fmt-pill:hover { background: #fbe9e4; color: var(--red-dark); }
+.fmt-pill .n { opacity: 0.7; font-weight: 500; margin-left: 2px; }
+.fmt-pill.active { background: var(--red); border-color: var(--red); color: var(--cream); }
+.fmt-pill.ebook.active { background: #2f5d62; border-color: #2f5d62; }
+.ebook-only-note { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0 4px; padding: 10px 14px; border-radius: 12px; background: #e8f0ef; border: 1.5px solid #b9cfcc; font-size: 0.92rem; line-height: 1.5; }
