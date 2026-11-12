@@ -12,6 +12,8 @@ import { buildAccountFile, isValidUsername, login, LoginError } from './auth/acc
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft } from './data/duplicate'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { ScrollTop } from './components/ScrollTop'
 import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
 import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
 import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
@@ -254,6 +256,7 @@ export default function App() {
   const [pageSize, setPageSize] = useState<PageSize>(() => loadPageSize())
   // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
   const [pgState, setPgState] = useState({ pg: initial.pg, key: '' })
+  const [confirmLogout, setConfirmLogout] = useState(false)
   const sortPrefRef = useRef(sortPref)
   sortPrefRef.current = sortPref
 
@@ -294,6 +297,21 @@ export default function App() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+
+  const doLogout = () => {
+    clearConfig()
+    replaceNext()
+    setConfirmLogout(false)
+    setCfg(null)
+    setBooks([])
+    setQ('')
+    setOpenId(null)
+    setEditing(false)
+    setReading(null)
+    setScanMode(null)
+    setAdding(false)
+    setPage('library')
+  }
 
   /** Quay về trang trước trong lịch sử nếu nó thuộc ứng dụng; nếu không (mở thẳng từ link) thì tự chuyển trang. */
   const goBack = (fallback: () => void) => {
@@ -382,19 +400,7 @@ export default function App() {
                 className="logout"
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
-                onClick={() => {
-                  clearConfig()
-                  replaceNext()
-                  setCfg(null)
-                  setBooks([])
-                  setQ('')
-                  setOpenId(null)
-                  setEditing(false)
-                  setReading(null)
-                  setScanMode(null)
-                  setAdding(false)
-                  setPage('library')
-                }}
+                onClick={() => setConfirmLogout(true)}
               >
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -808,6 +814,17 @@ export default function App() {
           </>
         )}
       </main>
+      {cfg && <ScrollTop />}
+      {confirmLogout && (
+        <ConfirmDialog
+          title="Đăng xuất khỏi thư viện?"
+          text="Bạn sẽ cần nhập lại tên đăng nhập và mật khẩu để vào lại. Dữ liệu sách vẫn an toàn trên GitHub."
+          confirmLabel="Đăng xuất"
+          danger
+          onConfirm={doLogout}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
       {openBook && readingHolding && (
         <EbookReader book={openBook} holding={readingHolding} onClose={() => goBack(() => setReading(null))} />
       )}
