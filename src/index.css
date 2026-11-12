@@ -390,3 +390,14 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 
 .pages .logout { margin-left: auto; align-self: center; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
 .pages .logout:hover, .pages .logout:focus-visible { color: var(--red); border-color: var(--red); background: #fbe9e4; }
+
+.list-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.pager { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 18px 0 8px; }
+.pager-info { margin: 0; }
+.pager-nums { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.pg { min-width: 40px; height: 40px; padding: 0 10px; border-radius: 10px; background: transparent; color: var(--red); border: 1.5px solid var(--line); font-weight: 650; }
+.pg:hover:not(:disabled) { background: #fbe9e4; border-color: var(--red); }
+.pg.active { background: var(--red); color: #fff; border-color: var(--red); }
+.pg:disabled { opacity: 0.35; cursor: default; }
+.pg-gap { padding: 0 2px; color: var(--muted); }
+@media (max-width: 420px) { .pg { min-width: 36px; height: 38px; padding: 0 6px; } .pager-nums { gap: 4px; } }

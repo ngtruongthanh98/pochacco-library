@@ -12,11 +12,10 @@ import { buildAccountFile, isValidUsername, login, LoginError } from './auth/acc
 import { clearConfig, fetchCatalog, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft } from './data/duplicate'
+import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
 import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
 import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
-
-const PAGE_SIZE = 100
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -252,10 +251,14 @@ export default function App() {
   const [q, setQ] = useState(initial.q)
   const [sort, setSort] = useState<SortKey | null>(initial.sort)
   const [sortPref, setSortPref] = useState<SortKey>(() => loadSortPref())
-  const [limit, setLimit] = useState(PAGE_SIZE)
+  const [pageSize, setPageSize] = useState<PageSize>(() => loadPageSize())
+  // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
+  const [pgState, setPgState] = useState({ pg: initial.pg, key: '' })
+  const sortPrefRef = useRef(sortPref)
+  sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, pg: pgState.pg }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -283,6 +286,7 @@ export default function App() {
       setGroup(r.group)
       setCat(r.cat)
       setSort(r.sort)
+      setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)))
@@ -334,13 +338,20 @@ export default function App() {
   // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
   const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
   const sorted = sortBooks(filtered, sortKey === 'phu-hop' && !searching ? 'moi' : sortKey)
-  const results = sorted.slice(0, limit)
-  // Đổi bộ lọc hay cách xếp thì quay về trang đầu của danh sách.
   const listKey = `${q}|${group}|${cat}|${sortKey}`
-  const [prevListKey, setPrevListKey] = useState(listKey)
-  if (listKey !== prevListKey) {
-    setPrevListKey(listKey)
-    setLimit(PAGE_SIZE)
+  // Lần đầu (key rỗng) chấp nhận số trang từ địa chỉ web; sau đó chỉ giữ khi bộ lọc không đổi.
+  const wantedPg = pgState.key === '' || pgState.key === listKey ? pgState.pg : 1
+  const pages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize))
+  const curPage = Math.min(Math.max(1, wantedPg), pages)
+  const startIdx = pageSize === 0 ? 0 : (curPage - 1) * pageSize
+  const results = pageSize === 0 ? sorted : sorted.slice(startIdx, startIdx + pageSize)
+  // Ghi lại trang đã chỉnh (vượt quá số trang, hay bộ lọc vừa đổi) để địa chỉ web khớp với màn hình.
+  if (!loading && sorted.length > 0 && (curPage !== pgState.pg || pgState.key !== listKey)) {
+    setPgState({ pg: curPage, key: listKey })
+  }
+  const goPage = (p: number) => {
+    setPgState({ pg: p, key: listKey })
+    window.scrollTo(0, 0)
   }
 
   return (
@@ -735,6 +746,25 @@ export default function App() {
                     ? `${sorted.length.toLocaleString('vi-VN')} kết quả`
                     : `${books.length.toLocaleString('vi-VN')} đầu sách trong thư viện`}
                 </p>
+                <div className="list-controls">
+                <label className="sort">
+                  <span>Mỗi trang</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      const n = Number(e.target.value) as PageSize
+                      savePageSize(n)
+                      setPageSize(n)
+                      setPgState({ pg: 1, key: listKey })
+                    }}
+                  >
+                    {PAGE_SIZES.map((n) => (
+                      <option key={n} value={n}>
+                        {sizeLabel(n)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="sort">
                   <span>Sắp xếp</span>
                   <select
@@ -757,6 +787,7 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+                </div>
               </div>
             )}
             <ul className="list">
@@ -764,20 +795,15 @@ export default function App() {
                 <BookRow key={b.id} b={b} cfg={cfg} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
               ))}
             </ul>
-            {sorted.length > results.length && (
-              <div className="more">
-                <span className="muted">
-                  Đang hiện {results.length.toLocaleString('vi-VN')}/{sorted.length.toLocaleString('vi-VN')} cuốn
-                </span>
-                <button className="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-                  Xem thêm {Math.min(PAGE_SIZE, sorted.length - results.length)} cuốn
-                </button>
-                {sorted.length - results.length > PAGE_SIZE && (
-                  <button className="link" onClick={() => setLimit(sorted.length)}>
-                    Hiện tất cả
-                  </button>
-                )}
-              </div>
+            {sorted.length > 0 && (
+              <Pager
+                page={curPage}
+                pages={pages}
+                from={startIdx + 1}
+                to={startIdx + results.length}
+                total={sorted.length}
+                onPage={goPage}
+              />
             )}
           </>
         )}

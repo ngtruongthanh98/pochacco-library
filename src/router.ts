@@ -1,5 +1,5 @@
 // Định tuyến bằng phần # của địa chỉ web (chạy được trên GitHub Pages, không cần cấu hình máy chủ).
-//   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp
+//   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp, ?trang=… số trang
 //   #/thong-ke                  trang thống kê
 //   #/sach/<id>                 chi tiết sách
 //   #/sach/<id>/sua             sửa sách
@@ -22,6 +22,8 @@ export type Route = {
   group: number
   cat: string | null
   sort: SortKey | null
+  /** Trang thứ mấy của danh sách (từ 1) */
+  pg: number
 }
 
 export const EMPTY_ROUTE: Route = {
@@ -35,6 +37,7 @@ export const EMPTY_ROUTE: Route = {
   group: -1,
   cat: null,
   sort: null,
+  pg: 1,
 }
 
 const groupSlug = (i: number) =>
@@ -56,6 +59,7 @@ export function formatRoute(r: Route): string {
   if (r.cat) params.set('loai', r.cat)
   else if (r.group >= 0) params.set('nhom', groupSlug(r.group))
   if (r.sort) params.set('xep', r.sort)
+  if (r.pg > 1) params.set('trang', String(r.pg))
   const qs = params.toString()
   return qs ? `#/?${qs}` : '#/'
 }
@@ -79,6 +83,8 @@ export function parseRoute(hash: string): Route {
   r.q = params.get('q') ?? ''
   const xep = params.get('xep')
   if (isSortKey(xep)) r.sort = xep
+  const trang = Number(params.get('trang'))
+  if (Number.isInteger(trang) && trang > 1) r.pg = trang
   const loai = params.get('loai')
   const nhom = params.get('nhom')
   if (loai) {
