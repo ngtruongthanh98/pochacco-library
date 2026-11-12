@@ -26,11 +26,10 @@ body { margin: 0; }
 .hero-inner { max-width: 960px; margin: 0 auto; padding: 0 20px; height: 280px; display: flex; flex-direction: column; justify-content: center; position: relative; }
 .hero h1 { margin: 0; font-size: 2.4rem; color: var(--red); letter-spacing: 0.5px; }
 .hero p { margin: 2px 0 12px; color: var(--muted); font-weight: 500; }
-.hero .link { align-self: flex-start; }
 .hero-sticker { display: none; }
 @media (max-width: 900px) {
   .hero { background-image: none !important; }
-  .hero-inner { height: 150px; padding-right: 130px; }
+  .hero-inner { height: 132px; padding-right: 130px; }
   .hero h1 { font-size: 1.7rem; line-height: 1.2; }
   .hero-sticker { display: block; position: absolute; right: 16px; bottom: 8px; width: 112px; height: auto; }
 }
@@ -380,3 +379,14 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .dup-banner { display: grid; gap: 4px; padding: 12px 16px; margin-bottom: 14px; border-radius: 12px; background: var(--cream); border: 1.5px dashed var(--gold); font-size: 0.92rem; line-height: 1.5; }
 .dup-banner b { color: var(--red); }
+
+/* Thanh công cụ trên điện thoại: lưới hai cột gọn gàng, nút chính chiếm cả hàng */
+@media (max-width: 600px) {
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .toolbar button { width: 100%; padding-left: 8px; padding-right: 8px; }
+  .toolbar button:not(.secondary) { grid-column: 1 / -1; order: -1; }
+  .toolbar button:nth-child(3) { grid-column: 1 / -1; }
+}
+
+.pages .logout { margin-left: auto; align-self: center; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+.pages .logout:hover, .pages .logout:focus-visible { color: var(--red); border-color: var(--red); background: #fbe9e4; }

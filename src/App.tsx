@@ -350,26 +350,6 @@ export default function App() {
           <h1>Pochacco Library</h1>
           <p>Thư viện sách cá nhân</p>
           <img className="hero-sticker" src={asset('sticker-reading.webp')} alt="" />
-          {cfg && (
-            <button
-              className="link"
-              onClick={() => {
-                clearConfig()
-                replaceNext()
-                setCfg(null)
-                setBooks([])
-                setQ('')
-                setOpenId(null)
-                setEditing(false)
-                setReading(null)
-                setScanMode(null)
-                setAdding(false)
-                setPage('library')
-              }}
-            >
-              Đăng xuất
-            </button>
-          )}
         </div>
       </header>
       <main>
@@ -387,6 +367,30 @@ export default function App() {
             >
               Thống kê
             </button>
+            <button
+                className="logout"
+                title="Đăng xuất"
+                aria-label="Đăng xuất"
+                onClick={() => {
+                  clearConfig()
+                  replaceNext()
+                  setCfg(null)
+                  setBooks([])
+                  setQ('')
+                  setOpenId(null)
+                  setEditing(false)
+                  setReading(null)
+                  setScanMode(null)
+                  setAdding(false)
+                  setPage('library')
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <path d="M16 17l5-5-5-5" />
+                  <path d="M21 12H9" />
+                </svg>
+              </button>
           </nav>
         )}
         {!cfg ? (
