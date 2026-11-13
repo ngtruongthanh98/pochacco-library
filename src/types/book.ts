@@ -23,7 +23,8 @@ export type PrintHolding = {
 
 export type EbookHolding = {
   kind: 'ebook'
-  format: 'pdf' | 'epub' | 'djvu' | 'other'
+  /** mobi: gồm cả AZW, AZW3, PRC (định dạng Kindle/Mobipocket) */
+  format: 'pdf' | 'epub' | 'mobi' | 'djvu' | 'other'
   storage: 'gdrive' | 'local' | 'url'
   fileId?: string
   path?: string

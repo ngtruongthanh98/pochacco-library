@@ -23,15 +23,19 @@ export const parseDriveLink = (text: string): DriveRef | null => {
 
 export const driveViewUrl = (id: string) => `https://drive.google.com/file/d/${id}/view`
 
-export const guessFormat = (name: string): EbookHolding['format'] => {
-  const m = name.toLowerCase().match(/\.(pdf|epub|djvu)\b/)
-  return (m?.[1] as EbookHolding['format']) ?? 'pdf'
+export const formatFromName = (name: string): EbookHolding['format'] | null => {
+  const m = name.toLowerCase().match(/\.(pdf|epub|djvu|mobi|azw3?|prc|kf8|fb2|cbz|docx?)\b/)
+  if (!m) return null
+  if (['mobi', 'azw', 'azw3', 'prc', 'kf8'].includes(m[1])) return 'mobi'
+  if (['fb2', 'cbz', 'doc', 'docx'].includes(m[1])) return 'other'
+  return m[1] as EbookHolding['format']
 }
+export const guessFormat = (name: string): EbookHolding['format'] => formatFromName(name) ?? 'pdf'
 
 /** Bỏ phần mở rộng và ký tự nối trong tên tệp để làm nhan đề gợi ý. */
 export const titleFromFileName = (name: string) =>
   name
-    .replace(/\.(pdf|epub|djvu|mobi|azw3|docx?)$/i, '')
+    .replace(/\.(pdf|epub|djvu|mobi|azw3?|prc|fb2|cbz|docx?)$/i, '')
     .replace(/[_]+/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()

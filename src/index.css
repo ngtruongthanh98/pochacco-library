@@ -549,3 +549,12 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .suggest-list .sc { font-size: 0.76rem; color: var(--muted); }
 .suggest-list .sc:empty { display: none; }
 .auto-msg { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: #eef3e4; color: var(--olive); font-size: 0.9rem; }
+
+/* Trình đọc EPUB / MOBI */
+.book-reader .book-host { position: relative; flex: 1; min-height: 0; background: #fffaf2; }
+.book-reader .book-mount { position: absolute; inset: 0; }
+.book-reader foliate-view { display: block; width: 100%; height: 100%; }
+.book-reader .reader-loading { color: var(--muted); }
+.toc-select { width: auto; max-width: 260px; padding: 6px 28px 6px 10px; border-radius: 8px; font-size: 0.88rem; }
+.book-progress { flex: 1 1 140px; min-width: 100px; accent-color: var(--red); }
+.book-status { padding: 4px 12px; font-size: 0.8rem; color: var(--muted); background: var(--cream); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

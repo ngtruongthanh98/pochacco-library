@@ -58,3 +58,24 @@ export async function driveErrorText(res: Response): Promise<string> {
   if (res.status === 403) return `Google Drive từ chối truy cập (${reason || 'HTTP 403'}).`
   return `Lỗi Google Drive (HTTP ${res.status}${reason ? `: ${reason}` : ''}).`
 }
+
+export type DriveMeta = { name: string; mimeType: string; size?: number }
+
+/** Tên, kiểu và dung lượng thật của tệp trên Drive (để chọn đúng trình đọc dù định dạng khai báo sai). */
+export async function driveFileMeta(fileId: string, key: string): Promise<DriveMeta> {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size&supportsAllDrives=true&key=${encodeURIComponent(key)}`,
+  )
+  if (!res.ok) throw new Error(await driveErrorText(res))
+  const j = (await res.json()) as { name: string; mimeType: string; size?: string }
+  return { name: j.name, mimeType: j.mimeType, size: j.size ? Number(j.size) : undefined }
+}
+
+/** Trình đọc phù hợp: pdf (PDF.js), book (EPUB, MOBI, AZW, AZW3, PRC, FB2, CBZ), hoặc null (để Drive xem). */
+export function readerKind(meta: DriveMeta): 'pdf' | 'book' | null {
+  const n = meta.name.toLowerCase()
+  if (meta.mimeType === 'application/pdf' || n.endsWith('.pdf')) return 'pdf'
+  if (/\.(epub|mobi|azw3?|prc|kf8|fb2|fbz|cbz)$/.test(n)) return 'book'
+  if (/epub|mobipocket|kindle|fictionbook|x-cbz/.test(meta.mimeType)) return 'book'
+  return null
+}

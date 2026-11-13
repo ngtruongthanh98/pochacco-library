@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { driveViewUrl } from '../data/drive'
 import type { Book, EbookHolding } from '../types/book'
-import { driveMediaUrl } from '../data/configStore'
+import { driveFileMeta, driveMediaUrl, readerKind, type DriveMeta } from '../data/configStore'
+import type { Excerpt } from '../types/excerpt'
 import { QuoteForm, type ExcerptActions } from './Quotes'
 
 const PdfReader = lazy(() => import('./PdfReader'))
+const BookReader = lazy(() => import('./BookReader'))
 
 /**
  * Đọc sách điện tử ngay trong ứng dụng: nhúng trình xem của Google Drive (/preview) toàn màn hình.
@@ -27,9 +29,15 @@ export default function EbookReader({
   excerptActions?: ExcerptActions
   onOpenSettings?: () => void
 }) {
-  const canPdfJs = holding.format === 'pdf' && !!holding.fileId && !!driveApiKey
-  const [mode, setMode] = useState<'pdfjs' | 'drive'>(canPdfJs ? 'pdfjs' : 'drive')
-  const [quote, setQuote] = useState<{ text: string; pdfPage: number } | null>(null)
+  const hasKey = !!holding.fileId && !!driveApiKey
+  const ownReader = holding.format === 'epub' || holding.format === 'mobi'
+  // Có khóa API: hỏi Drive tên/kiểu tệp thật rồi chọn trình đọc (định dạng khai báo có thể sai).
+  const [mode, setMode] = useState<'detect' | 'pdfjs' | 'book' | 'drive' | 'nokey' | 'error'>(
+    hasKey ? 'detect' : ownReader ? 'nokey' : 'drive',
+  )
+  const [meta, setMeta] = useState<DriveMeta | null>(null)
+  const [metaError, setMetaError] = useState<string | null>(null)
+  const [quote, setQuote] = useState<Pick<Excerpt, 'text' | 'page' | 'pageSource' | 'note'> | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
   const [printPage, setPrintPage] = useState('')
   const [loaded, setLoaded] = useState(false)
@@ -37,6 +45,28 @@ export default function EbookReader({
   const id = holding.fileId!
   const offset = holding.pageOffset ?? 0
   const pdfPage = /^\d+$/.test(printPage) ? Number(printPage) + offset : null
+
+  useEffect(() => {
+    if (!hasKey) return
+    let cancelled = false
+    driveFileMeta(holding.fileId!, driveApiKey!)
+      .then((m) => {
+        if (cancelled) return
+        setMeta(m)
+        const k = readerKind(m)
+        setMode(k === 'pdf' ? 'pdfjs' : k === 'book' ? 'book' : 'drive')
+      })
+      .catch((e: Error) => {
+        if (cancelled) return
+        setMetaError(e.message)
+        setMode('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [hasKey, holding.fileId, driveApiKey])
+
+  const realFormat = meta ? (meta.name.match(/\.([a-z0-9]{2,5})$/i)?.[1] ?? holding.format).toUpperCase() : holding.format.toUpperCase()
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -60,14 +90,14 @@ export default function EbookReader({
         <div className="reader-title">
           <div className="rt-main">{book.title}</div>
           <div className="rt-sub">
-            {holding.format.toUpperCase()}
+            {realFormat}
             {offset ? ` · lệch ${offset} trang so với bản in` : ''}
             {holding.textLayer === 'ocr' ? ' · chữ từ OCR, đối chiếu bản in khi trích dẫn' : ''}
           </div>
         </div>
-        {canPdfJs && (
-          <button className="link reader-switch" onClick={() => setMode(mode === 'pdfjs' ? 'drive' : 'pdfjs')}>
-            {mode === 'pdfjs' ? 'Xem bằng Google Drive' : 'Xem bằng trình đọc PDF'}
+        {hasKey && meta && readerKind(meta) && (
+          <button className="link reader-switch" onClick={() => setMode(mode === 'drive' ? (readerKind(meta) === 'pdf' ? 'pdfjs' : 'book') : 'drive')}>
+            {mode === 'drive' ? 'Xem bằng trình đọc của ứng dụng' : 'Xem bằng Google Drive'}
           </button>
         )}
         {holding.format === 'pdf' && mode === 'drive' && (
@@ -82,14 +112,57 @@ export default function EbookReader({
         </a>
       </header>
 
-      {holding.format === 'epub' && (
-        <div className="reader-note">
-          Trình xem của Google Drive thường không hiển thị được EPUB. Nếu khung bên dưới không có nội dung, hãy bấm "Mở
-          trong tab mới" rồi mở tệp bằng ứng dụng đọc sách.
+      {mode === 'detect' ? (
+        <div className="reader-frame pdfjs">
+          <div className="reader-loading">Đang kiểm tra tệp trên Google Drive…</div>
         </div>
-      )}
-
-      {mode === 'pdfjs' && driveApiKey ? (
+      ) : mode === 'error' ? (
+        <div className="reader-frame pdfjs">
+          <div className="pdf-error">
+            <p>{metaError}</p>
+            <button onClick={() => setMode('drive')}>Thử xem bằng Google Drive</button>
+          </div>
+        </div>
+      ) : mode === 'nokey' ? (
+        <div className="reader-frame pdfjs">
+          <div className="pdf-error">
+            <p>
+              Google Drive không xem trước được {holding.format === 'mobi' ? 'MOBI, AZW, AZW3, PRC' : 'EPUB'}. Thêm khóa Google Drive API ở{' '}
+              {onOpenSettings ? (
+                <button className="link" onClick={onOpenSettings}>
+                  Cài đặt
+                </button>
+              ) : (
+                'Cài đặt'
+              )}{' '}
+              để đọc ngay trong ứng dụng.
+            </p>
+            <button className="secondary" onClick={() => setMode('drive')}>
+              Vẫn thử xem bằng Google Drive
+            </button>
+          </div>
+        </div>
+      ) : mode === 'book' && driveApiKey && meta ? (
+        <div className="reader-frame pdfjs">
+          <Suspense fallback={<div className="reader-loading">Đang tải trình đọc sách…</div>}>
+            <BookReader
+              url={driveMediaUrl(id, driveApiKey)}
+              fileId={id}
+              fileName={meta.name}
+              onQuote={
+                excerptActions
+                  ? (text, where) =>
+                      setQuote({
+                        text,
+                        ...(where.page ? { page: where.page, pageSource: 'print' as const } : {}),
+                        ...(where.chapter ? { note: `Chương/mục: ${where.chapter}` } : {}),
+                      })
+                  : undefined
+              }
+            />
+          </Suspense>
+        </div>
+      ) : mode === 'pdfjs' && driveApiKey ? (
         <div className="reader-frame pdfjs">
           <Suspense fallback={<div className="reader-loading">Đang tải trình đọc PDF…</div>}>
             <PdfReader
@@ -97,7 +170,16 @@ export default function EbookReader({
               fileId={id}
               offset={offset}
               onFallback={() => setMode('drive')}
-              onQuote={excerptActions ? (text, pdfPage) => setQuote({ text, pdfPage }) : undefined}
+              onQuote={
+                excerptActions
+                  ? (text, pdfPage) =>
+                      setQuote(
+                        holding.pageOffset !== undefined
+                          ? { text, page: String(pdfPage - offset), pageSource: 'print' }
+                          : { text, page: String(pdfPage), pageSource: 'ebook' },
+                      )
+                  : undefined
+              }
             />
           </Suspense>
         </div>
@@ -137,16 +219,19 @@ export default function EbookReader({
             <QuoteForm
               book={book}
               allTopics={allTopics}
-              prefill={
-                holding.pageOffset !== undefined
-                  ? { text: quote.text, page: String(quote.pdfPage - offset), pageSource: 'print' }
-                  : { text: quote.text, page: String(quote.pdfPage), pageSource: 'ebook' }
-              }
+              prefill={quote}
               onCancel={() => setQuote(null)}
               onSave={async (ex) => {
                 await excerptActions.onSave(ex)
                 setQuote(null)
                 window.getSelection()?.removeAllRanges()
+                document.querySelectorAll('iframe').forEach((f) => {
+                  try {
+                    f.contentWindow?.getSelection()?.removeAllRanges()
+                  } catch {
+                    /* khung khác nguồn */
+                  }
+                })
                 setSavedMsg('Đã lưu trích dẫn')
                 setTimeout(() => setSavedMsg(null), 2200)
               }}

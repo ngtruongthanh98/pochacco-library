@@ -834,6 +834,7 @@ export default function BookForm({
                 <select value={e.format} onChange={(ev) => patchEbook(i, { format: ev.target.value as EbookHolding['format'] })}>
                   <option value="pdf">PDF</option>
                   <option value="epub">EPUB</option>
+                  <option value="mobi">MOBI / AZW / PRC</option>
                   <option value="djvu">DjVu</option>
                   <option value="other">Khác</option>
                 </select>

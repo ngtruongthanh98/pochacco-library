@@ -50,7 +50,7 @@ export function QuoteForm({
   book: Book
   initial?: Excerpt
   /** Điền sẵn cho trích dẫn mới (vd: đoạn bôi đen trong trình đọc PDF) */
-  prefill?: Pick<Excerpt, 'text' | 'page' | 'pageSource'>
+  prefill?: Pick<Excerpt, 'text' | 'page' | 'pageSource' | 'note'>
   allTopics: string[]
   onSave: (ex: Excerpt) => Promise<void>
   onCancel: () => void
@@ -63,7 +63,7 @@ export function QuoteForm({
   )
   const [topics, setTopics] = useState<string[]>(initial?.topics ?? [])
   const [topicInput, setTopicInput] = useState('')
-  const [note, setNote] = useState(initial?.note ?? '')
+  const [note, setNote] = useState(initial?.note ?? prefill?.note ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

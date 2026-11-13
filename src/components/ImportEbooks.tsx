@@ -233,6 +233,7 @@ export default function ImportEbooks({
                           <select value={r.format} onChange={(e) => patch(r.key, { format: e.target.value as EbookHolding['format'] })}>
                             <option value="pdf">PDF</option>
                             <option value="epub">EPUB</option>
+                  <option value="mobi">MOBI / AZW / PRC</option>
                             <option value="djvu">DjVu</option>
                             <option value="other">Khác</option>
                           </select>
