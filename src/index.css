@@ -527,7 +527,7 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .current-topic { color: var(--red-dark); }
 .quote-actions .icon-btn { font-size: 0.85rem; height: 30px; }
 .page-tab { display: inline-flex; align-items: center; gap: 6px; }
-@media (max-width: 600px) { .page-tab .tab-text { display: none; } .page-tab .tab-icon { width: 20px; height: 20px; } }
+
 
 /* Trình đọc PDF */
 .reader-frame.pdfjs { background: #3a3532; display: flex; flex-direction: column; }
@@ -1388,3 +1388,37 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .ns-hud .ns-close { margin-left: auto; }
 .ns-hud .ns-close + .pg { margin-left: 0; }
 @media (max-width: 640px) { .noodle.playing .ns-hud .ns-close { min-height: 44px; padding: 0 12px; } }
+
+/* ---------- Thanh tab: máy tính một hàng chữ, điện thoại 5 ô có biểu tượng ---------- */
+.topbar .page-tab .tab-icon { display: none; }
+.topbar .page-tab .tab-icon.desk { display: inline-block; }
+.topbar .tab-morebtn { display: none !important; }
+.more-menu, .more-backdrop { display: none; }
+@media (max-width: 600px) {
+  .topbar .pages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 0 2px; overflow: visible; }
+  .topbar .tab-more, .topbar .logout { display: none !important; }
+  .topbar .page-tab:not(.tab-more) {
+    display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0;
+    padding: 8px 2px 6px; min-height: 56px; font-size: 0.72rem; font-weight: 650; line-height: 1.1; white-space: nowrap;
+    border-bottom: 3px solid transparent; border-radius: 0; -webkit-tap-highlight-color: transparent;
+  }
+  .topbar .page-tab .tab-icon, .topbar .page-tab .tab-icon.desk { display: block; width: 22px; height: 22px; flex: none; }
+  .topbar .page-tab .tab-text { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .page-tab.active { background: rgba(0, 0, 0, 0.14); }
+  .topbar .tab-morebtn.open { background: rgba(255, 255, 255, 0.14); color: #fff; }
+  .more-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(40, 22, 17, 0.18); }
+  .more-menu {
+    display: grid; position: absolute; top: calc(100% + 6px); right: 8px; z-index: 30; width: min(320px, calc(100vw - 16px));
+    padding: 6px; border-radius: 18px; background: var(--cream); border: 1.5px solid var(--line);
+    box-shadow: 0 16px 40px rgba(40, 22, 17, 0.28); animation: pop-in .15s ease-out;
+  }
+  .more-menu button { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: center; text-align: left; min-height: 56px; padding: 8px 12px; border-radius: 12px; background: none; color: var(--ink); border: 0; font-weight: 500; }
+  .more-menu button:where(:hover) { background: #fbe9e4; }
+  .more-menu button.on { background: #fbe0dc; }
+  .more-menu button.on svg, .more-menu button svg { color: var(--red); }
+  .more-menu button span { display: grid; gap: 1px; }
+  .more-menu button b { font-size: 1rem; }
+  .more-menu button small { color: var(--muted); font-size: 0.78rem; }
+  .more-menu .danger-item { border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; margin-top: 4px; }
+  .more-menu .danger-item b { color: var(--red-dark); }
+}
