@@ -11,16 +11,34 @@ export const HOLE_R = 0.26
 export const VMAX = 17
 
 // ---------- Mặt sân ----------
-// '.' ngoài sân (tường), g cỏ, f cỏ hoa (chậm), s cát (rất chậm), w nước (phạt 1 gậy), T chỗ phát bóng, H lỗ
-export type Surface = 'g' | 'f' | 's' | 'w'
-export const SURFACE: Record<Surface, { name: string; tile: string; decel: number }> = {
+// '.' ngoài sân (tường), g cỏ, f cỏ hoa (chậm), s cát (rất chậm), w nước (phạt 1 gậy), T chỗ phát bóng, H lỗ,
+// p cỏ anh đào, a lá thu (chậm), n tuyết (lún), i băng (trơn), o đường đá (nhanh), b cầu gỗ qua nước,
+// > < ^ v suối cạn: không chìm nhưng đẩy bóng theo dòng
+export type Surface = 'g' | 'f' | 's' | 'w' | 'p' | 'a' | 'n' | 'i' | 'o' | 'b' | '>' | '<' | '^' | 'v'
+export type Rough = 'sand' | 'rough' | 'snow' | null
+export const SURFACE: Record<Surface, { name: string; tile: string; decel: number; rough?: Rough; push?: [number, number] }> = {
   g: { name: 'Cỏ', tile: 'green_square', decel: 2.6 },
-  f: { name: 'Cỏ hoa', tile: 'flower_grass', decel: 5.2 },
-  s: { name: 'Cát', tile: 'sand_bunker', decel: 11 },
+  f: { name: 'Cỏ hoa', tile: 'flower_grass', decel: 5.2, rough: 'rough' },
+  s: { name: 'Cát', tile: 'sand_bunker', decel: 11, rough: 'sand' },
   w: { name: 'Nước', tile: 'water_tile', decel: 0 },
+  p: { name: 'Cỏ anh đào', tile: 'spring_tile', decel: 2.8 },
+  a: { name: 'Lá thu', tile: 'autumn_tile', decel: 5, rough: 'rough' },
+  n: { name: 'Tuyết', tile: 'snow_tile', decel: 8, rough: 'snow' },
+  i: { name: 'Băng', tile: 'water_tile', decel: 0.55 },
+  o: { name: 'Đường đá', tile: 'stone_tile', decel: 1.9 },
+  b: { name: 'Cầu gỗ', tile: 'water_tile', decel: 2.6 },
+  '>': { name: 'Suối', tile: 'water_tile', decel: 1.4, push: [1, 0] },
+  '<': { name: 'Suối', tile: 'water_tile', decel: 1.4, push: [-1, 0] },
+  '^': { name: 'Suối', tile: 'water_tile', decel: 1.4, push: [0, -1] },
+  v: { name: 'Suối', tile: 'water_tile', decel: 1.4, push: [0, 1] },
 }
+const SURF_CHARS = new Set(Object.keys(SURFACE))
+export const STREAM_PUSH = 7.5
+/** Lợi thế của caddie: nhân độ cản của từng loại mặt sân */
+export type Mods = { sand: number; rough: number; snow: number; vmax: number }
+export const NO_MODS: Mods = { sand: 1, rough: 1, snow: 1, vmax: 1 }
 
-export type ObstacleKind = 'rock_cluster' | 'flower_bush' | 'rest_bench' | 'sun_umbrella' | 'wood_sign' | 'supplies_crate' | 'windmill' | 'cherry_tree' | 'orange_tree'
+export type ObstacleKind = 'rock_cluster' | 'flower_bush' | 'rest_bench' | 'sun_umbrella' | 'wood_sign' | 'supplies_crate' | 'windmill' | 'cherry_tree' | 'orange_tree' | 'bamboo' | 'stone_lantern' | 'snow_pine' | 'stone_moai' | 'waterwheel'
 export const OBSTACLE: Record<ObstacleKind, { r: number; w: number; name: string }> = {
   rock_cluster: { r: 0.48, w: 1.35, name: 'Đá' },
   flower_bush: { r: 0.46, w: 1.3, name: 'Bụi hoa' },
@@ -29,8 +47,13 @@ export const OBSTACLE: Record<ObstacleKind, { r: number; w: number; name: string
   wood_sign: { r: 0.26, w: 1.05, name: 'Biển gỗ' },
   supplies_crate: { r: 0.42, w: 0.95, name: 'Thùng đồ' },
   windmill: { r: 0, w: 2.4, name: 'Cối xay gió' },
-  cherry_tree: { r: 0.36, w: 1.2, name: 'Cây anh đào' },
-  orange_tree: { r: 0.36, w: 1.2, name: 'Cây cam' },
+  cherry_tree: { r: 0.34, w: 1.35, name: 'Cây anh đào' },
+  orange_tree: { r: 0.34, w: 1.35, name: 'Cây cam' },
+  bamboo: { r: 0.28, w: 0.95, name: 'Tre' },
+  stone_lantern: { r: 0.3, w: 0.95, name: 'Đèn đá' },
+  snow_pine: { r: 0.3, w: 1.05, name: 'Thông tuyết' },
+  stone_moai: { r: 0.36, w: 1.0, name: 'Tượng đá' },
+  waterwheel: { r: 0, w: 1.4, name: 'Guồng nước' },
 }
 export type Obstacle = { k: ObstacleKind; x: number; y: number }
 
@@ -214,6 +237,150 @@ export const WORLDS: World[] = [
       ], [{ k: 'windmill', x: 4.5, y: 6.5 }]),
     ],
   },
+  {
+    id: 'w2',
+    name: 'Vườn Anh Đào',
+    host: 'pink_bunny',
+    hostName: 'Thỏ Hồng',
+    hello: 'Vườn anh đào nhiều suối lắm! Đi qua cầu gỗ cho khỏi rơi xuống nước nha. Cầu không có lan can đâu đó.',
+    holes: [
+      H('w2-1', 'Lối hoa anh đào', 2, 'heart_flag', 'Hai cây anh đào chắn lối, đánh lách qua giữa.', [
+        '.........', '..ppppp..', '..ppHpp..', '..ppppp..', '..ppppp..', '..ppppp..', '..ppppp..',
+        '..ppppp..', '..ppppp..', '..ppppp..', '..ppppp..', '..ppTpp..', '..ppppp..', '.........',
+      ], [{ k: 'cherry_tree', x: 3.0, y: 6.5 }, { k: 'cherry_tree', x: 6.0, y: 8.6 }]),
+      H('w2-2', 'Cây cầu nhỏ', 3, 'star_flag', 'Suối chắn ngang, cầu nằm chính giữa. Đánh thẳng và đừng lệch.', [
+        '.........', '..ppppp..', '..ppHpp..', '..ppppp..', '..ppppp..', '..wwbww..', '..wwbww..',
+        '..ppppp..', '..ppppp..', '..ppppp..', '..ppppp..', '..ppTpp..', '..ppppp..', '.........',
+      ]),
+      H('w2-3', 'Rừng tre', 3, 'blue_flag', 'Các khóm tre đứng so le. Tìm đường chéo trống.', [
+        '.........', '.ppppppp.', '.pHppppp.', '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppppppp.',
+        '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppppppp.', '.pppppTp.', '.ppppppp.', '.........',
+      ], [
+        { k: 'bamboo', x: 2.5, y: 5.6 }, { k: 'bamboo', x: 4.5, y: 7.6 }, { k: 'bamboo', x: 6.5, y: 5.6 },
+        { k: 'bamboo', x: 3.5, y: 9.6 }, { k: 'bamboo', x: 5.0, y: 3.6 },
+      ]),
+      H('w2-4', 'Hai cây cầu', 3, 'red_flag', 'Hồ rộng, cầu ở hai mép. Qua cầu trái rồi đánh chéo lên.', [
+        '.........', '.ppppppp.', '.ppppHpp.', '.ppppppp.', '.bwwwwwb.', '.bwwwwwb.', '.bwwwwwb.',
+        '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppTpppp.', '.ppppppp.', '.........',
+      ]),
+      H('w2-5', 'Đèn đá', 2, 'yellow_flag', 'Hai ngọn đèn đá canh lỗ, khe giữa vừa một quả bóng.', [
+        '.........', '.........', '..ppppp..', '..ppppp..', '..ppHpp..', '..ppppp..', '..ppppp..',
+        '..ppppp..', '..ppppp..', '..ppppp..', '..ppTpp..', '..ppppp..', '.........', '.........',
+      ], [{ k: 'stone_lantern', x: 3.75, y: 6.0 }, { k: 'stone_lantern', x: 5.25, y: 6.0 }]),
+      H('w2-6', 'Ao sen', 3, 'heart_flag', 'Ao giữa sân. Đi vòng bên phải rồi bẻ sang trái.', [
+        '.........', '.ppppppp.', '.pHppppp.', '.ppppppp.', '.ppwwwpp.', '.ppwwwpp.', '.ppwwwpp.',
+        '.ppwwwpp.', '.ppwwwpp.', '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppppppT.', '.........',
+      ], [{ k: 'cherry_tree', x: 6.6, y: 3.4 }]),
+      H('w2-7', 'Cầu góc vườn', 3, 'star_flag', 'Rẽ trái rồi qua cầu. Cầu hẹp, đánh nhẹ tay.', [
+        '.........', '.ppppp...', '.pHppp...', '.ppppp...', '.wwbww...', '.ppppppp.', '.ppppppp.',
+        '.....ppp.', '.....ppp.', '.....ppp.', '.....ppp.', '.....pTp.', '.....ppp.', '.........',
+      ], [{ k: 'stone_lantern', x: 1.6, y: 6.2 }]),
+      H('w2-8', 'Mê cung tre', 4, 'checkered_flag', 'Đường vòng chữ S. Dội tường để bẻ góc nhanh hơn.', [
+        '.........', '.ppppppp.', '.pHp.ppp.', '.ppp.ppp.', '.ppp.ppp.', '.....ppp.', '.ppppppp.',
+        '.ppppppp.', '.ppp.....', '.ppp.....', '.ppp.ppp.', '.ppppppp.', '.ppppTpp.', '.........',
+      ], [{ k: 'bamboo', x: 4.5, y: 6.9 }]),
+      H('w2-9', 'Đảo hoa', 3, 'heart_flag', 'Lỗ nằm trên đảo giữa hồ, chỉ có một cây cầu.', [
+        '.........', '.wwwwwww.', '.wpppppw.', '.wppHppw.', '.wpppppw.', '.wwwbwww.', '.ppppppp.',
+        '.ppppppp.', '.ppppppp.', '.ppppppp.', '.ppppppp.', '.pppTppp.', '.ppppppp.', '.........',
+      ], [{ k: 'cherry_tree', x: 2.3, y: 8.2 }, { k: 'cherry_tree', x: 6.7, y: 8.2 }]),
+    ],
+  },
+  {
+    id: 'w3',
+    name: 'Rừng Thu',
+    host: 'blue_otter_costume',
+    hostName: 'Rái Cá Xanh',
+    hello: 'Rừng Thu có suối cạn: bóng không chìm nhưng bị dòng nước cuốn đi. Lá rụng làm bóng chậm lại đó!',
+    holes: [
+      H('w3-1', 'Thảm lá vàng', 2, 'yellow_flag', 'Thảm lá làm bóng chậm, đánh mạnh hơn một chút.', [
+        '.........', '..ggggg..', '..ggHgg..', '..ggggg..', '..aaaaa..', '..aaaaa..', '..ggggg..',
+        '..ggggg..', '..ggggg..', '..ggggg..', '..ggggg..', '..ggTgg..', '..ggggg..', '.........',
+      ]),
+      H('w3-2', 'Dòng suối', 3, 'blue_flag', 'Suối chảy sang phải sẽ cuốn bóng đi. Ngắm lệch trái bù lại.', [
+        '.........', '.ggggggg.', '.gHggggg.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.>>>>>>>.',
+        '.>>>>>>>.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.gggggTg.', '.ggggggg.', '.........',
+      ], [{ k: 'waterwheel', x: 0.5, y: 7.2 }]),
+      H('w3-3', 'Guồng nước', 3, 'star_flag', 'Dòng suối giữa sân chảy về phía lỗ. Thả bóng vào suối là được đưa đi.', [
+        '.........', '..ggggg..', '..ggHgg..', '..ggggg..', '..gg^gg..', '..gg^gg..', '..gg^gg..',
+        '..gg^gg..', '..aa^aa..', '..aa^aa..', '..ggggg..', '..ggTgg..', '..ggggg..', '.........',
+      ], [{ k: 'waterwheel', x: 7.4, y: 8.5 }]),
+      H('w3-4', 'Đống thùng', 3, 'red_flag', 'Thùng đồ khắp nơi. Nhìn kỹ khe hở.', [
+        '.........', '.ggggggg.', '.ggggHgg.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.ggggggg.',
+        '.ggggggg.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.gTggggg.', '.ggggggg.', '.........',
+      ], [
+        { k: 'supplies_crate', x: 2.5, y: 7.5 }, { k: 'supplies_crate', x: 4.5, y: 6.5 }, { k: 'supplies_crate', x: 6.5, y: 7.5 },
+        { k: 'supplies_crate', x: 3.5, y: 4.5 }, { k: 'supplies_crate', x: 5.5, y: 9.5 },
+      ]),
+      H('w3-5', 'Suối chắn lỗ', 3, 'checkered_flag', 'Suối ngay trước lỗ cuốn bóng sang trái. Bù hướng sang phải.', [
+        '.........', '.ggggggg.', '.gggHggg.', '.ggggggg.', '.<<<<<<<.', '.ggggggg.', '.ggggggg.',
+        '.aaaaaaa.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.gggTggg.', '.ggggggg.', '.........',
+      ], [{ k: 'waterwheel', x: 8.4, y: 4.6 }]),
+      H('w3-6', 'Vườn cam', 3, 'yellow_flag', 'Cây cam và lá rụng khắp vườn.', [
+        '.........', '.ggggggg.', '.gggggHg.', '.ggggggg.', '.gaggaag.', '.ggggggg.', '.ggggggg.',
+        '.gaggaag.', '.ggggggg.', '.ggggggg.', '.ggggggg.', '.gTggggg.', '.ggggggg.', '.........',
+      ], [
+        { k: 'orange_tree', x: 3.0, y: 5.6 }, { k: 'orange_tree', x: 6.0, y: 5.1 }, { k: 'orange_tree', x: 2.6, y: 8.6 },
+        { k: 'orange_tree', x: 5.0, y: 8.1 }, { k: 'orange_tree', x: 4.0, y: 3.1 },
+      ]),
+      H('w3-7', 'Suối ngược', 4, 'star_flag', 'Hai con suối chảy xuống, đẩy bóng lùi lại. Đánh đủ lực để vượt.', [
+        '.........', '.ggg.....', '.gHg.....', '.ggg.....', '.vvv.....', '.ggggggg.', '.ggggggg.',
+        '.....vvv.', '.....ggg.', '.....ggg.', '.ggggggg.', '.ggggggg.', '.gTg.....', '.........',
+      ]),
+      H('w3-8', 'Ba ngả', 3, 'red_flag', 'Ba lối hẹp, lối giữa bị biển gỗ chắn ở đầu.', [
+        '.........', '..ggggg..', '..ggHgg..', '..ggggg..', '..g.g.g..', '..g.g.g..', '..g.g.g..',
+        '..ggggg..', '..aaaaa..', '..ggggg..', '..ggggg..', '..ggTgg..', '..ggggg..', '.........',
+      ], [{ k: 'wood_sign', x: 4.5, y: 7.75 }]),
+      H('w3-9', 'Ngã ba suối', 3, 'checkered_flag', 'Hai dòng suối gặp nhau rồi chảy lên lỗ. Coi chừng ao nước phía dưới.', [
+        '.........', '..ggggg..', '..ggHgg..', '..ggggg..', '..>>^<<..', '..>>^<<..', '..ggggg..',
+        '..gwwwg..', '..gwwwg..', '..ggggg..', '..ggggg..', '..ggTgg..', '..ggggg..', '.........',
+      ], [{ k: 'waterwheel', x: 1.4, y: 5.2 }, { k: 'orange_tree', x: 7.6, y: 9.0 }]),
+    ],
+  },
+  {
+    id: 'w4',
+    name: 'Đảo Tuyết',
+    host: 'dark_sheep',
+    hostName: 'Cừu Đen',
+    hello: 'Lạnh quá đi! Tuyết làm bóng lún, còn băng thì trơn tuột. Đường đá lăn nhanh lắm, nhẹ tay thôi.',
+    holes: [
+      H('w4-1', 'Đường đá', 2, 'blue_flag', 'Đi theo đường đá giữa, tuyết hai bên làm bóng lún.', [
+        '.........', '..nnnnn..', '..nnHnn..', '..nnonn..', '..nnonn..', '..nnonn..', '..nnonn..',
+        '..nnonn..', '..nnonn..', '..nnonn..', '..nnonn..', '..nnTnn..', '..nnnnn..', '.........',
+      ]),
+      H('w4-2', 'Sân băng', 2, 'star_flag', 'Băng trơn, bóng trượt rất xa. Đánh thật nhẹ.', [
+        '.........', '.nnnnnnn.', '.nnnHnnn.', '.nnnnnnn.', '.iiiiiii.', '.iiiiiii.', '.iiiiiii.',
+        '.iiiiiii.', '.iiiiiii.', '.nnnnnnn.', '.nnnnnnn.', '.nnnTnnn.', '.nnnnnnn.', '.........',
+      ]),
+      H('w4-3', 'Rừng thông', 3, 'red_flag', 'Đường đá ngoằn ngoèo giữa rừng thông. Đi trên đá cho nhanh.', [
+        '.........', '.nnnnnnn.', '.nHnnnnn.', '.nonnnnn.', '.nooooon.', '.nnnnnon.', '.nnnnnon.',
+        '.nooooon.', '.nonnnnn.', '.nonnnnn.', '.nooooon.', '.nnnnnon.', '.nnnnnTn.', '.........',
+      ], [{ k: 'snow_pine', x: 3.5, y: 5.6 }, { k: 'snow_pine', x: 4.5, y: 8.6 }, { k: 'snow_pine', x: 3.5, y: 11.4 }]),
+      H('w4-4', 'Hồ đóng băng', 3, 'heart_flag', 'Mặt hồ có mấy lỗ băng thủng. Rơi vào là bị phạt.', [
+        '.........', '.iiiiiii.', '.iiiiHii.', '.iiwiiii.', '.iiiiiwi.', '.iwiiiii.', '.iiiiwii.',
+        '.iiiiiii.', '.iiwiiii.', '.iiiiiwi.', '.iiiiiii.', '.iTiiiii.', '.iiiiiii.', '.........',
+      ]),
+      H('w4-5', 'Tượng đá', 3, 'yellow_flag', 'Ba tượng đá canh sân, dải tuyết ngang giữa làm bóng lún.', [
+        '.........', '.ooooooo.', '.oooHooo.', '.ooooooo.', '.ooooooo.', '.nnnnnnn.', '.nnnnnnn.',
+        '.ooooooo.', '.ooooooo.', '.ooooooo.', '.ooooooo.', '.oooTooo.', '.ooooooo.', '.........',
+      ], [{ k: 'stone_moai', x: 3.5, y: 3.7 }, { k: 'stone_moai', x: 5.5, y: 3.7 }, { k: 'stone_moai', x: 4.5, y: 8.6 }]),
+      H('w4-6', 'Dốc tuyết', 3, 'blue_flag', 'Hai mảng băng giữa đồi tuyết. Băng giúp bóng đi xa.', [
+        '.........', '..nnnnn..', '..nnHnn..', '..nnnnn..', '..niiin..', '..niiin..', '..nnnnn..',
+        '..nnnnn..', '..niiin..', '..niiin..', '..nnnnn..', '..nnTnn..', '..nnnnn..', '.........',
+      ]),
+      H('w4-7', 'Cầu băng', 3, 'star_flag', 'Kênh nước chắn ngang, cầu ở bên phải.', [
+        '.........', '.iiiiiii.', '.iHiiiii.', '.iiiiiii.', '.wwwwbww.', '.wwwwbww.', '.iiiiiii.',
+        '.iiiiiii.', '.nnnnnnn.', '.nnnnnnn.', '.ooooooo.', '.oooooTo.', '.ooooooo.', '.........',
+      ], [{ k: 'snow_pine', x: 2.0, y: 9.0 }]),
+      H('w4-8', 'Mê cung tuyết', 4, 'checkered_flag', 'Mê cung nhiều loại mặt sân. Đi trái rồi sang phải.', [
+        '.........', '.ooooooo.', '.oHo.ooo.', '.oon.noo.', '.nnn.nnn.', '.....iii.', '.iiiiiii.',
+        '.iiiiiii.', '.iii.....', '.nnn.nnn.', '.nnn.nnn.', '.ooooooo.', '.oooTooo.', '.........',
+      ]),
+      H('w4-9', 'Đỉnh tuyết', 3, 'checkered_flag', 'Lỗ cuối cùng: băng, hố nước và hai tượng đá. Bình tĩnh nhé!', [
+        '.........', '..ooooo..', '..ooHoo..', '..ooooo..', '..iiiii..', '..iwiwi..', '..iiiii..',
+        '..wiiiw..', '..iiiii..', '..nnnnn..', '..nnnnn..', '..nnTnn..', '..nnnnn..', '.........',
+      ], [{ k: 'stone_moai', x: 3.0, y: 3.5 }, { k: 'stone_moai', x: 6.0, y: 3.5 }]),
+    ],
+  },
 ]
 export const ALL_HOLES = WORLDS.flatMap((w) => w.holes)
 
@@ -237,7 +404,7 @@ export function parseCourse(def: HoleDef): Course {
         hole = { x: c + 0.5, y: r + 0.5 }
         return 'g' as Surface
       }
-      return ch === 'g' || ch === 'f' || ch === 's' || ch === 'w' ? (ch as Surface) : null
+      return SURF_CHARS.has(ch) ? (ch as Surface) : null
     }),
   )
   return { def, cell, tee, hole }
@@ -278,7 +445,7 @@ function solidBoxes(c: Course, t: number, near: { x: number; y: number }): Box[]
 }
 
 /** Một bước vật lý dt giây. Trả về sự kiện va chạm (để phát âm thanh, hiệu ứng). */
-export function step(c: Course, b: Ball, dt: number, t: number): StepEvent {
+export function step(c: Course, b: Ball, dt: number, t: number, mods: Mods = NO_MODS): StepEvent {
   let ev: StepEvent = null
   const sp = Math.hypot(b.vx, b.vy)
   const surf = surfaceAt(c, b.x, b.y) ?? 'g'
@@ -290,8 +457,15 @@ export function step(c: Course, b: Ball, dt: number, t: number): StepEvent {
     b.vx += (dx / dh) * 6 * dt
     b.vy += (dy / dh) * 6 * dt
   }
-  // Ma sát
-  const dec = SURFACE[surf].decel + 0.35 * sp
+  // Ma sát, có tính lợi thế caddie
+  const sd = SURFACE[surf]
+  const mul = sd.rough === 'sand' ? mods.sand : sd.rough === 'rough' ? mods.rough : sd.rough === 'snow' ? mods.snow : 1
+  const dec = sd.decel * mul + 0.35 * sp
+  // Suối cạn đẩy bóng theo dòng
+  if (sd.push) {
+    b.vx += sd.push[0] * STREAM_PUSH * dt
+    b.vy += sd.push[1] * STREAM_PUSH * dt
+  }
   if (sp > 0) {
     const ns = Math.max(0, sp - dec * dt)
     b.vx *= ns / sp
@@ -358,8 +532,14 @@ export function step(c: Course, b: Ball, dt: number, t: number): StepEvent {
   if (Math.hypot(c.hole.x - b.x, c.hole.y - b.y) < HOLE_R * 0.8 && sp2 < 7.5) return 'sink'
   const s2 = surfaceAt(c, b.x, b.y)
   if (s2 === 'w') return 'water'
-  if (s2 === 's' && surf !== 's') ev = 'sand'
-  if (sp2 < 0.06) {
+  // Bóng tựa vào bờ suối thì cho dừng hẳn, khỏi rung mãi
+  if (s2 && SURFACE[s2].push && ev === 'wall' && sp2 < 1.6) {
+    b.vx = 0
+    b.vy = 0
+    return ev
+  }
+  if (s2 && s2 !== surf && (SURFACE[s2].rough === 'sand' || SURFACE[s2].rough === 'snow')) ev = 'sand'
+  if (sp2 < 0.06 && !SURFACE[s2 ?? 'g'].push) {
     b.vx = 0
     b.vy = 0
   }
@@ -368,12 +548,12 @@ export function step(c: Course, b: Ball, dt: number, t: number): StepEvent {
 export const moving = (b: Ball) => b.vx !== 0 || b.vy !== 0
 
 /** Mô phỏng nhanh cả đường bóng (dùng cho gợi ý đường đi). */
-export function simulate(c: Course, start: Ball, t0: number, maxT = 8): { pts: { x: number; y: number }[]; end: 'sink' | 'water' | 'stop' } {
+export function simulate(c: Course, start: Ball, t0: number, maxT = 8, mods: Mods = NO_MODS): { pts: { x: number; y: number }[]; end: 'sink' | 'water' | 'stop' } {
   const b = { ...start }
   const pts = [{ x: b.x, y: b.y }]
   const dt = 1 / 120
   for (let t = 0; t < maxT; t += dt) {
-    const ev = step(c, b, dt, t0 + t)
+    const ev = step(c, b, dt, t0 + t, mods)
     if (ev === 'sink') return { pts: [...pts, { ...c.hole }], end: 'sink' }
     if (ev === 'water') return { pts: [...pts, { x: b.x, y: b.y }], end: 'water' }
     if (Math.round(t * 120) % 6 === 0) pts.push({ x: b.x, y: b.y })
@@ -409,9 +589,24 @@ export type GolfSave = {
   holeInOnes: number
   played: number
   ball: string
+  /** Đồ đã mua (bóng, gậy, cọc tee, túi) */
+  owned: string[]
+  equip: { ball: string; club: string; tee: string; bag: string }
+  /** Bạn bè đã thắng giải: có thể làm caddie */
+  caddies: string[]
+  caddie: string | null
+  daily: { date: string; tasks: { id: string; prog: number; done: boolean }[]; bonus: boolean; gift: string; streak: number }
+  tour: TourState | null
+  tourWins: Record<string, number>
   savedAt: number
 }
-export const newGolf = (): GolfSave => ({ v: 1, coins: 0, gems: 0, xp: 0, best: {}, stars: {}, holeInOnes: 0, played: 0, ball: 'plain_ball', savedAt: 0 })
+export type TourState = { world: string; idx: number; hearts: number; mine: number[]; rivals: { id: string; scores: number[] }[] }
+export const DEFAULT_EQUIP = { ball: 'plain_ball', club: 'iron_club', tee: 'mint_tee', bag: 'mint_golf_bag' }
+export const newGolf = (): GolfSave => ({
+  v: 1, coins: 0, gems: 0, xp: 0, best: {}, stars: {}, holeInOnes: 0, played: 0, ball: 'plain_ball',
+  owned: Object.values(DEFAULT_EQUIP), equip: { ...DEFAULT_EQUIP }, caddies: [], caddie: null,
+  daily: { date: '', tasks: [], bonus: false, gift: '', streak: 0 }, tour: null, tourWins: {}, savedAt: 0,
+})
 export function parseGolf(raw: unknown): GolfSave | null {
   if (!raw || typeof raw !== 'object') return null
   const s = raw as Partial<GolfSave>
@@ -427,6 +622,13 @@ export function parseGolf(raw: unknown): GolfSave | null {
     holeInOnes: num(s.holeInOnes),
     played: num(s.played),
     ball: typeof s.ball === 'string' ? s.ball : 'plain_ball',
+    owned: Array.isArray(s.owned) ? [...new Set([...Object.values(DEFAULT_EQUIP), ...s.owned])] : Object.values(DEFAULT_EQUIP),
+    equip: { ...DEFAULT_EQUIP, ...(s.equip && typeof s.equip === 'object' ? s.equip : {}) },
+    caddies: Array.isArray(s.caddies) ? s.caddies : [],
+    caddie: typeof s.caddie === 'string' ? s.caddie : null,
+    daily: s.daily && typeof s.daily === 'object' && Array.isArray(s.daily.tasks) ? s.daily : { date: '', tasks: [], bonus: false, gift: '', streak: 0 },
+    tour: s.tour && typeof s.tour === 'object' && Array.isArray(s.tour.mine) ? s.tour : null,
+    tourWins: s.tourWins && typeof s.tourWins === 'object' ? s.tourWins : {},
     savedAt: num(s.savedAt),
   }
 }
@@ -442,4 +644,5 @@ export const levelOf = (xp: number) => {
   return { lv, into: rest, need }
 }
 /** Lỗ đã mở: lỗ đầu mỗi khu, hoặc lỗ ngay trước đã hoàn thành. */
-export const unlocked = (s: GolfSave, w: World, i: number) => i === 0 || !!s.best[w.holes[i - 1].id]
+export const worldOpen = (s: GolfSave, wi: number) => wi === 0 || WORLDS[wi - 1].holes.every((h) => s.best[h.id])
+export const unlocked = (s: GolfSave, w: World, i: number) => worldOpen(s, WORLDS.indexOf(w)) && (i === 0 || !!s.best[w.holes[i - 1].id])
