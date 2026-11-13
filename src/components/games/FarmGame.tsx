@@ -3,9 +3,11 @@ import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import {
-  ACHIEVEMENTS, ANIMALS, CROP, CROPS, dailyReward, EXPAND, expandPlots, fmtLeft, has, ITEM_ORDER, ITEMS, levelOf, needsText, newFarm, newOrder,
-  parseFarm, RECIPE, RECIPES, SLOT_COST, take, today, weatherOf, type AnimalKind, type CropId, type Farm, type GoodId, type ItemId, type Order,
+  ACHIEVEMENTS, activeEvent, addItem, ALL_DECOR, ANIMALS, baitNow, CROP, CROPS, dailyReward, EXPAND, expandPlots, FERT_LEVEL, FERT_PACK, fmtLeft, has,
+  hasGold, ITEM_ORDER, ITEMS, levelOf, needsText, newFarm, newOrder, nextUnlock, ORCHARD_LEVEL, parseFarm, POND_LEVEL, rollTier, STATIONS, takeItems,
+  TIER_ICON, TIER_MUL, tiersOf, today, TRUCK_LEVEL, unlocksBetween, weatherOf, type AnimalKind, type CropId, type Farm, type ItemId, type Order,
 } from './farm'
+import { EventBanner, OrchardView, PondView, TruckView, WantList, WorkshopView, type Ctx } from './FarmExtra'
 
 const asset = (n: string) => `${import.meta.env.BASE_URL}assets/${n}`
 const LOCAL_KEY = 'pochacco-library:farm'
@@ -34,7 +36,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   const [toast, setToast] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [askReset, setAskReset] = useState(false)
-  const [view, setView] = useState<'field' | 'barn' | 'bakery' | 'goals'>('field')
+  const [view, setView] = useState<'field' | 'orchard' | 'barn' | 'pond' | 'shop' | 'truck' | 'goals'>('field')
   const shaRef = useRef<string | null>(null)
   const dirtyRef = useRef(false)
   const farmRef = useRef(farm)
@@ -135,11 +137,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     const notes: string[] = []
     if (msg) notes.push(msg)
     if (lv1 > lv0) {
-      const unlocked = [
-        ...CROPS.filter((c) => c.level > lv0 && c.level <= lv1).map((c) => `${c.icon} ${c.name}`),
-        ...Object.values(ANIMALS).filter((a) => a.level > lv0 && a.level <= lv1).map((a) => `${a.icon} ${a.name}`),
-        ...RECIPES.filter((r) => r.level > lv0 && r.level <= lv1).map((r) => `${r.icon} ${r.name}`),
-      ]
+      const unlocked = unlocksBetween(lv0, lv1)
       notes.push(`Lên cấp ${lv1}!${unlocked.length ? ` Mở khóa ${unlocked.join(', ')}` : ''}`)
     }
     for (const a of got) notes.push(`Thành tựu ${a.icon} ${a.name} (+${a.reward} xu)`)
@@ -148,7 +146,8 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
 
   const lvl = levelOf(farm.xp)
   const weather = weatherOf(today(now))
-  const priceOf = (id: ItemId) => Math.round(ITEMS[id].sell * (1 + weather.sellBonus))
+  const ev = activeEvent(now)
+  const priceOf = (id: ItemId, tier = 0) => Math.round(ITEMS[id].sell * TIER_MUL[tier] * (1 + weather.sellBonus))
 
   // ---------- Ruộng ----------
   const plantAt = (f: Farm, idx: number[], crop: CropId): Farm => {
@@ -157,14 +156,20 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     const t = Date.now()
     const rain = weather.id === 'mua'
     const total = c.minutes * 60_000
-    for (const i of idx) plots[i] = { crop, plantedAt: t, readyAt: t + (rain ? Math.round(total * 0.75) : total), watered: rain }
-    return { ...f, plots, coins: f.coins - idx.length * c.seed, planted: f.planted.includes(crop) ? f.planted : [...f.planted, crop] }
+    let fert = levelOf(f.xp).lv >= FERT_LEVEL && f.useFert ? f.fert : 0
+    const used = Math.min(fert, idx.length)
+    for (const i of idx) {
+      plots[i] = { crop, plantedAt: t, readyAt: t + (rain ? Math.round(total * 0.75) : total), watered: rain, fert: fert > 0 }
+      if (fert > 0) fert--
+    }
+    return { ...f, plots, fert: f.fert - used, coins: f.coins - idx.length * c.seed, planted: f.planted.includes(crop) ? f.planted : [...f.planted, crop] }
   }
 
   const clickPlot = (i: number) => {
     const p = farm.plots[i]
     if (!p) {
       const c = CROP[seed]
+      if (c.event && c.event !== ev?.id) return say(`Hạt ${c.name} chỉ có trong sự kiện`)
       if (farm.coins < c.seed) return say(`Không đủ xu mua hạt ${c.name} (${c.seed} xu)`)
       return update((f) => plantAt(f, [i], seed))
     }
@@ -185,29 +190,35 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     if (!ready.length) return
     const got: Partial<Record<CropId, number>> = {}
     for (const i of ready) got[farm.plots[i]!.crop] = (got[farm.plots[i]!.crop] ?? 0) + 1
+    const tiers = ready.map((i) => rollTier(!!farm.plots[i]!.fert))
+    const nGold = tiers.filter((t) => t === 2).length
+    const nSilver = tiers.filter((t) => t === 1).length
+    const xpMul = 1 + (ev?.harvestXp ?? 0)
     update(
       (f) => {
         const plots = [...f.plots]
-        const inv = { ...f.inv }
+        let store = { inv: f.inv, q: f.q }
         let x = 0
-        for (const i of ready) {
+        ready.forEach((i, k) => {
           const c = CROP[plots[i]!.crop]
-          inv[c.id] = (inv[c.id] ?? 0) + 1
+          store = addItem(store, c.id, 1, tiers[k])
           x += c.xp
           plots[i] = null
-        }
-        return { ...f, plots, inv, xp: f.xp + x, stats: { ...f.stats, harvested: f.stats.harvested + ready.length } }
+        })
+        return { ...f, plots, ...store, xp: f.xp + Math.round(x * xpMul), stats: { ...f.stats, harvested: f.stats.harvested + ready.length, gold: f.stats.gold + nGold } }
       },
-      `Thu hoạch ${Object.entries(got).map(([k, n]) => `${n} ${CROP[k as CropId].icon}`).join(' ')}`,
+      `Thu hoạch ${Object.entries(got).map(([k, n]) => `${n} ${CROP[k as CropId].icon}`).join(' ')}${nSilver ? ` · ${nSilver} 🥈` : ''}${nGold ? ` · ${nGold} 🥇` : ''}${xpMul > 1 ? ' · KN mùa gặt +50%' : ''}`,
     )
   }
 
   const plantAll = () => {
     const c = CROP[seed]
+    if (c.event && c.event !== ev?.id) return say(`Hạt ${c.name} chỉ có trong sự kiện`)
     const empty = farm.plots.map((p, i) => (p ? -1 : i)).filter((i) => i >= 0)
     const n = Math.min(empty.length, Math.floor(farm.coins / c.seed))
     if (!n) return say(empty.length ? `Không đủ xu mua hạt ${c.name}` : 'Không còn ô trống')
-    update((f) => plantAt(f, empty.slice(0, n), seed), `Gieo ${n} ô ${c.icon} ${c.name}${weather.id === 'mua' ? ' (mưa tưới sẵn)' : ''}`)
+    const fertN = lvl.lv >= FERT_LEVEL && farm.useFert ? Math.min(farm.fert, n) : 0
+    update((f) => plantAt(f, empty.slice(0, n), seed), `Gieo ${n} ô ${c.icon} ${c.name}${fertN ? `, bón phân ${fertN} ô` : ''}${weather.id === 'mua' ? ' (mưa tưới sẵn)' : ''}`)
   }
 
   const waterAll = () => {
@@ -228,6 +239,11 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     update((f) => ({ ...f, size: to, coins: f.coins - e.cost, plots: expandPlots(f.plots, f.size, to) }), `Ruộng mở rộng thành ${to}×${to}!`)
   }
 
+  const buyFert = () => {
+    if (farm.coins < FERT_PACK.cost) return say(`Cần ${FERT_PACK.cost} xu`)
+    update((f) => ({ ...f, coins: f.coins - FERT_PACK.cost, fert: f.fert + FERT_PACK.n }), `Mua ${FERT_PACK.n} túi phân bón 🧪`)
+  }
+
   // ---------- Chuồng ----------
   const buyAnimal = (k: AnimalKind) => {
     const a = ANIMALS[k]
@@ -235,21 +251,21 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     update((f) => ({ ...f, coins: f.coins - a.cost, animals: [...f.animals, { kind: k, readyAt: null, fedAt: null }] }), `Chào mừng ${a.icon} ${a.name} về nông trại!`)
   }
   const feed = (idx: number[]) => {
-    let inv = { ...farm.inv }
+    let store = { inv: farm.inv, q: farm.q }
     const ok: number[] = []
     for (const i of idx) {
       const an = farm.animals[i]
       if (!an || an.readyAt) continue
       const d = ANIMALS[an.kind]
-      if (!has(inv, d.eats)) continue
-      inv = take(inv, d.eats)
+      if (!has(store.inv, d.eats)) continue
+      store = takeItems(store, d.eats)
       ok.push(i)
     }
-    if (!ok.length) return say('Thiếu thức ăn: gà ăn 1 🌾, bò ăn 2 🌽')
+    if (!ok.length) return say(`Thiếu thức ăn: ${[...new Set(idx.map((i) => farm.animals[i]?.kind).filter(Boolean))].map((k) => `${ANIMALS[k as AnimalKind].icon} ăn ${needsText(ANIMALS[k as AnimalKind].eats)}`).join(', ')}`)
     update((f) => {
       const t = Date.now()
       const animals = f.animals.map((an, i) => (ok.includes(i) ? { ...an, fedAt: t, readyAt: t + ANIMALS[an.kind].minutes * 60_000 } : an))
-      return { ...f, inv, animals }
+      return { ...f, ...store, animals }
     }, `Đã cho ${ok.length} con ăn`)
   }
   const collect = (idx: number[]) => {
@@ -270,54 +286,29 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     }, `Nhặt ${ready.map((i) => ITEMS[ANIMALS[farm.animals[i].kind].gives].icon).join(' ')}`)
   }
 
-  // ---------- Lò bánh ----------
-  const bake = (slot: number, id: GoodId) => {
-    const r = RECIPE[id]
-    if (farm.slots[slot] || lvl.lv < r.level || !has(farm.inv, r.needs)) return
-    update((f) => {
-      const slots = [...f.slots]
-      slots[slot] = { recipe: id, readyAt: Date.now() + r.minutes * 60_000 }
-      return { ...f, inv: take(f.inv, r.needs), slots }
-    }, `Đang làm ${r.icon} ${r.name}`)
-  }
-  const takeOut = (idx: number[]) => {
-    const ready = idx.filter((i) => farm.slots[i] && now >= farm.slots[i]!.readyAt)
-    if (!ready.length) return
-    update((f) => {
-      const inv = { ...f.inv }
-      let x = 0
-      const slots = f.slots.map((s, i) => {
-        if (!ready.includes(i) || !s) return s
-        const r = RECIPE[s.recipe]
-        inv[r.id] = (inv[r.id] ?? 0) + 1
-        x += r.xp
-        return null
-      })
-      return { ...f, inv, slots, xp: f.xp + x, stats: { ...f.stats, crafted: f.stats.crafted + ready.length } }
-    }, `Ra lò ${ready.map((i) => RECIPE[farm.slots[i]!.recipe].icon).join(' ')}`)
-  }
-  const buySlot = () => {
-    const cost = SLOT_COST[farm.slots.length]
-    if (cost === undefined || farm.coins < cost) return
-    update((f) => ({ ...f, coins: f.coins - cost, slots: [...f.slots, null] }), 'Lò bánh có thêm một ô nướng')
-  }
-
   // ---------- Chợ, đơn hàng, điểm danh ----------
+  /** Bán: hàng thường trước rồi tới bạc, vàng. */
   const sell = (id: ItemId, n: number) => {
-    const have = farm.inv[id] ?? 0
-    const k = Math.min(n, have)
+    const t = tiersOf(farm, id)
+    const k = Math.min(n, t.all)
     if (!k) return
-    const price = priceOf(id)
-    update((f) => ({ ...f, coins: f.coins + price * k, inv: { ...f.inv, [id]: have - k }, stats: { ...f.stats, earned: f.stats.earned + price * k } }), `Bán ${k} ${ITEMS[id].icon} được ${price * k} xu`)
+    let rest = k
+    let money = 0
+    for (const [tier, have] of [[0, t.normal], [1, t.silver], [2, t.gold]] as const) {
+      const m = Math.min(rest, have)
+      money += m * priceOf(id, tier)
+      rest -= m
+    }
+    update((f) => ({ ...f, ...takeItems(f, { [id]: k }), coins: f.coins + money, stats: { ...f.stats, earned: f.stats.earned + money } }), `Bán ${k} ${ITEMS[id].icon} được ${money.toLocaleString('vi-VN')} xu`)
   }
-  const canDeliver = (o: Order) => has(farm.inv, o.want)
+  const canDeliver = (o: Order) => has(farm.inv, o.want) && hasGold(farm, o.gold)
   const deliver = (o: Order) => {
     if (!canDeliver(o)) return
     update(
       (f) => ({
         ...f,
-        inv: take(f.inv, o.want),
-        orders: f.orders.map((x) => (x.id === o.id ? newOrder(f.xp + o.xp) : x)),
+        ...takeItems(f, o.want, o.gold),
+        orders: f.orders.map((x) => (x.id === o.id ? newOrder(f.xp + o.xp, ev?.id ?? null) : x)),
         coins: f.coins + o.coins,
         xp: f.xp + o.xp,
         stats: { ...f.stats, delivered: f.stats.delivered + 1, earned: f.stats.earned + o.coins },
@@ -325,7 +316,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       `${o.who} cảm ơn! +${o.coins} xu, +${o.xp} kinh nghiệm`,
     )
   }
-  const skipOrder = (o: Order) => update((f) => ({ ...f, orders: f.orders.map((x) => (x.id === o.id ? newOrder(f.xp) : x)) }))
+  const skipOrder = (o: Order) => update((f) => ({ ...f, orders: f.orders.map((x) => (x.id === o.id ? newOrder(f.xp, ev?.id ?? null) : x)) }))
 
   const day = today(now)
   const yesterday = today(now - 86_400_000)
@@ -347,20 +338,31 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   const growing = farm.plots.filter((p) => p && now < p.readyAt).length
   const animalsReady = farm.animals.map((a, i) => (a.readyAt && now >= a.readyAt ? i : -1)).filter((i) => i >= 0)
   const animalsHungry = farm.animals.map((a, i) => (!a.readyAt ? i : -1)).filter((i) => i >= 0)
-  const ovenReady = farm.slots.map((s, i) => (s && now >= s.readyAt ? i : -1)).filter((i) => i >= 0)
-  const busy = growing + farm.animals.filter((a) => a.readyAt && now < a.readyAt).length + farm.slots.filter((s) => s && now < s.readyAt).length
-  const anyReady = ripe.length + animalsReady.length + ovenReady.length
+  const allSlots = [...farm.slots, ...farm.mill, ...farm.loom]
+  const ovenReady = allSlots.filter((s) => s && now >= s.readyAt).length
+  const treesReady = farm.trees.filter((t) => t && now >= t.readyAt).length
+  const trucksBack = farm.trucks.filter((t) => t && now >= t.backAt).length
+  const busy =
+    growing + farm.animals.filter((a) => a.readyAt && now < a.readyAt).length + allSlots.filter((s) => s && now < s.readyAt).length +
+    farm.trees.filter((t) => t && now < t.readyAt).length + farm.trucks.filter((t) => t && now < t.backAt).length
+  const anyReady = ripe.length + animalsReady.length + ovenReady + treesReady + trucksBack
+  const bait = baitNow(farm.bait, now)
+  const nu = nextUnlock(lvl.lv)
+  const ctx: Ctx = { farm, now, lv: lvl.lv, ev, weather, update, say }
   const idle = !anyReady && !busy
   const next = farm.plots.reduce<number | null>((m, p) => (p && now < p.readyAt && (m === null || p.readyAt < m) ? p.readyAt : m), null)
   const invList = ITEM_ORDER.filter((id) => (farm.inv[id] ?? 0) > 0)
   const nextSize = farm.size < 5 ? ((farm.size + 1) as 4 | 5) : null
   const barnOpen = lvl.lv >= ANIMALS.ga.level
-  const bakeryOpen = lvl.lv >= RECIPES[0].level
+  const lockAt = (l: number) => (lvl.lv >= l ? undefined : l)
 
   const tabs: { id: typeof view; label: string; badge: number; locked?: number }[] = [
     { id: 'field', label: '🌱 Ruộng', badge: ripe.length },
+    { id: 'orchard', label: '🌳 Vườn', badge: treesReady, locked: lockAt(ORCHARD_LEVEL) },
     { id: 'barn', label: '🐔 Chuồng', badge: animalsReady.length, locked: barnOpen ? undefined : ANIMALS.ga.level },
-    { id: 'bakery', label: '🍞 Lò bánh', badge: ovenReady.length, locked: bakeryOpen ? undefined : RECIPES[0].level },
+    { id: 'pond', label: '🎣 Ao cá', badge: lvl.lv >= POND_LEVEL ? bait.n : 0, locked: lockAt(POND_LEVEL) },
+    { id: 'shop', label: '🏭 Xưởng', badge: ovenReady, locked: lockAt(STATIONS.lo.level) },
+    { id: 'truck', label: '🚚 Xe hàng', badge: trucksBack, locked: lockAt(TRUCK_LEVEL) },
     { id: 'goals', label: '🏆 Thành tựu', badge: 0 },
   ]
 
@@ -374,6 +376,11 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
           <div className="farm-line">
             <span className="coins">🪙 {farm.coins.toLocaleString('vi-VN')} xu</span>
             <span className="lv">Cấp {lvl.lv}</span>
+            {farm.decor.length > 0 && (
+              <span className="decor-strip" title={ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => d.name).join(', ')}>
+                {ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => d.icon).join('')}
+              </span>
+            )}
             <span className="weather" title={weather.note}>
               {weather.icon} {weather.name}
             </span>
@@ -385,11 +392,16 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             {idle
               ? 'Nông trại đang nghỉ, Pochacco ngủ gật rồi. Gieo hạt thôi!'
               : anyReady
-                ? `Sẵn sàng: ${[ripe.length && `${ripe.length} ô ruộng`, animalsReady.length && `${animalsReady.length} con trong chuồng`, ovenReady.length && `${ovenReady.length} món ra lò`].filter(Boolean).join(', ')}`
+                ? `Sẵn sàng: ${[ripe.length && `${ripe.length} ô ruộng`, treesReady && `${treesReady} cây ăn quả`, animalsReady.length && `${animalsReady.length} con trong chuồng`, ovenReady && `${ovenReady} món ở xưởng`, trucksBack && `${trucksBack} xe đã về`].filter(Boolean).join(', ')}`
                 : `Ô ruộng gần chín nhất còn ${fmtLeft((next ?? now) - now)}`}
             {' · '}
             {weather.note}
           </div>
+          {nu && (
+            <div className="muted small next-unlock">
+              Cấp {nu.level} mở: {nu.items.join(', ')}
+            </div>
+          )}
         </div>
         <div className={`farm-sync s-${sync.state}`} title={sync.msg}>
           {sync.state === 'saving'
@@ -420,6 +432,8 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
         </div>
       )}
 
+      <EventBanner {...ctx} />
+
       <div className="farm-tabs" role="tablist">
         {tabs.map((t) => (
           <button key={t.id} role="tab" aria-selected={view === t.id} className={`farm-tab ${view === t.id ? 'on' : ''}`} disabled={!!t.locked} onClick={() => setView(t.id)} title={t.locked ? `Mở ở cấp ${t.locked}` : undefined}>
@@ -432,7 +446,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       {view === 'field' && (
         <>
           <div className="seed-bar" role="radiogroup" aria-label="Hạt giống">
-            {CROPS.map((c) => {
+            {CROPS.filter((c) => !c.event || c.event === ev?.id).map((c) => {
               const locked = c.level > lvl.lv
               return (
                 <button
@@ -440,7 +454,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   role="radio"
                   aria-checked={seed === c.id}
                   disabled={locked}
-                  className={`seed ${seed === c.id ? 'on' : ''}`}
+                  className={`seed ${seed === c.id ? 'on' : ''} ${c.event ? 'event' : ''}`}
                   onClick={() => setSeed(c.id)}
                   title={locked ? `Mở ở cấp ${c.level}` : `${c.name}: hạt ${c.seed} xu, bán ${c.sell} xu, chín sau ${fmtLeft(c.minutes * 60_000)}`}
                 >
@@ -462,6 +476,22 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               Thu hoạch tất cả{ripe.length ? ` (${ripe.length})` : ''}
             </button>
           </div>
+          {lvl.lv >= FERT_LEVEL ? (
+            <div className="fert-bar">
+              <span>
+                🧪 Phân bón: <b>{farm.fert}</b> túi
+              </span>
+              <label className="fert-toggle">
+                <input type="checkbox" checked={farm.useFert} onChange={(e) => update((f) => ({ ...f, useFert: e.target.checked }))} /> Bón khi gieo
+              </label>
+              <button className="secondary small-btn" disabled={farm.coins < FERT_PACK.cost} onClick={buyFert}>
+                Mua {FERT_PACK.n} túi ({FERT_PACK.cost} xu)
+              </button>
+              <span className="muted small">Ô có bón phân ra hàng 🥈 bạc hoặc 🥇 vàng nhiều hơn, bán giá ×1,25 và ×1,6.</span>
+            </div>
+          ) : (
+            <p className="muted small">🔒 Phân bón và hàng có sao mở ở cấp {FERT_LEVEL}.</p>
+          )}
           <div className={`field ${weather.id === 'mua' ? 'rainy' : ''}`} style={{ gridTemplateColumns: `repeat(${farm.size}, 1fr)`, '--n': farm.size, maxWidth: 140 * farm.size + 40 } as React.CSSProperties}>
             {farm.plots.map((p, i) => {
               if (!p)
@@ -490,6 +520,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   )}
                   {!done && <span className="left">{fmtLeft(p.readyAt - now)}</span>}
                   {!done && !p.watered && <span className="need-water" title="Chạm để tưới">💧</span>}
+                  {p.fert && <span className="fert-mark" title="Đã bón phân">🧪</span>}
                 </button>
               )
             })}
@@ -517,7 +548,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               Nhặt tất cả{animalsReady.length ? ` (${animalsReady.length})` : ''}
             </button>
           </div>
-          {farm.animals.length === 0 && <p className="muted">Chuồng còn trống. Mua gà để có trứng, mua bò để có sữa, nguyên liệu cho lò bánh và các đơn hàng giá cao.</p>}
+          {farm.animals.length === 0 && <p className="muted">Chuồng còn trống. Mua gà để có trứng, mua bò để có sữa, nguyên liệu cho xưởng và các đơn hàng giá cao.</p>}
           <div className="pens">
             {farm.animals.map((an, i) => {
               const d = ANIMALS[an.kind]
@@ -565,55 +596,10 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
         </section>
       )}
 
-      {view === 'bakery' && (
-        <section className="bakery">
-          <div className="farm-actions">
-            <button className="small-btn" disabled={!ovenReady.length} onClick={() => takeOut(ovenReady)}>
-              Lấy hết món đã xong{ovenReady.length ? ` (${ovenReady.length})` : ''}
-            </button>
-            {SLOT_COST[farm.slots.length] !== undefined && (
-              <button className="secondary small-btn" disabled={farm.coins < SLOT_COST[farm.slots.length]} onClick={buySlot}>
-                Thêm ô nướng ({SLOT_COST[farm.slots.length]} xu)
-              </button>
-            )}
-          </div>
-          <div className="ovens">
-            {farm.slots.map((s, i) =>
-              s ? (
-                <button key={i} className={`oven ${now >= s.readyAt ? 'ready' : 'busy'}`} onClick={() => (now >= s.readyAt ? takeOut([i]) : say(`${RECIPE[s.recipe].name} còn ${fmtLeft(s.readyAt - now)}`))}>
-                  <span className="oven-icon">{RECIPE[s.recipe].icon}</span>
-                  <span className="pen-note">{now >= s.readyAt ? 'Xong! Chạm để lấy' : fmtLeft(s.readyAt - now)}</span>
-                </button>
-              ) : (
-                <div key={i} className="oven empty">
-                  <span className="pen-note">Ô trống: chọn món bên dưới</span>
-                </div>
-              ),
-            )}
-          </div>
-          <div className="recipes">
-            {RECIPES.map((r) => {
-              const locked = lvl.lv < r.level
-              const free = farm.slots.findIndex((s) => !s)
-              const ok = !locked && free >= 0 && has(farm.inv, r.needs)
-              return (
-                <div key={r.id} className={`recipe ${locked ? 'locked' : ''}`}>
-                  <span className="si">{locked ? '🔒' : r.icon}</span>
-                  <div>
-                    <b>{r.name}</b>
-                    <div className="muted small">
-                      {needsText(r.needs)} · {fmtLeft(r.minutes * 60_000)} · bán {r.sell} xu
-                    </div>
-                  </div>
-                  <button className="small-btn" disabled={!ok} onClick={() => bake(free, r.id)}>
-                    {locked ? `Cấp ${r.level}` : free < 0 ? 'Lò bận' : has(farm.inv, r.needs) ? 'Làm' : 'Thiếu'}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {view === 'orchard' && <OrchardView {...ctx} />}
+      {view === 'pond' && <PondView {...ctx} />}
+      {view === 'shop' && <WorkshopView {...ctx} />}
+      {view === 'truck' && <TruckView {...ctx} />}
 
       {view === 'goals' && (
         <section className="goals">
@@ -649,19 +635,16 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             const ok = canDeliver(o)
             return (
               <div key={o.id} className={`order ${ok ? 'ready' : ''}`}>
-                <div className="order-who">{o.who}</div>
+                <div className="order-who">
+                  {o.who}
+                  {o.event && <span className="ev-tag">sự kiện</span>}
+                  {o.gold && <span className="gold-tag">cần hàng 🥇</span>}
+                </div>
                 <div className="order-want">
-                  {Object.entries(o.want).map(([k, n]) => {
-                    const have = farm.inv[k as ItemId] ?? 0
-                    return (
-                      <span key={k} className={have >= (n ?? 0) ? 'enough' : ''} title={ITEMS[k as ItemId].name}>
-                        {ITEMS[k as ItemId].icon} {Math.min(have, n ?? 0)}/{n}
-                      </span>
-                    )
-                  })}
+                  <WantList farm={farm} want={o.want} gold={o.gold} />
                 </div>
                 <div className="order-reward">
-                  +{o.coins} xu · +{o.xp} KN
+                  +{o.coins.toLocaleString('vi-VN')} xu · +{o.xp} KN
                 </div>
                 <div className="order-btns">
                   <button className="small-btn" disabled={!ok} onClick={() => deliver(o)}>
@@ -682,13 +665,21 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             <p className="muted small">Kho trống. Thu hoạch, nhặt trứng sữa hay làm bánh xong, mọi thứ sẽ nằm ở đây để bán hoặc giao đơn.</p>
           ) : (
             <ul className="inv">
-              {invList.map((id) => (
+              {invList.map((id) => {
+                const t = tiersOf(farm, id)
+                return (
                 <li key={id}>
                   <span className="ii">{ITEMS[id].icon}</span>
                   <span className="in">
                     {ITEMS[id].name} × {farm.inv[id]}
+                    {(t.silver > 0 || t.gold > 0) && (
+                      <small className="tiers">
+                        {t.silver > 0 && ` ${TIER_ICON[1]}${t.silver}`}
+                        {t.gold > 0 && ` ${TIER_ICON[2]}${t.gold}`}
+                      </small>
+                    )}
                   </span>
-                  <span className="muted small">{priceOf(id)} xu/cái</span>
+                  <span className="muted small">{priceOf(id).toLocaleString('vi-VN')} xu/cái</span>
                   <button className="link" onClick={() => sell(id, 1)}>
                     Bán 1
                   </button>
@@ -696,11 +687,12 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                     Bán hết
                   </button>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
           <p className="muted small farm-meta">
-            Thu hoạch {farm.stats.harvested.toLocaleString('vi-VN')} lần · nhặt {farm.stats.collected} · làm {farm.stats.crafted} món · giao {farm.stats.delivered} đơn · kiếm {farm.stats.earned.toLocaleString('vi-VN')} xu ·{' '}
+            Thu hoạch {farm.stats.harvested.toLocaleString('vi-VN')} lần · hái {farm.stats.fruits} quả · nhặt {farm.stats.collected} · câu {farm.stats.fished} cá · làm {farm.stats.crafted} món · giao {farm.stats.delivered} đơn, {farm.stats.trips} chuyến xe · {farm.stats.gold} hàng 🥇 · kiếm {farm.stats.earned.toLocaleString('vi-VN')} xu ·{' '}
             <button className="link" onClick={() => setAskReset(true)}>
               Làm lại từ đầu
             </button>
@@ -710,7 +702,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       {askReset && (
         <ConfirmDialog
           title="Làm lại nông trại từ đầu?"
-          text="Toàn bộ xu, cấp, kho, chuồng trại, lò bánh, thành tựu và cây đang trồng sẽ mất."
+          text="Toàn bộ xu, cấp, kho, chuồng trại, vườn, xưởng, xe hàng, đồ trang trí, thành tựu và cây đang trồng sẽ mất."
           confirmLabel="Làm lại"
           cancelLabel="Giữ nông trại"
           danger
