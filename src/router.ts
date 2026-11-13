@@ -14,7 +14,7 @@ import { FORMAT_OPTIONS, type FormatFilter } from './data/format'
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
 export type Route = {
-  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people'
+  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people' | 'suggest'
   openId: string | null
   editing: boolean
   reading: number | null
@@ -64,14 +64,15 @@ export function formatRoute(r: Route): string {
     if (r.reading !== null) return `${base}/doc/${r.reading}`
     return r.editing ? `${base}/sua` : base
   }
+  if (r.adding) return '#/them'
   if (r.page === 'stats') return '#/thong-ke'
   if (r.page === 'settings') return '#/cai-dat'
   if (r.page === 'games') return '#/tro-choi'
+  if (r.page === 'suggest') return '#/goi-y'
   if (r.page === 'people') return r.person ? `#/tac-gia/${encodeURIComponent(r.person)}` : '#/tac-gia'
   if (r.page === 'refs') return r.refList ? `#/tai-lieu-tham-khao/${encodeURIComponent(r.refList)}` : '#/tai-lieu-tham-khao'
   if (r.page === 'quotes') return r.topic ? `#/trich-dan?${new URLSearchParams({ 'chu-de': r.topic })}` : '#/trich-dan'
   if (r.scanMode) return `#/${SCAN_PATH[r.scanMode]}`
-  if (r.adding) return '#/them'
   const params = new URLSearchParams()
   if (r.q.trim()) params.set('q', r.q)
   if (r.cat) params.set('loai', r.cat)
@@ -97,6 +98,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'thong-ke') return { ...r, page: 'stats' }
   if (parts[0] === 'cai-dat') return { ...r, page: 'settings' }
   if (parts[0] === 'tro-choi') return { ...r, page: 'games' }
+  if (parts[0] === 'goi-y') return { ...r, page: 'suggest' }
   if (parts[0] === 'tac-gia') return { ...r, page: 'people', person: parts[1] ?? null }
   if (parts[0] === 'tai-lieu-tham-khao') return { ...r, page: 'refs', refList: parts[1] ? decodeURIComponent(parts[1]) : null }
   if (parts[0] === 'trich-dan') return { ...r, page: 'quotes', topic: new URLSearchParams(qs).get('chu-de') }

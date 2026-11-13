@@ -7,6 +7,7 @@ import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
 import Stats from './components/Stats'
 import PersonPage from './components/PersonPage'
+import SuggestPage from './components/SuggestPage'
 import BookForm from './components/BookForm'
 import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTaxonomy, type CategoryGroup } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -333,7 +334,7 @@ export default function App() {
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
   const [dupMode, setDupMode] = useState<'copy' | 'edition'>('copy')
-  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people' | 'suggest'>(initial.page)
   const [person, setPerson] = useState<string | null>(initial.person)
   // Các cuốn đã chọn để tạo danh mục tài liệu tham khảo (giữ qua các lần mở trang)
   const [picked, setPickedState] = useState<string[]>(() => {
@@ -488,6 +489,7 @@ export default function App() {
     { id: 'stats', label: 'Thống kê', title: 'Thống kê và phân tích thư viện', icon: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>, go: () => goTab('stats') },
     { id: 'quotes', label: 'Trích dẫn', title: 'Các đoạn trích đã lưu', more: true, icon: <><path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6" /></>, go: () => goTab('quotes') },
     { id: 'people', label: 'Tác giả', title: 'Tác giả và nhân vật lịch sử', mOrder: 3, icon: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>, go: () => openPerson(null) },
+    { id: 'suggest', label: 'Gợi ý', title: 'Sách nên bổ sung vào tủ', more: true, icon: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" /></>, go: () => goTab('suggest') },
     { id: 'refs', label: 'Tài liệu', title: 'Danh mục tài liệu tham khảo theo bài viết', more: true, icon: <><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="4" cy="6" r="1" fill="currentColor" /><circle cx="4" cy="12" r="1" fill="currentColor" /><circle cx="4" cy="18" r="1" fill="currentColor" /></>, go: () => openRefs(null) },
     { id: 'games', label: 'Trò chơi', title: 'Nông trại, mì cay và các trò khác', mOrder: 4, deskIcon: true, icon: <><rect x="2" y="7" width="20" height="11" rx="5" /><path d="M7 11v3M5.5 12.5h3" /><circle cx="16" cy="11.5" r="0.9" fill="currentColor" /><circle cx="18" cy="13.5" r="0.9" fill="currentColor" /></>, go: () => goTab('games') },
     { id: 'settings', label: 'Cài đặt', title: 'Phân loại sách, sao lưu, xuất dữ liệu', more: true, deskIcon: true, icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>, go: () => goTab('settings') },
@@ -614,7 +616,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : page === 'suggest' ? `Gợi ý bổ sung · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -778,6 +780,21 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'suggest' && !openId && !adding ? (
+          loading ? (
+            <State img="anim-read" title="Pochacco đang xem tủ sách..." />
+          ) : (
+            <SuggestPage
+              cfg={cfg}
+              books={books}
+              onWish={(d) => {
+                setPrefill(d)
+                setDupFrom(null)
+                setAdding(true)
+                window.scrollTo(0, 0)
+              }}
+            />
+          )
         ) : page === 'people' && !openId ? (
           loading ? (
             <State img="anim-read" title="Pochacco đang tìm sách..." />
