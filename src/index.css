@@ -1397,6 +1397,8 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 @media (max-width: 600px) {
   .topbar .pages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 0 2px; overflow: visible; }
   .topbar .tab-more, .topbar .logout { display: none !important; }
+  .topbar .page-tab { order: var(--m-order, 0); }
+  .topbar .tab-morebtn { order: 99; }
   .topbar .page-tab:not(.tab-more) {
     display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0;
     padding: 8px 2px 6px; min-height: 56px; font-size: 0.72rem; font-weight: 650; line-height: 1.1; white-space: nowrap;

@@ -483,13 +483,13 @@ export default function App() {
     setPage(pg); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0)
   }
   // Thanh tab: trên điện thoại chỉ hiện 4 mục chính, các mục "more" nằm trong nút "Thêm".
-  const navTabs: { id: typeof page; label: string; title: string; more?: boolean; deskIcon?: boolean; icon: React.ReactNode; go: () => void }[] = [
+  const navTabs: { id: typeof page; label: string; title: string; more?: boolean; mOrder?: number; deskIcon?: boolean; icon: React.ReactNode; go: () => void }[] = [
     { id: 'library', label: 'Thư viện', title: 'Danh sách sách', icon: <><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5A2.5 2.5 0 0 0 4 21.5v-2z" /><path d="M8 7h7" /></>, go: () => { setPage('library'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null) } },
     { id: 'stats', label: 'Thống kê', title: 'Thống kê và phân tích thư viện', icon: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>, go: () => goTab('stats') },
-    { id: 'quotes', label: 'Trích dẫn', title: 'Các đoạn trích đã lưu', icon: <><path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6" /></>, go: () => goTab('quotes') },
-    { id: 'people', label: 'Tác giả', title: 'Tác giả và nhân vật lịch sử', icon: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>, go: () => openPerson(null) },
+    { id: 'quotes', label: 'Trích dẫn', title: 'Các đoạn trích đã lưu', more: true, icon: <><path d="M7 7h4v4c0 3-2 5-4 6M15 7h4v4c0 3-2 5-4 6" /></>, go: () => goTab('quotes') },
+    { id: 'people', label: 'Tác giả', title: 'Tác giả và nhân vật lịch sử', mOrder: 3, icon: <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>, go: () => openPerson(null) },
     { id: 'refs', label: 'Tài liệu', title: 'Danh mục tài liệu tham khảo theo bài viết', more: true, icon: <><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="4" cy="6" r="1" fill="currentColor" /><circle cx="4" cy="12" r="1" fill="currentColor" /><circle cx="4" cy="18" r="1" fill="currentColor" /></>, go: () => openRefs(null) },
-    { id: 'games', label: 'Trò chơi', title: 'Nông trại, mì cay và các trò khác', more: true, deskIcon: true, icon: <><rect x="2" y="7" width="20" height="11" rx="5" /><path d="M7 11v3M5.5 12.5h3" /><circle cx="16" cy="11.5" r="0.9" fill="currentColor" /><circle cx="18" cy="13.5" r="0.9" fill="currentColor" /></>, go: () => goTab('games') },
+    { id: 'games', label: 'Trò chơi', title: 'Nông trại, mì cay và các trò khác', mOrder: 4, deskIcon: true, icon: <><rect x="2" y="7" width="20" height="11" rx="5" /><path d="M7 11v3M5.5 12.5h3" /><circle cx="16" cy="11.5" r="0.9" fill="currentColor" /><circle cx="18" cy="13.5" r="0.9" fill="currentColor" /></>, go: () => goTab('games') },
     { id: 'settings', label: 'Cài đặt', title: 'Phân loại sách, sao lưu, xuất dữ liệu', more: true, deskIcon: true, icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>, go: () => goTab('settings') },
   ]
 
@@ -677,6 +677,7 @@ export default function App() {
                 onClick={t.go}
                 title={t.title}
                 aria-current={page === t.id ? 'page' : undefined}
+                style={t.mOrder ? ({ '--m-order': t.mOrder } as CSSProperties) : undefined}
               >
                 <svg className={`tab-icon${t.deskIcon ? ' desk' : ''}`} viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   {t.icon}
