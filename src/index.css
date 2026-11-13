@@ -1306,3 +1306,85 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
   .goal-summary { grid-template-columns: 1fr; }
   .gs-near { justify-items: start; text-align: left; border-left: 0; border-top: 1.5px dashed var(--gold); padding: 8px 0 0; }
 }
+
+/* ---------- Mì cay: chỗ bấm to hơn, chế độ toàn màn hình trên điện thoại ---------- */
+.ns-stovetabs { display: none; }
+.ns-cust { cursor: pointer; }
+.ns-cust.cur { outline: 2.5px solid var(--red); outline-offset: -2px; }
+.ns-spice .lvl.want:not(.on) { box-shadow: 0 0 0 2px #e56b2a inset; color: #b2401b; font-weight: 800; }
+.ns-discard { padding: 6px 12px; }
+.ns-overlay .secondary { font-size: 0.9rem; }
+
+@media (max-width: 640px) {
+  body.ns-playing { overflow: hidden; overscroll-behavior: none; }
+  body.ns-playing .scroll-top { display: none; }
+  .noodle.playing {
+    position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; gap: 8px;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    background: var(--cream); overflow: hidden; height: 100dvh; box-sizing: border-box;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .noodle.playing .ns-season { display: none; }
+  /* HUD gọn một dòng */
+  .noodle.playing .ns-hud { flex-wrap: nowrap; gap: 5px; flex: none; }
+  .noodle.playing .ns-chip { padding: 2px 8px 2px 4px; font-size: 0.85rem; white-space: nowrap; }
+  .noodle.playing .ns-chip img { width: 20px; height: 20px; }
+  .noodle.playing .ns-hud .ns-chip:nth-child(2), .noodle.playing .ns-hud .ns-chip:nth-child(3) { display: none; }
+  .noodle.playing .ns-hud .pg { width: 44px; height: 44px; padding: 0; flex: none; }
+  /* Hàng khách: một dải cuộn ngang, chạm cả thẻ để nhận đơn */
+  .noodle.playing .ns-scene { flex: none; height: auto; min-height: 0; padding: 6px; border-radius: 14px; background: var(--tint); }
+  .noodle.playing .ns-stall { display: none; }
+  .noodle.playing .ns-queue { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; padding: 2px 2px 4px; min-height: 172px; align-items: stretch; scrollbar-width: none; }
+  .noodle.playing .ns-queue::-webkit-scrollbar { display: none; }
+  .noodle.playing .ns-cust { flex: 0 0 128px; scroll-snap-align: start; grid-template-columns: 1fr; grid-template-rows: auto auto auto; grid-template-areas: 'bub' 'img' 'name'; padding: 4px; row-gap: 2px; }
+  .noodle.playing .ns-cust .ns-cust-img { width: 54px; height: 54px; }
+  .noodle.playing .ns-bubble { padding: 5px 4px; gap: 3px; }
+  .noodle.playing .ns-bubble::after { top: auto; bottom: -8px; left: 50%; margin: 0 0 0 -7px; border: 7px solid transparent; border-top-color: #fffaf3; border-bottom: 0; }
+  .noodle.playing .ns-want img { width: 26px; height: 26px; }
+  .noodle.playing .ns-bubble .small-btn { min-height: 36px; width: 100%; padding: 4px 6px; font-size: 0.82rem; }
+  .noodle.playing .ns-empty { margin: auto; }
+  .noodle.playing .ns-pops { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 56px); left: 12px; right: 12px; z-index: 65; justify-items: center; }
+  .noodle.playing .ns-overlay { position: fixed; inset: 0; z-index: 70; }
+  .noodle.playing .ns-overlay button { min-height: 48px; min-width: 180px; }
+  /* Bếp: chọn bếp bằng tab, chỉ hiện bếp đang chọn */
+  .noodle.playing .ns-kitchen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .noodle.playing .ns-stovetabs { display: flex; gap: 6px; flex: none; }
+  .ns-stovetabs button { flex: 1; min-height: 44px; display: grid; justify-items: center; gap: 0; padding: 4px; border-radius: 12px; background: var(--paper); color: var(--ink); border: 2px solid var(--line); line-height: 1.15; }
+  .ns-stovetabs button small { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .ns-stovetabs button.on { border-color: var(--red); background: #fdebe7; }
+  .ns-stovetabs button.ready { background: #e9f4d8; border-color: #8fae3e; }
+  .ns-stovetabs button.ready small { color: #3d5a0e; }
+  .ns-stovetabs button.over small { color: var(--red-dark); }
+  .noodle.playing .ns-stoves { flex: none; display: block; }
+  .noodle.playing .ns-stove:not(.sel) { display: none; }
+  .noodle.playing .ns-stove { gap: 6px; padding: 8px 10px; opacity: 1; }
+  .noodle.playing .ns-pot { min-height: 44px; padding: 4px 10px; }
+  .noodle.playing .ns-pot img { width: 32px; height: 32px; }
+  .noodle.playing .ns-check { font-size: 0.78rem; }
+  .noodle.playing .ns-spice { display: grid; grid-template-columns: 22px repeat(8, 1fr); gap: 4px; flex-wrap: nowrap; }
+  .noodle.playing .ns-spice img { width: 22px; height: 22px; }
+  .noodle.playing .ns-spice .lvl { width: 100%; height: 40px; border-radius: 12px; font-size: 1rem; font-weight: 700; }
+  .noodle.playing .ns-cook { grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+  .noodle.playing .ns-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .noodle.playing .ns-actions .small-btn { min-height: 48px; font-size: 1rem; }
+  .noodle.playing .ns-actions .ns-discard { min-height: 48px; font-size: 0.9rem; }
+  /* Khay topping: chiếm phần còn lại, cuộn dọc, ô bấm to */
+  .noodle.playing .ns-tray { flex: 1; min-height: 120px; overflow-y: auto; -webkit-overflow-scrolling: touch; display: grid; gap: 6px; padding: 6px; align-content: start; }
+  .noodle.playing .ns-tray-group { width: 100%; }
+  .noodle.playing .ns-tray-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; }
+  .noodle.playing .ns-top { width: auto; min-height: 66px; padding: 4px 2px; font-size: 0.7rem; line-height: 1.15; }
+  .noodle.playing .ns-top img { width: 34px; height: 34px; }
+  /* Rửa bát: một dòng gọn ở đáy */
+  .noodle.playing .ns-wash { flex: none; flex-wrap: nowrap; gap: 8px; font-size: 0.85rem; }
+  .noodle.playing .ns-wash > img { width: 30px; height: 30px; }
+  .noodle.playing .ns-wash .small-btn { min-height: 44px; margin-left: auto; white-space: nowrap; }
+  .noodle.playing .ns-washbar { width: 60px; }
+}
+.ns-mode { display: flex; gap: 8px; flex-wrap: wrap; }
+.ns-mode button { flex: 1 1 200px; display: grid; gap: 2px; text-align: left; padding: 10px 14px; min-height: 52px; border-radius: 14px; background: var(--paper); color: var(--ink); border: 2px solid var(--line); }
+.ns-mode button:where(:hover) { background: #fbefe2; }
+.ns-mode button small { color: var(--muted); font-weight: 500; }
+.ns-mode button.on { border-color: var(--olive); background: #eef3dc; }
+.ns-hud .ns-close { margin-left: auto; }
+.ns-hud .ns-close + .pg { margin-left: 0; }
+@media (max-width: 640px) { .noodle.playing .ns-hud .ns-close { min-height: 44px; padding: 0 12px; } }

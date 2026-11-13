@@ -204,6 +204,8 @@ export type Shop = {
   shown: string[]
   badges: SeasonId[]
   seasonServed: Record<string, number>
+  /** chill: không giới hạn giờ, khách không bỏ về, mì không nhũn; rush: ca 2 phút rưỡi như cũ */
+  mode: 'chill' | 'rush'
   savedAt: number
 }
 export function newShop(): Shop {
@@ -211,7 +213,7 @@ export function newShop(): Shop {
     v: 1, coins: 0, gems: 0, day: 1, best: 0, served: 0, perfect: 0, earned: 0, lost: 0,
     tops: TOPPINGS.filter((t) => t.unlock === 0).map((t) => t.id),
     up: { stoves: 0, bowls: 0, seats: 0, price: 0, fire: 0 },
-    decor: [], shown: [], badges: [], seasonServed: {}, savedAt: Date.now(),
+    decor: [], shown: [], badges: [], seasonServed: {}, mode: 'chill', savedAt: Date.now(),
   }
 }
 export function parseShop(raw: unknown): Shop | null {
@@ -226,6 +228,7 @@ export function parseShop(raw: unknown): Shop | null {
     shown: Array.isArray(s.shown) ? s.shown.filter((x) => x in DECOR).slice(0, MAX_SHOWN) : [],
     badges: Array.isArray(s.badges) ? s.badges : [],
     seasonServed: s.seasonServed ?? {},
+    mode: s.mode === 'rush' ? 'rush' : 'chill',
     savedAt: typeof s.savedAt === 'number' ? s.savedAt : 0,
   } as Shop
 }
@@ -238,6 +241,8 @@ export const seatsOf = (s: Shop) => 3 + s.up.seats
 export const cookMsOf = (s: Shop) => Math.round(5200 * (s.up.fire ? 0.8 : 1))
 export const patienceMs = (s: Shop) => Math.round(Math.max(30, 52 - s.day * 0.8) * 1000 * (1 + 0.15 * s.up.seats))
 export const spawnGap = (day: number) => Math.max(4.5, 10 - day * 0.35) * 1000 * (0.7 + Math.random() * 0.6)
+/** Chế độ chill: khách đến thong thả, quán vắng thì có khách mới ngay. */
+export const chillGap = () => (9 + Math.random() * 5) * 1000
 export const maxToppings = (day: number) => Math.min(4, 2 + Math.floor(day / 3))
 
 export type Order = { tops: TopId[]; spice: number; takeaway: boolean }

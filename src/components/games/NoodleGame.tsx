@@ -5,7 +5,7 @@ import { ConfirmDialog } from '../ConfirmDialog'
 import { KimCuong, Rich, Xu } from './money'
 import {
   ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, custImg, DINE_IN, SAY_HAPPY, SAY_SAD, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
-  seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOP_GROUPS, TOPPINGS, UPGRADES,
+  seasonAt, seatsOf, SHIFT_SECONDS, chillGap, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOP_GROUPS, TOPPINGS, UPGRADES,
   type CustKind, type Mood, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
 } from './noodle'
 
@@ -192,13 +192,16 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
       const dt = Math.min(250, now - r.last)
       r.last = now
       r.t += dt
-      if (r.t >= SHIFT_SECONDS * 1000) {
+      const chill = s.mode !== 'rush'
+      if (!chill && r.t >= SHIFT_SECONDS * 1000) {
         window.clearInterval(id)
         endShift()
         return
       }
+      // Chill: quán vắng thì khách tới sớm, không để chờ lâu.
+      if (chill && !r.custs.some((c) => !c.leaving) && r.nextSpawn - r.t > 1500) r.nextSpawn = r.t + 1500
       // khách mới
-      if (r.t >= r.nextSpawn && r.t < SHIFT_SECONDS * 1000 - 12_000) {
+      if (r.t >= r.nextSpawn && (chill || r.t < SHIFT_SECONDS * 1000 - 12_000)) {
         if (r.custs.length < seatsOf(s)) {
           const order = newOrder(s)
           // khách có tên riêng không xuất hiện hai lần cùng lúc
@@ -207,12 +210,12 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           const name = CUST[kind].fixed ? CUST[kind].label : NAMES[Math.floor(Math.random() * NAMES.length)]
           r.custs.push({ id: r.seq++, kind, name, order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null, seed: Math.floor(Math.random() * 6) })
         }
-        r.nextSpawn = r.t + spawnGap(s.day)
+        r.nextSpawn = r.t + (chill ? chillGap() : spawnGap(s.day))
       }
       // khách hết kiên nhẫn
       r.custs = r.custs.filter((c) => {
         if (c.leaving) return r.t - c.leaving.at < 1500
-        if (r.t - c.arrive < c.patience) return true
+        if (chill || r.t - c.arrive < c.patience) return true
         r.lost++
         if (c.stove !== null) r.stoves[c.stove] = emptyStove()
         c.stove = null
@@ -239,6 +242,14 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
     document.addEventListener('visibilitychange', onHide)
     return () => document.removeEventListener('visibilitychange', onHide)
   }, [])
+
+  // Trên điện thoại, lúc đang bán thì game chiếm cả màn hình: khóa cuộn trang phía sau.
+  const inShift = phase === 'play' || phase === 'pause'
+  useEffect(() => {
+    if (!inShift) return
+    document.body.classList.add('ns-playing')
+    return () => document.body.classList.remove('ns-playing')
+  }, [inShift])
 
   const act = (fn: (r: Run) => void) => {
     const r = run.current
@@ -287,12 +298,15 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
       const st = r.stoves[i]
       const c = r.custs.find((x) => x.id === st.cust)
       if (!c || c.leaving || st.cookAt === null) return
-      if (r.clean <= 0) return pop(r, 'Hết bát sạch, rửa bát đã!', 'bad')
       const s = shopRef.current
-      const cooked = (r.t - st.cookAt) / cookMsOf(s)
+      const chill = s.mode !== 'rush'
+      if (!chill && r.clean <= 0) return pop(r, 'Hết bát sạch, rửa bát đã!', 'bad')
+      const raw = (r.t - st.cookAt) / cookMsOf(s)
+      // Chill: mì chín rồi thì giữ nguyên độ ngon, không bị nhũn.
+      const cooked = chill && raw >= 0.85 ? 1 : raw
       const j = judge(c.order, st.tops, st.spice, cooked)
       const base = basePrice(s, c.order)
-      const left = Math.max(0, 1 - (r.t - c.arrive) / c.patience)
+      const left = chill ? 1 : Math.max(0, 1 - (r.t - c.arrive) / c.patience)
       const shown = s.shown.length
       const seasonal = s.shown.some((id) => id.startsWith(`${season.def.id}-`)) ? 0.1 : 0
       const pay = j.stars === 0 ? Math.round(base * 0.3) : base
@@ -304,8 +318,10 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
         r.perfect++
         r.gems++
       }
-      r.clean--
-      r.dirty++
+      if (!chill) {
+        r.clean--
+        r.dirty++
+      }
       r.lastServe = r.t
       c.stove = null
       c.leaving = j.stars >= 2
@@ -364,11 +380,12 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const shown = shop.shown.map((id) => DECOR[id]).filter(Boolean)
   const wide = shown.filter((x) => x.wide).slice(0, 2)
   const small = shown.filter((x) => !wide.includes(x))
+  const chill = shop.mode !== 'rush'
   const leftSec = r ? Math.max(0, Math.ceil(SHIFT_SECONDS - r.t / 1000)) : SHIFT_SECONDS
   const seasonCount = shop.seasonServed[season.key] ?? 0
 
   return (
-    <div className="noodle" style={{ ['--tint' as string]: season.def.tint }}>
+    <div className={`noodle${playing && r ? ' playing' : ''}`} style={{ ['--tint' as string]: season.def.tint }}>
       <div className="ns-hud">
         <span className="ns-chip">
           <img src={nAsset('coin')} alt="Xu" /> <b>{(shop.coins + (r?.earned ?? 0)).toLocaleString('vi-VN')}</b>
@@ -379,12 +396,19 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
         <span className="ns-chip">Ngày {shop.day}</span>
         {playing && r && (
           <>
-            <span className={`ns-chip ${leftSec <= 20 ? 'hot' : ''}`}>
-              <img src={nAsset('clock')} alt="" /> {Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, '0')}
-            </span>
+            {!chill && (
+              <span className={`ns-chip ${leftSec <= 20 ? 'hot' : ''}`}>
+                <img src={nAsset('clock')} alt="" /> {Math.floor(leftSec / 60)}:{String(leftSec % 60).padStart(2, '0')}
+              </span>
+            )}
             <span className="ns-chip">
               <img src={nAsset('bowl')} alt="" /> {r.served} tô
             </span>
+            {chill && (
+              <button className="secondary small-btn ns-close" onClick={endShift}>
+                Đóng cửa
+              </button>
+            )}
             <button className="pg" onClick={() => setPhase(phase === 'play' ? 'pause' : 'play')} aria-label={phase === 'play' ? 'Tạm dừng' : 'Chơi tiếp'}>
               {phase === 'play' ? '❚❚' : '▶'}
             </button>
@@ -419,7 +443,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
             r.custs.length ? (
               r.custs.map((c) => {
                 const left = Math.max(0, 1 - (r.t - c.arrive) / c.patience)
-                const mood: Mood = c.leaving ? c.leaving.mood : r.t - c.arrive < 1600 ? 'arrive' : left < 0.3 ? 'worried' : 'wait'
+                const mood: Mood = c.leaving ? c.leaving.mood : r.t - c.arrive < 1600 ? 'arrive' : !chill && left < 0.3 ? 'worried' : 'wait'
                 if (c.leaving)
                   return (
                     <div key={c.id} className={`ns-cust leaving ${c.leaving.mood}`}>
@@ -429,7 +453,14 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                     </div>
                   )
                 return (
-                  <div key={c.id} className={`ns-cust ${c.stove !== null ? 'taken' : ''}`}>
+                  <div
+                    key={c.id}
+                    className={`ns-cust ${c.stove !== null ? 'taken' : ''} ${c.stove !== null && r.sel === c.stove ? 'cur' : ''}`}
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={c.stove === null ? `Nhận đơn của ${c.name}` : `Xem bếp ${c.stove + 1} (${c.name})`}
+                    onClick={() => (c.stove === null ? takeOrder(c.id) : act((rr) => (rr.sel = c.stove!)))}
+                  >
                     <div className="ns-bubble">
                       <div className="ns-want">
                         {c.order.tops.map((t) => (
@@ -440,11 +471,13 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                         <img src={nAsset('spice')} alt="" /> cấp {c.order.spice}
                         {c.order.takeaway && <img className="ns-bag" src={nAsset('bag')} alt="Mang về" title="Mang về" />}
                       </div>
-                      <div className={`ns-patience ${left < 0.3 ? 'low' : ''}`}>
-                        <span style={{ width: `${left * 100}%` }} />
-                      </div>
+                      {!chill && (
+                        <div className={`ns-patience ${left < 0.3 ? 'low' : ''}`}>
+                          <span style={{ width: `${left * 100}%` }} />
+                        </div>
+                      )}
                       {c.stove === null ? (
-                        <button className="small-btn" onClick={() => takeOrder(c.id)} disabled={phase !== 'play'}>
+                        <button className="small-btn" onClick={(e) => (e.stopPropagation(), takeOrder(c.id))} disabled={phase !== 'play'}>
                           Nhận đơn
                         </button>
                       ) : (
@@ -478,16 +511,42 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           <div className="ns-overlay">
             <h3>Tạm nghỉ</h3>
             <button onClick={() => setPhase('play')}>Bán tiếp</button>
+            <button className="secondary" onClick={endShift}>
+              {chill ? 'Đóng cửa, nghỉ thôi' : 'Đóng cửa sớm'}
+            </button>
           </div>
         )}
       </div>
 
       {playing && r && (
         <div className="ns-kitchen">
+          {r.stoves.length > 1 && (
+            <div className="ns-stovetabs" role="tablist" aria-label="Chọn bếp">
+              {r.stoves.map((st, i) => {
+                const c = r.custs.find((x) => x.id === st.cust)
+                const p0 = st.cookAt !== null ? (r.t - st.cookAt) / cookMs : 0
+                const p = chill && p0 >= 0.85 ? 1 : p0
+                const state = !c ? 'trống' : st.cookAt === null ? 'chờ nấu' : p < 0.85 ? 'đang sôi' : p <= 1.08 ? 'chín rồi!' : 'quá lửa!'
+                return (
+                  <button
+                    key={i}
+                    role="tab"
+                    aria-selected={r.sel === i}
+                    className={`${r.sel === i ? 'on' : ''} ${c && p >= 0.85 && p <= 1.08 ? 'ready' : ''} ${c && p > 1.08 ? 'over' : ''}`}
+                    onClick={() => act((rr) => (rr.sel = i))}
+                  >
+                    <b>Bếp {i + 1}</b>
+                    <small>{state}</small>
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <div className="ns-stoves">
             {r.stoves.map((st, i) => {
               const c = r.custs.find((x) => x.id === st.cust)
-              const p = st.cookAt !== null ? (r.t - st.cookAt) / cookMs : 0
+              const p0 = st.cookAt !== null ? (r.t - st.cookAt) / cookMs : 0
+              const p = chill && p0 >= 0.85 ? 1 : p0
               return (
                 <div key={i} className={`ns-stove ${r.sel === i ? 'sel' : ''} ${c ? '' : 'idle'}`} onClick={() => act((rr) => (rr.sel = i))}>
                   <div className="ns-stove-head">
@@ -510,7 +569,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                       <div className="ns-spice" role="radiogroup" aria-label="Cấp độ cay">
                         <img src={nAsset('ot')} alt="" />
                         {Array.from({ length: 8 }, (_, n) => (
-                          <button key={n} role="radio" aria-checked={st.spice === n} className={`lvl l${n} ${st.spice === n ? 'on' : ''}`} onClick={(e) => (e.stopPropagation(), setSpice(i, n))} title={SPICE_NAMES[n]}>
+                          <button key={n} role="radio" aria-checked={st.spice === n} className={`lvl l${n} ${st.spice === n ? 'on' : ''} ${c.order.spice === n ? 'want' : ''}`} onClick={(e) => (e.stopPropagation(), setSpice(i, n))} title={SPICE_NAMES[n]}>
                             {n}
                           </button>
                         ))}
@@ -520,7 +579,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                           <span className="zone" style={{ left: `${(0.85 / 1.3) * 100}%`, width: `${((1.08 - 0.85) / 1.3) * 100}%` }} />
                           <span className="fill" style={{ width: `${Math.min(1, p / 1.3) * 100}%` }} />
                         </div>
-                        <span className="ns-state small">{st.cookAt === null ? 'Chưa nấu' : p < 0.85 ? 'Đang sôi…' : p <= 1.08 ? 'Chín tới, múc ngay!' : p < 1.3 ? 'Sắp nhũn rồi!' : 'Mì nhũn mất rồi'}</span>
+                        <span className="ns-state small">{st.cookAt === null ? 'Chưa nấu' : p < 0.85 ? 'Đang sôi…' : p <= 1.08 ? (chill ? 'Chín rồi, múc lúc nào cũng được' : 'Chín tới, múc ngay!') : p < 1.3 ? 'Sắp nhũn rồi!' : 'Mì nhũn mất rồi'}</span>
                       </div>
                       <div className="ns-actions">
                         {st.cookAt === null ? (
@@ -532,7 +591,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                             🥢 Múc ra và mang cho khách
                           </button>
                         )}
-                        <button className="link" onClick={(e) => (e.stopPropagation(), discard(i))}>
+                        <button className="secondary small-btn ns-discard" onClick={(e) => (e.stopPropagation(), discard(i))}>
                           Đổ nồi
                         </button>
                       </div>
@@ -565,6 +624,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
               )
             })}
           </div>
+          {!chill && (
           <div className="ns-wash">
             <img src={nAsset('wash')} alt="" />
             <span>
@@ -579,6 +639,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
               </span>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -605,8 +666,22 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           <div className="ns-start">
             <button onClick={startShift}>{phase === 'summary' ? `Mở tiệm ngày ${shop.day}` : `Mở tiệm, bán ngày ${shop.day}`}</button>
             <span className="muted small">
-              Một ca hai phút rưỡi: nhận đơn, bỏ đúng topping, chọn đúng cấp cay, canh mì chín tới rồi múc ra. Đừng quên rửa bát! Tô 3 sao được thêm <KimCuong n={1} />.
+              {chill ? (
+                <>Bán thong thả: không tính giờ, khách chờ bao lâu cũng được, mì chín rồi không bị nhũn, không phải rửa bát. Bán đã thì bấm "Đóng cửa". Tô 3 sao được thêm <KimCuong n={1} />.</>
+              ) : (
+                <>Một ca hai phút rưỡi: nhận đơn, bỏ đúng topping, chọn đúng cấp cay, canh mì chín tới rồi múc ra. Đừng quên rửa bát! Tô 3 sao được thêm <KimCuong n={1} />.</>
+              )}
             </span>
+          </div>
+          <div className="ns-mode" role="radiogroup" aria-label="Cách chơi">
+            <button role="radio" aria-checked={chill} className={chill ? 'on' : ''} onClick={() => save((x) => ({ ...x, mode: 'chill' }))}>
+              <b>🍃 Chill</b>
+              <small>Thong thả, không áp lực</small>
+            </button>
+            <button role="radio" aria-checked={!chill} className={!chill ? 'on' : ''} onClick={() => save((x) => ({ ...x, mode: 'rush' }))}>
+              <b>⏱️ Giờ cao điểm</b>
+              <small>Ca 2 phút rưỡi, khách có thể bỏ về</small>
+            </button>
           </div>
 
           <section>
