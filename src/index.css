@@ -752,3 +752,39 @@ picture { display: contents; }
 .farm-meta { margin: 10px 0 0; }
 @media (max-width: 640px) { .farm-panels { grid-template-columns: 1fr; } .field { gap: 6px; padding: 8px; } }
 @media (prefers-reduced-motion: reduce) { .plot.ripe .crop { animation: none; } }
+
+/* Nông trại: thời tiết, điểm danh, các khu */
+.farm-line .weather { font-size: 0.85rem; color: var(--muted); padding: 2px 10px; border-radius: 999px; background: #f4ead9; }
+.daily { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; background: linear-gradient(90deg, #fff1cf, #fde4c4); border: 1.5px solid var(--gold); animation: toast-in .3s ease-out; }
+.farm-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 2px solid var(--line); }
+.farm-tab { position: relative; background: none; color: var(--muted); font-weight: 650; padding: 9px 14px; border-radius: 10px 10px 0 0; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.farm-tab.on { color: var(--red); border-bottom-color: var(--red); }
+.farm-tab:disabled { opacity: 0.55; cursor: default; }
+.farm-tab .badge { margin-left: 6px; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-size: 0.75rem; }
+.farm-tab .lock { font-size: 0.78rem; }
+.field.rainy { background-image: repeating-linear-gradient(105deg, rgba(255,255,255,.18) 0 2px, transparent 2px 14px); }
+.pens, .ovens { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.pen, .oven { position: relative; display: grid; justify-items: center; gap: 4px; padding: 12px 8px 10px; border-radius: 14px; background: #f1e6c8; border: 2px solid #d8c08e; color: var(--ink); min-height: 112px; align-content: center; }
+.pen { background: repeating-linear-gradient(90deg, #ead6a7 0 10px, #e3cc98 10px 20px); }
+.pen-icon, .oven-icon { font-size: 2.4rem; line-height: 1; }
+.pen.hungry .pen-icon { filter: grayscale(.4); }
+.pen.ready, .oven.ready { border-color: #7f9a3c; box-shadow: 0 0 0 3px rgba(127,154,60,.25); }
+.pen.ready .pen-icon, .oven.ready .oven-icon { animation: bob 1.2s ease-in-out infinite; }
+.pen-out { position: absolute; top: 8px; right: 10px; font-size: 1.4rem; animation: bob 1s ease-in-out infinite; }
+.pen-note { font-size: 0.78rem; color: var(--muted); text-align: center; }
+.pen .grow, .oven .grow { width: 80%; height: 5px; border-radius: 9px; background: rgba(0,0,0,.15); overflow: hidden; }
+.pen .grow span { display: block; height: 100%; background: #b6d65a; }
+.oven { background: linear-gradient(#efe0d0, #e2c9ae); border-color: #c79f78; }
+.oven.empty { border-style: dashed; background: #faf3ea; }
+.shop, .recipes { display: grid; gap: 8px; margin-top: 12px; }
+.shop-item, .recipe { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--paper); border: 1.5px solid var(--line); }
+.shop-item .si, .recipe .si { font-size: 1.8rem; }
+.recipe.locked { opacity: .6; }
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.ach { display: grid; justify-items: center; text-align: center; gap: 3px; padding: 12px 8px; border-radius: 14px; background: #f6efe4; border: 1.5px dashed var(--line); color: var(--muted); }
+.ach .ai { font-size: 1.9rem; }
+.ach b { color: var(--ink); font-size: 0.9rem; }
+.ach .ar { font-size: 0.75rem; font-weight: 650; color: #9a6a00; }
+.ach.done { background: #fff6dc; border: 1.5px solid var(--gold); }
+.farm-panel h3 .bonus { font-size: 0.75rem; font-weight: 650; color: #9a6a00; background: #fff1cf; padding: 2px 8px; border-radius: 99px; margin-left: 6px; }
+@media (prefers-reduced-motion: reduce) { .pen.ready .pen-icon, .oven.ready .oven-icon, .pen-out { animation: none; } }
