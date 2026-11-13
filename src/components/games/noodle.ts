@@ -25,11 +25,14 @@ export const SPICE_NAMES = ['Không cay', 'Cay nhẹ', 'Hơi cay', 'Cay vừa', 
 // ---- Khách ----
 export type CustKind = 'cuu' | 'haicau' | 'aomua'
 export const CUST: Record<CustKind, { img: string; label: string }> = {
-  cuu: { img: 'kh-cuu', label: 'Bé Cừu' },
+  cuu: { img: 'kh-cuu', label: 'Em Bé Dê' },
   haicau: { img: 'kh-haicau', label: 'Hải Cẩu' },
   aomua: { img: 'kh-aomua', label: 'Pochacco áo mưa' },
 }
-export const NAMES = ['Bé Cừu Bông', 'Bạn Hải Cẩu', 'Anh Áo Mưa', 'Chị Mây', 'Cô Bé Tóc Xù', 'Chú Gấu Nâu', 'Bạn Mèo Mun', 'Bé Thỏ Trắng', 'Anh Shipper', 'Cô giáo Lan']
+/** Chủ tiệm. */
+export const OWNER = 'Em Bé Nơ'
+/** Tên ngẫu nhiên cho khách không có tên riêng (Em Bé Dê luôn mang tên mình). */
+export const NAMES = ['Bạn Hải Cẩu', 'Anh Áo Mưa', 'Chị Mây', 'Cô Bé Tóc Xù', 'Chú Gấu Nâu', 'Bạn Mèo Mun', 'Bé Thỏ Trắng', 'Anh Shipper', 'Cô giáo Lan']
 
 // ---- Nâng cấp tiệm (giá theo cấp kế tiếp) ----
 export type UpgradeId = 'stoves' | 'bowls' | 'seats' | 'price' | 'fire'

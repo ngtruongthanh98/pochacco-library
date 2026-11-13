@@ -3,7 +3,7 @@ import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import {
-  ALL_DECOR, BADGE_GOAL, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
+  ALL_DECOR, BADGE_GOAL, OWNER, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
   seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOPPINGS, UPGRADES,
   type CustKind, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
 } from './noodle'
@@ -45,7 +45,7 @@ const loadLocal = (): Shop | null => {
 }
 const emptyStove = (): Stove => ({ cust: null, tops: [], spice: 0, cookAt: null })
 
-/** Tiệm mì cay Pochacco: người chơi là chủ tiệm. */
+/** Tiệm mì cay của Em Bé Nơ: người chơi là chủ tiệm. */
 export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const [shop, setShop] = useState<Shop>(() => loadLocal() ?? newShop())
   const [phase, setPhase] = useState<'menu' | 'play' | 'pause' | 'summary'>('menu')
@@ -193,7 +193,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           const kinds = Object.keys(CUST) as CustKind[]
           const order = newOrder(s)
           const kind: CustKind = order.takeaway ? 'aomua' : kinds[Math.floor(Math.random() * 2)]
-          r.custs.push({ id: r.seq++, kind, name: NAMES[Math.floor(Math.random() * NAMES.length)], order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null })
+          r.custs.push({ id: r.seq++, kind, name: kind === 'cuu' ? CUST.cuu.label : NAMES[Math.floor(Math.random() * NAMES.length)], order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null })
         }
         r.nextSpawn = r.t + spawnGap(s.day)
       }
@@ -384,10 +384,10 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
 
       <div className="ns-scene">
         <div className="ns-stall">
-          <img className="ns-stall-bg" src={nAsset('shop')} alt="Quầy mì cay của Pochacco" />
+          <img className="ns-stall-bg" src={nAsset('shop')} alt={`Quầy mì cay của ${OWNER}`} />
           <span className="ns-sign s-mid">Mì cay</span>
-          <span className="ns-sign s-right">Pochacco</span>
-          <img className={`ns-owner o-${owner}`} src={nAsset(owner)} alt="" />
+          <span className="ns-sign s-right">{OWNER}</span>
+          <img className={`ns-owner o-${owner}`} src={nAsset(owner)} alt={OWNER} title={`Chủ tiệm ${OWNER}`} />
           <img className="ns-stall-front" src={nAsset('shop')} alt="" aria-hidden="true" />
           {wide.map((x, i) => (
             <img key={x.id} className={`ns-decor wide w${i}`} src={nAsset(x.id)} alt={x.name} title={x.name} />
@@ -430,7 +430,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                 )
               })
             ) : (
-              <p className="ns-empty muted">Chưa có khách… Pochacco đang lau quầy chờ.</p>
+              <p className="ns-empty muted">Chưa có khách… {OWNER} đang lau quầy chờ.</p>
             )
           ) : (
             <div className="ns-welcome">
