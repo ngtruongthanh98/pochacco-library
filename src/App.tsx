@@ -11,6 +11,8 @@ import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTax
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { Settings } from './components/Settings'
+import { ReaderSettings } from './components/ReaderSettings'
+import { readConfigFile, type ReaderConfig } from './data/configStore'
 import { QuotesPage, type ExcerptActions } from './components/Quotes'
 import { fetchExcerpts, saveExcerpts } from './data/excerptStore'
 import { topicCounts } from './data/cite'
@@ -263,6 +265,8 @@ export default function App() {
   const [topic, setTopic] = useState<string | null>(initial.topic)
   const [excerpts, setExcerpts] = useState<Excerpt[]>([])
   const [exError, setExError] = useState<string | null>(null)
+  const [readerCfg, setReaderCfg] = useState<ReaderConfig>({})
+  const [readerSha, setReaderSha] = useState<string | null>(null)
   const [sortPref, setSortPref] = useState<SortKey>(() => loadSortPref())
   const [pageSize, setPageSize] = useState<PageSize>(() => loadPageSize())
   // Trang hiện tại gắn với bộ lọc đã tạo ra nó: đổi từ khóa, nhóm hay cách xếp thì tự về trang 1.
@@ -359,7 +363,13 @@ export default function App() {
     const ex = fetchExcerpts(cfg)
       .then(setExcerpts)
       .catch((e: Error) => setExError(e.message))
-    Promise.all([fetchCatalog(cfg).then(setBooks), tax, ex])
+    const rc = readConfigFile<ReaderConfig>(cfg, 'reader')
+      .then((r) => {
+        setReaderCfg(r?.data ?? {})
+        setReaderSha(r?.sha ?? null)
+      })
+      .catch(() => undefined)
+    Promise.all([fetchCatalog(cfg).then(setBooks), tax, ex, rc])
       .catch((e: Error) => setError(e.message))
       .finally(() => {
         // Đọc lại nhóm/danh mục từ địa chỉ web theo bộ phân loại vừa nạp (có thể là nhóm tùy biến).
@@ -558,6 +568,7 @@ export default function App() {
           loading ? (
             <State img="sticker-reading.webp" title="Pochacco đang mở tủ sách..." />
           ) : (
+            <>
             <Settings
               cfg={cfg}
               books={books}
@@ -575,6 +586,17 @@ export default function App() {
                 setTaxVer((v) => v + 1)
               }}
             />
+            <ReaderSettings
+              cfg={cfg}
+              books={books}
+              config={readerCfg}
+              sha={readerSha}
+              onSaved={(c, sha) => {
+                setReaderCfg(c)
+                setReaderSha(sha)
+              }}
+            />
+            </>
           )
         ) : page === 'stats' ? (
           loading ? (
@@ -981,7 +1003,20 @@ export default function App() {
         />
       )}
       {openBook && readingHolding && (
-        <EbookReader book={openBook} holding={readingHolding} onClose={() => goBack(() => setReading(null))} />
+        <EbookReader
+          book={openBook}
+          holding={readingHolding}
+          onClose={() => goBack(() => setReading(null))}
+          driveApiKey={readerCfg.driveApiKey}
+          allTopics={allTopics}
+          excerptActions={excerptActions}
+          onOpenSettings={() => {
+            replaceNext()
+            setReading(null)
+            setOpenId(null)
+            setPage('settings')
+          }}
+        />
       )}
     </>
   )

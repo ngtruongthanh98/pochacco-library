@@ -42,21 +42,24 @@ function CopyBtn({ text, label = 'Sao chép' }: { text: string; label?: string }
 export function QuoteForm({
   book,
   initial,
+  prefill,
   allTopics,
   onSave,
   onCancel,
 }: {
   book: Book
   initial?: Excerpt
+  /** Điền sẵn cho trích dẫn mới (vd: đoạn bôi đen trong trình đọc PDF) */
+  prefill?: Pick<Excerpt, 'text' | 'page' | 'pageSource'>
   allTopics: string[]
   onSave: (ex: Excerpt) => Promise<void>
   onCancel: () => void
 }) {
   const hasEbook = book.holdings.some((h) => h.kind === 'ebook')
-  const [text, setText] = useState(initial?.text ?? '')
-  const [page, setPage] = useState(initial?.page ?? '')
+  const [text, setText] = useState(initial?.text ?? prefill?.text ?? '')
+  const [page, setPage] = useState(initial?.page ?? prefill?.page ?? '')
   const [pageSource, setPageSource] = useState<'print' | 'ebook'>(
-    initial?.pageSource ?? (book.holdings.some((h) => h.kind === 'print') || !hasEbook ? 'print' : 'ebook'),
+    initial?.pageSource ?? prefill?.pageSource ?? (book.holdings.some((h) => h.kind === 'print') || !hasEbook ? 'print' : 'ebook'),
   )
   const [topics, setTopics] = useState<string[]>(initial?.topics ?? [])
   const [topicInput, setTopicInput] = useState('')
@@ -119,7 +122,7 @@ export function QuoteForm({
     >
       <label>
         Nguyên văn trích dẫn
-        <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} autoFocus placeholder="Chép đúng từng chữ như trong sách…" />
+        <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} autoFocus={!prefill} placeholder="Chép đúng từng chữ như trong sách…" />
       </label>
       <div className="quote-form-row">
         <label className="quote-page">
