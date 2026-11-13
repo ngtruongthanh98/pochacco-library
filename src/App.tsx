@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
 import EbookReader from './components/EbookReader'
@@ -11,6 +11,7 @@ import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTax
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { Settings } from './components/Settings'
+const GamesPage = lazy(() => import('./components/games/GamesPage'))
 import { ReaderSettings } from './components/ReaderSettings'
 import { readConfigFile, type ReaderConfig } from './data/configStore'
 import { QuotesPage, type ExcerptActions } from './components/Quotes'
@@ -291,7 +292,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
-  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games'>(initial.page)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
@@ -460,7 +461,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -535,6 +536,20 @@ export default function App() {
             Trích dẫn
           </button>
           <button
+            className={page === 'games' ? 'page-tab active' : 'page-tab'}
+            onClick={() => { setPage('games'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
+            aria-label="Trò chơi"
+            title="Trò chơi"
+          >
+            <svg className="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="7" width="20" height="11" rx="5" />
+              <path d="M7 11v3M5.5 12.5h3" />
+              <circle cx="16" cy="11.5" r="0.9" fill="currentColor" />
+              <circle cx="18" cy="13.5" r="0.9" fill="currentColor" />
+            </svg>
+            <span className="tab-text">Trò chơi</span>
+          </button>
+          <button
             className={page === 'settings' ? 'page-tab active' : 'page-tab'}
             onClick={() => { setPage('settings'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
             aria-label="Cài đặt"
@@ -599,6 +614,17 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'games' ? (
+          <Suspense fallback={<State img="anim-read" title="Pochacco đang dọn sân chơi..." />}>
+            <GamesPage
+              books={books}
+              onOpenBook={(b) => {
+                setPage('library')
+                setOpenId(b.id)
+                window.scrollTo(0, 0)
+              }}
+            />
+          </Suspense>
         ) : page === 'quotes' ? (
           loading ? (
             <State img="anim-read" title="Pochacco đang gom trích dẫn..." />
