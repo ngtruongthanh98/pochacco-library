@@ -31,6 +31,8 @@ export const CUST: Record<CustKind, { img: string; label: string }> = {
 }
 /** Chủ tiệm. */
 export const OWNER = 'Em Bé Nơ'
+/** Tên tiệm, ghi trên bảng hiệu. */
+export const SHOP_NAME = 'Nơ'
 /** Tên ngẫu nhiên cho khách không có tên riêng (Em Bé Dê luôn mang tên mình). */
 export const NAMES = ['Bạn Hải Cẩu', 'Anh Áo Mưa', 'Chị Mây', 'Cô Bé Tóc Xù', 'Chú Gấu Nâu', 'Bạn Mèo Mun', 'Bé Thỏ Trắng', 'Anh Shipper', 'Cô giáo Lan']
 

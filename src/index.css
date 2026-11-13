@@ -1016,3 +1016,4 @@ picture { display: contents; }
   .ns-summary > img { width: 80px; height: 80px; }
 }
 @media (prefers-reduced-motion: reduce) { .ns-welcome img, .ns-cust-img { animation: none; } }
+.ns-sign.ns-shopname { font-size: clamp(0.9rem, 2.2vw, 1.5rem); }

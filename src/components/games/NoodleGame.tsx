@@ -3,7 +3,7 @@ import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import {
-  ALL_DECOR, BADGE_GOAL, OWNER, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
+  ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
   seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOPPINGS, UPGRADES,
   type CustKind, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
 } from './noodle'
@@ -45,7 +45,7 @@ const loadLocal = (): Shop | null => {
 }
 const emptyStove = (): Stove => ({ cust: null, tops: [], spice: 0, cookAt: null })
 
-/** Tiệm mì cay của Em Bé Nơ: người chơi là chủ tiệm. */
+/** Tiệm mì cay Nơ của Em Bé Nơ: người chơi là chủ tiệm. */
 export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const [shop, setShop] = useState<Shop>(() => loadLocal() ?? newShop())
   const [phase, setPhase] = useState<'menu' | 'play' | 'pause' | 'summary'>('menu')
@@ -384,9 +384,9 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
 
       <div className="ns-scene">
         <div className="ns-stall">
-          <img className="ns-stall-bg" src={nAsset('shop')} alt={`Quầy mì cay của ${OWNER}`} />
+          <img className="ns-stall-bg" src={nAsset('shop')} alt={`Quầy mì cay ${SHOP_NAME} của ${OWNER}`} />
           <span className="ns-sign s-mid">Mì cay</span>
-          <span className="ns-sign s-right">{OWNER}</span>
+          <span className="ns-sign s-right ns-shopname">{SHOP_NAME}</span>
           <img className={`ns-owner o-${owner}`} src={nAsset(owner)} alt={OWNER} title={`Chủ tiệm ${OWNER}`} />
           <img className="ns-stall-front" src={nAsset('shop')} alt="" aria-hidden="true" />
           {wide.map((x, i) => (
