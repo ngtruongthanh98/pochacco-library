@@ -1282,3 +1282,27 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .tax-checks .check { display: flex; gap: 6px; align-items: center; font-size: 0.9rem; }
 .tax-checks .check input { width: auto; }
 .tax-field { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 600; }
+
+/* Thành tựu nông trại: tiến độ */
+.goal-summary { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: #fff6dc; border: 1.5px solid var(--gold); margin-bottom: 10px; }
+.gs-main { display: grid; gap: 6px; }
+.gs-near { display: grid; gap: 2px; justify-items: end; text-align: right; padding-left: 12px; border-left: 1.5px dashed var(--gold); }
+.gbar { width: 100%; height: 8px; border-radius: 999px; background: #ece0cf; overflow: hidden; }
+.gbar.big { height: 12px; }
+.gbar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #e9a93b, #d68a10); transition: width .4s ease; min-width: 0; }
+.ach.done .gbar > span { background: var(--olive); }
+.goal-filter { display: inline-flex; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 10px; background: var(--paper); }
+.goal-filter button { background: none; border: 0; border-radius: 0; color: var(--ink); padding: 6px 14px; font-size: 0.85rem; font-weight: 600; }
+.goal-filter button:where(:hover) { background: #fbe9e4; }
+.goal-filter button.on { background: var(--red); color: var(--cream); }
+.ach { align-content: start; }
+.ach .gbar { margin-top: 4px; }
+.ach .gnum { font-size: 0.8rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ach .gnum small { color: var(--muted); font-weight: 500; }
+.ach .ghint { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
+.ach.locked { opacity: 0.7; }
+.ach:not(.done):not(.locked) { border-style: solid; background: #fbf5ec; }
+@media (max-width: 560px) {
+  .goal-summary { grid-template-columns: 1fr; }
+  .gs-near { justify-items: start; text-align: left; border-left: 0; border-top: 1.5px dashed var(--gold); padding: 8px 0 0; }
+}

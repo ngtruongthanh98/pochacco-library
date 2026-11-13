@@ -604,26 +604,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       {view === 'shop' && <WorkshopView {...ctx} />}
       {view === 'truck' && <TruckView {...ctx} />}
 
-      {view === 'goals' && (
-        <section className="goals">
-          <p className="muted small">
-            {farm.achievements.length}/{ACHIEVEMENTS.length} thành tựu · chuỗi điểm danh {farm.daily.streak} ngày
-          </p>
-          <div className="ach-grid">
-            {ACHIEVEMENTS.map((a) => {
-              const done = farm.achievements.includes(a.id)
-              return (
-                <div key={a.id} className={`ach ${done ? 'done' : ''}`}>
-                  <span className="ai">{done ? a.icon : '❔'}</span>
-                  <b>{a.name}</b>
-                  <span className="muted small">{a.desc}</span>
-                  <span className="ar">{done ? 'Đã đạt' : <Xu n={a.reward} sign="+" />}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {view === 'goals' && <GoalsView farm={farm} />}
 
       {toast && (
         <div className="farm-toast" role="status">
@@ -716,3 +697,88 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     </div>
   )
 }
+
+type GoalFilter = 'all' | 'doing' | 'done'
+function GoalsView({ farm }: { farm: Farm }) {
+  const [filter, setFilter] = useState<GoalFilter>('doing')
+  const rows = ACHIEVEMENTS.map((a) => {
+    const done = farm.achievements.includes(a.id)
+    const p = a.progress(farm)
+    const frac = done ? 1 : p.max ? p.cur / p.max : 0
+    return { a, done, p, frac }
+  })
+  const doneN = rows.filter((r) => r.done).length
+  const earned = rows.filter((r) => r.done).reduce((s, r) => s + r.a.reward, 0)
+  const left = rows.filter((r) => !r.done).reduce((s, r) => s + r.a.reward, 0)
+  // Đang làm: cái mở được và gần xong nhất lên trước, cái còn khóa xuống cuối.
+  const shown = rows
+    .filter((r) => (filter === 'all' ? true : filter === 'done' ? r.done : !r.done))
+    .sort((x, y) => (filter === 'all' ? Number(x.done) - Number(y.done) : 0) || Number(!!x.p.locked) - Number(!!y.p.locked) || y.frac - x.frac)
+  const near = rows.filter((r) => !r.done && !r.p.locked).sort((x, y) => y.frac - x.frac)[0]
+  return (
+    <section className="goals">
+      <div className="goal-summary">
+        <div className="gs-main">
+          <b>
+            {doneN}/{ACHIEVEMENTS.length} thành tựu
+          </b>
+          <div className="gbar big" role="progressbar" aria-valuemin={0} aria-valuemax={ACHIEVEMENTS.length} aria-valuenow={doneN}>
+            <span style={{ width: `${(doneN / ACHIEVEMENTS.length) * 100}%` }} />
+          </div>
+          <span className="muted small">
+            Đã nhận <Xu n={earned} /> · còn <Xu n={left} /> thưởng chưa nhận · chuỗi điểm danh {farm.daily.streak} ngày
+          </span>
+        </div>
+        {near && (
+          <div className="gs-near">
+            <span className="muted small">Sắp đạt</span>
+            <b>
+              {near.a.icon} {near.a.name}
+            </b>
+            <span className="small">
+              {near.p.cur.toLocaleString('vi-VN')}/{near.p.max.toLocaleString('vi-VN')} {near.p.unit} ({Math.round(near.frac * 100)}%)
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="goal-filter" role="tablist">
+        {(
+          [
+            ['doing', `Đang làm (${ACHIEVEMENTS.length - doneN})`],
+            ['done', `Đã đạt (${doneN})`],
+            ['all', 'Tất cả'],
+          ] as [GoalFilter, string][]
+        ).map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="ach-grid">
+        {shown.map(({ a, done, p, frac }) => (
+          <div key={a.id} className={`ach ${done ? 'done' : ''} ${p.locked && !done ? 'locked' : ''}`}>
+            <span className="ai">{p.locked && !done ? '🔒' : a.icon}</span>
+            <b>{a.name}</b>
+            <span className="muted small">{a.desc}</span>
+            <div className="gbar" role="progressbar" aria-label={`Tiến độ ${a.name}`} aria-valuemin={0} aria-valuemax={p.max} aria-valuenow={done ? p.max : p.cur}>
+              <span style={{ width: `${frac * 100}%` }} />
+            </div>
+            <span className="gnum">
+              {done ? (
+                '✓ Đã đạt'
+              ) : (
+                <>
+                  {p.cur.toLocaleString('vi-VN')}/{p.max.toLocaleString('vi-VN')} {p.unit} <small>· {Math.round(frac * 100)}%</small>
+                </>
+              )}
+            </span>
+            {!done && p.hint && <span className="ghint">{p.hint}</span>}
+            <span className="ar">{done ? <>Đã nhận <Xu n={a.reward} /></> : <>Thưởng <Xu n={a.reward} sign="+" /></>}</span>
+          </div>
+        ))}
+        {!shown.length && <p className="muted small">{filter === 'done' ? 'Chưa đạt thành tựu nào.' : 'Đã đạt hết thành tựu!'}</p>}
+      </div>
+    </section>
+  )
+}
+

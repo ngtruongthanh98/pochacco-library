@@ -370,30 +370,75 @@ export function newBigOrder(xp: number): Order {
 }
 
 // ---- Thành tựu ----
-export type Achievement = { id: string; name: string; icon: string; desc: string; reward: number; test: (f: Farm) => boolean }
-export const ACHIEVEMENTS: Achievement[] = [
-  { id: 'first-harvest', name: 'Mùa đầu tiên', icon: '🌾', desc: 'Thu hoạch lần đầu', reward: 10, test: (f) => f.stats.harvested >= 1 },
-  { id: 'harvest-100', name: 'Tay nhà nông', icon: '🧺', desc: 'Thu hoạch 100 lần', reward: 150, test: (f) => f.stats.harvested >= 100 },
-  { id: 'harvest-500', name: 'Đồng lúa bội thu', icon: '🏆', desc: 'Thu hoạch 500 lần', reward: 600, test: (f) => f.stats.harvested >= 500 },
-  { id: 'orders-10', name: 'Hàng xóm tin cậy', icon: '📦', desc: 'Giao 10 đơn hàng', reward: 120, test: (f) => f.stats.delivered >= 10 },
-  { id: 'orders-50', name: 'Nhà cung cấp số 1', icon: '🚚', desc: 'Giao 50 đơn hàng', reward: 500, test: (f) => f.stats.delivered >= 50 },
-  { id: 'first-egg', name: 'Quả trứng đầu tiên', icon: '🥚', desc: 'Nhặt sản phẩm từ chuồng lần đầu', reward: 20, test: (f) => f.stats.collected >= 1 },
-  { id: 'first-bake', name: 'Thợ làm bánh', icon: '🍞', desc: 'Làm xong món đầu tiên ở xưởng', reward: 30, test: (f) => f.stats.crafted >= 1 },
-  { id: 'craft-50', name: 'Bếp trưởng', icon: '🥐', desc: 'Làm 50 món ở xưởng', reward: 400, test: (f) => f.stats.crafted >= 50 },
-  { id: 'coins-1000', name: 'Hũ xu đầy', icon: '🪙', desc: 'Có 1.000 xu cùng lúc', reward: 50, test: (f) => f.coins >= 1000 },
-  { id: 'level-5', name: 'Nông dân lành nghề', icon: '⭐', desc: 'Đạt cấp 5', reward: 100, test: (f) => levelOf(f.xp).lv >= 5 },
-  { id: 'level-10', name: 'Chủ trang trại', icon: '🌟', desc: 'Đạt cấp 10', reward: 500, test: (f) => levelOf(f.xp).lv >= 10 },
-  { id: 'field-5', name: 'Cánh đồng rộng', icon: '🗺️', desc: 'Mở rộng ruộng lên 5×5', reward: 200, test: (f) => f.size >= 5 },
-  { id: 'all-crops', name: 'Vườn đủ loại', icon: '🌈', desc: 'Trồng đủ 8 loại cây gốc', reward: 300, test: (f) => BASE_CROPS.every((c) => f.planted.includes(c)) },
-  { id: 'streak-7', name: 'Chăm chỉ cả tuần', icon: '📅', desc: 'Điểm danh 7 ngày liền', reward: 200, test: (f) => f.daily.streak >= 7 },
-  { id: 'gold-20', name: 'Nông sản hạng vàng', icon: '🥇', desc: 'Thu 20 nông sản sao vàng', reward: 250, test: (f) => f.stats.gold >= 20 },
-  { id: 'first-fruit', name: 'Trái ngọt đầu mùa', icon: '🥭', desc: 'Hái quả lần đầu', reward: 60, test: (f) => f.stats.fruits >= 1 },
-  { id: 'trips-10', name: 'Bác tài chăm chỉ', icon: '🛻', desc: 'Hoàn thành 10 chuyến xe', reward: 300, test: (f) => f.stats.trips >= 10 },
-  { id: 'fish-20', name: 'Cần thủ', icon: '🎣', desc: 'Câu được 20 con cá', reward: 250, test: (f) => f.stats.fished >= 20 },
-  { id: 'loom-first', name: 'Thợ dệt', icon: '🧣', desc: 'Dệt xong món đầu tiên', reward: 100, test: (f) => f.stats.woven >= 1 },
-  { id: 'decor-3', name: 'Nông trại rộn ràng', icon: '🎊', desc: 'Có 3 món trang trí sự kiện', reward: 200, test: (f) => f.decor.length >= 3 },
-  { id: 'level-15', name: 'Đại điền chủ', icon: '👑', desc: 'Đạt cấp 15', reward: 1500, test: (f) => levelOf(f.xp).lv >= 15 },
+export type Progress = { cur: number; max: number; unit?: string; hint?: string; locked?: number }
+export type Achievement = { id: string; name: string; icon: string; desc: string; reward: number; progress: (f: Farm) => Progress; test: (f: Farm) => boolean }
+
+const lvOf = (f: Farm) => levelOf(f.xp).lv
+/** Tiến độ đếm số lần; nếu tính năng còn khóa thì ghi chú cấp mở. */
+const count = (get: (f: Farm) => number, max: number, unit: string, lockAt?: number) => (f: Farm): Progress => ({
+  cur: Math.min(get(f), max),
+  max,
+  unit,
+  ...(lockAt && lvOf(f) < lockAt ? { locked: lockAt, hint: `Mở ở cấp ${lockAt}` } : {}),
+})
+const levelGoal = (target: number) => (f: Farm): Progress => {
+  const { lv, into, need } = levelOf(f.xp)
+  return lv >= target
+    ? { cur: target, max: target, unit: 'cấp' }
+    : { cur: lv, max: target, unit: 'cấp', hint: `Còn ${need - into} XP để lên cấp ${lv + 1}` }
+}
+
+const ACH_RAW: Omit<Achievement, 'test'>[] = [
+  { id: 'first-harvest', name: 'Mùa đầu tiên', icon: '🌾', desc: 'Thu hoạch lần đầu', reward: 10, progress: count((f) => f.stats.harvested, 1, 'lần') },
+  { id: 'harvest-100', name: 'Tay nhà nông', icon: '🧺', desc: 'Thu hoạch 100 lần', reward: 150, progress: count((f) => f.stats.harvested, 100, 'lần') },
+  { id: 'harvest-500', name: 'Đồng lúa bội thu', icon: '🏆', desc: 'Thu hoạch 500 lần', reward: 600, progress: count((f) => f.stats.harvested, 500, 'lần') },
+  { id: 'orders-10', name: 'Hàng xóm tin cậy', icon: '📦', desc: 'Giao 10 đơn hàng', reward: 120, progress: count((f) => f.stats.delivered, 10, 'đơn') },
+  { id: 'orders-50', name: 'Nhà cung cấp số 1', icon: '🚚', desc: 'Giao 50 đơn hàng', reward: 500, progress: count((f) => f.stats.delivered, 50, 'đơn') },
+  { id: 'first-egg', name: 'Quả trứng đầu tiên', icon: '🥚', desc: 'Nhặt sản phẩm từ chuồng lần đầu', reward: 20, progress: count((f) => f.stats.collected, 1, 'lần', ANIMALS.ga.level) },
+  { id: 'first-bake', name: 'Thợ làm bánh', icon: '🍞', desc: 'Làm xong món đầu tiên ở xưởng', reward: 30, progress: count((f) => f.stats.crafted, 1, 'món', STATIONS.lo.level) },
+  { id: 'craft-50', name: 'Bếp trưởng', icon: '🥐', desc: 'Làm 50 món ở xưởng', reward: 400, progress: count((f) => f.stats.crafted, 50, 'món', STATIONS.lo.level) },
+  {
+    id: 'coins-1000', name: 'Hũ xu đầy', icon: '🪙', desc: 'Có 1.000 xu cùng lúc', reward: 50,
+    progress: (f) => ({ cur: Math.min(f.coins, 1000), max: 1000, unit: 'xu', hint: f.coins < 1000 ? 'Tính số xu đang có, tiêu bớt thì giảm' : undefined }),
+  },
+  { id: 'level-5', name: 'Nông dân lành nghề', icon: '⭐', desc: 'Đạt cấp 5', reward: 100, progress: levelGoal(5) },
+  { id: 'level-10', name: 'Chủ trang trại', icon: '🌟', desc: 'Đạt cấp 10', reward: 500, progress: levelGoal(10) },
+  {
+    id: 'field-5', name: 'Cánh đồng rộng', icon: '🗺️', desc: 'Mở rộng ruộng lên 5×5', reward: 200,
+    progress: (f) => ({
+      cur: Math.min(f.size, 5) - 3, max: 2, unit: 'lần mở rộng',
+      hint: f.size >= 5
+        ? undefined
+        : (() => {
+            const e = EXPAND[(f.size + 1) as 4 | 5]
+            const n = `${f.size + 1}×${f.size + 1}`
+            return lvOf(f) < e.level ? `Lần tới: ruộng ${n}, mở ở cấp ${e.level}` : `Đủ cấp rồi: mở rộng lên ${n} với ${e.cost.toLocaleString('vi-VN')} xu ở tab Ruộng`
+          })(),
+    }),
+  },
+  {
+    id: 'all-crops', name: 'Vườn đủ loại', icon: '🌈', desc: 'Trồng đủ 8 loại cây gốc', reward: 300,
+    progress: (f) => {
+      const miss = BASE_CROPS.filter((c) => !f.planted.includes(c))
+      return { cur: 8 - miss.length, max: 8, unit: 'loại', hint: miss.length ? `Còn thiếu: ${miss.map((c) => `${CROP[c].icon} ${CROP[c].name}`).join(', ')}` : undefined }
+    },
+  },
+  {
+    id: 'streak-7', name: 'Chăm chỉ cả tuần', icon: '📅', desc: 'Điểm danh 7 ngày liền', reward: 200,
+    progress: (f) => ({ cur: Math.min(f.daily.streak, 7), max: 7, unit: 'ngày', hint: f.daily.streak < 7 ? 'Bỏ một ngày là chuỗi tính lại từ đầu' : undefined }),
+  },
+  { id: 'gold-20', name: 'Nông sản hạng vàng', icon: '🥇', desc: 'Thu 20 nông sản sao vàng', reward: 250, progress: count((f) => f.stats.gold, 20, 'món', FERT_LEVEL) },
+  { id: 'first-fruit', name: 'Trái ngọt đầu mùa', icon: '🥭', desc: 'Hái quả lần đầu', reward: 60, progress: count((f) => f.stats.fruits, 1, 'lần', ORCHARD_LEVEL) },
+  { id: 'trips-10', name: 'Bác tài chăm chỉ', icon: '🛻', desc: 'Hoàn thành 10 chuyến xe', reward: 300, progress: count((f) => f.stats.trips, 10, 'chuyến', TRUCK_LEVEL) },
+  { id: 'fish-20', name: 'Cần thủ', icon: '🎣', desc: 'Câu được 20 con cá', reward: 250, progress: count((f) => f.stats.fished, 20, 'con', POND_LEVEL) },
+  { id: 'loom-first', name: 'Thợ dệt', icon: '🧣', desc: 'Dệt xong món đầu tiên', reward: 100, progress: count((f) => f.stats.woven, 1, 'món', STATIONS.det.level) },
+  {
+    id: 'decor-3', name: 'Nông trại rộn ràng', icon: '🎊', desc: 'Có 3 món trang trí sự kiện', reward: 200,
+    progress: (f) => ({ cur: Math.min(f.decor.length, 3), max: 3, unit: 'món', hint: f.decor.length < 3 ? 'Đổi ở cửa hàng trong các dịp sự kiện' : undefined }),
+  },
+  { id: 'level-15', name: 'Đại điền chủ', icon: '👑', desc: 'Đạt cấp 15', reward: 1500, progress: levelGoal(15) },
 ]
+export const ACHIEVEMENTS: Achievement[] = ACH_RAW.map((a) => ({ ...a, test: (f: Farm) => { const p = a.progress(f); return p.cur >= p.max } }))
 
 /** Thưởng điểm danh theo chuỗi ngày (tối đa ở ngày thứ 7; tròn tuần được thêm 50 xu). */
 export const dailyReward = (streak: number) => ({ coins: 15 * Math.min(streak, 7) + (streak % 7 === 0 ? 50 : 0), xp: 2 * Math.min(streak, 7) })
