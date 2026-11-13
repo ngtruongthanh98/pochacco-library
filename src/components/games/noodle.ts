@@ -27,7 +27,8 @@ export type CustKind = 'cuu' | 'haicau' | 'aomua' | 'hong' | 'plot' | 'cuuxam' |
 export type Mood = 'arrive' | 'wait' | 'worried' | 'angry' | 'happy'
 /** Tư thế theo tâm trạng: số thứ tự hình trong bộ 9 tư thế (kh-<id>-<số>.webp). */
 type Poses = Record<Exclude<Mood, 'happy'>, number> & { happy: number[] }
-export type CustDef = { img: string; label: string; fixed: boolean; poses?: Poses }
+/** seasons: chỉ ghé quán trong các mùa này (bỏ trống là mùa nào cũng ghé). */
+export type CustDef = { img: string; label: string; fixed: boolean; poses?: Poses; seasons?: SeasonId[] }
 export const CUST: Record<CustKind, CustDef> = {
   cuu: { img: 'kh-cuu', label: 'Em Bé Dê', fixed: true },
   haicau: { img: 'kh-haicau', label: 'Hải Cẩu', fixed: false },
@@ -37,7 +38,7 @@ export const CUST: Record<CustKind, CustDef> = {
   cuuxam: { img: 'kh-cuuxam', label: 'Em Bé Cừu', fixed: true, poses: { arrive: 1, wait: 0, worried: 5, angry: 4, happy: [2, 7, 8] } },
   ngu: { img: 'kh-ngu', label: 'Em Bé Đi Ngủ', fixed: true, poses: { arrive: 0, wait: 5, worried: 4, angry: 3, happy: [7, 2] } },
   banh: { img: 'kh-banh', label: 'Em Bé Trái Banh', fixed: true, poses: { arrive: 0, wait: 3, worried: 7, angry: 2, happy: [1, 4, 8] } },
-  snoopy: { img: 'kh-snoopy', label: 'Snoopy Noel', fixed: true, poses: { arrive: 0, wait: 3, worried: 4, angry: 4, happy: [2, 6, 8, 1] } },
+  snoopy: { img: 'kh-snoopy', label: 'Snoopy Noel', fixed: true, seasons: ['xmas', 'winter'], poses: { arrive: 0, wait: 3, worried: 4, angry: 4, happy: [2, 6, 8, 1] } },
   misa: { img: 'kh-misa', label: 'Gấu Misa', fixed: true, poses: { arrive: 0, wait: 5, worried: 3, angry: 7, happy: [1, 2, 6, 8] } },
   nonho: { img: 'kh-nonho', label: 'Bé Nơ Nhỏ', fixed: true, poses: { arrive: 0, wait: 3, worried: 5, angry: 4, happy: [1, 2, 8] } },
 }

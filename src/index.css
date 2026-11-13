@@ -1049,3 +1049,4 @@ picture { display: contents; }
   .ns-want img { width: 24px; height: 24px; }
   .ns-bubble { padding: 6px 4px; gap: 3px; }
 }
+.ns-regular small { font-weight: 500; font-size: 0.72rem; line-height: 1.25; }

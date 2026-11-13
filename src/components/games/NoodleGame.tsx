@@ -201,7 +201,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
         if (r.custs.length < seatsOf(s)) {
           const order = newOrder(s)
           // khách có tên riêng không xuất hiện hai lần cùng lúc
-          const pool = DINE_IN.filter((k) => !CUST[k].fixed || !r.custs.some((c) => c.kind === k))
+          const pool = DINE_IN.filter((k) => (!CUST[k].fixed || !r.custs.some((c) => c.kind === k)) && (!CUST[k].seasons || CUST[k].seasons!.includes(season.def.id)))
           const kind: CustKind = order.takeaway ? 'aomua' : pool[Math.floor(Math.random() * pool.length)]
           const name = CUST[kind].fixed ? CUST[kind].label : NAMES[Math.floor(Math.random() * NAMES.length)]
           r.custs.push({ id: r.seq++, kind, name, order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null, seed: Math.floor(Math.random() * 6) })
@@ -696,6 +696,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                   <div key={k} className="ns-regular">
                     <img src={nAsset(custImg(k, 'arrive'))} alt="" />
                     <span>{CUST[k].label}</span>
+                    {CUST[k].seasons && <small className="muted">chỉ ghé mùa {CUST[k].seasons!.map((x) => SEASONS[x].name.toLowerCase()).join(', ')}</small>}
                   </div>
                 ))}
             </div>
