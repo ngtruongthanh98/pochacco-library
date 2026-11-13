@@ -6,6 +6,7 @@ import ImportEbooks from './components/ImportEbooks'
 import ScanOne from './components/ScanOne'
 import ShelfScan from './components/ShelfScan'
 import Stats from './components/Stats'
+import PersonPage from './components/PersonPage'
 import BookForm from './components/BookForm'
 import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTaxonomy, type CategoryGroup } from './data/categories'
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
@@ -332,7 +333,8 @@ export default function App() {
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
   const [dupMode, setDupMode] = useState<'copy' | 'edition'>('copy')
-  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people'>(initial.page)
+  const [person, setPerson] = useState<string | null>(initial.person)
   // Các cuốn đã chọn để tạo danh mục tài liệu tham khảo (giữ qua các lần mở trang)
   const [picked, setPickedState] = useState<string[]>(() => {
     try {
@@ -396,7 +398,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg, refList: page === 'refs' ? refView : null }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -428,6 +430,7 @@ export default function App() {
       setFmt(r.fmt)
       setTopic(r.topic)
       setRefView(r.refList)
+      setPerson(r.person)
       setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
@@ -474,6 +477,17 @@ export default function App() {
       patchList(targetList.id, { books: has ? targetList.books.filter((x) => x !== id) : [...targetList.books, id] })
     } else setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))
   }
+  const openPerson = (name: string | null) => {
+    setPage('people')
+    setPerson(name)
+    setOpenId(null)
+    setAdding(false)
+    setScanMode(null)
+    setEditing(false)
+    setReading(null)
+    window.scrollTo(0, 0)
+  }
+
   const openRefs = (view: string | null) => {
     setSelecting(false)
     setOpenId(null)
@@ -584,7 +598,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -657,6 +671,9 @@ export default function App() {
             onClick={() => { setPage('quotes'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
           >
             Trích dẫn
+          </button>
+          <button className={page === 'people' ? 'page-tab active' : 'page-tab'} onClick={() => openPerson(null)} title="Tác giả và nhân vật lịch sử">
+            Tác giả
           </button>
           <button className={page === 'refs' ? 'page-tab active' : 'page-tab'} onClick={() => openRefs(null)} title="Danh mục tài liệu tham khảo theo bài viết">
             Tài liệu
@@ -740,6 +757,27 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'people' && !openId ? (
+          loading ? (
+            <State img="anim-read" title="Pochacco đang tìm sách..." />
+          ) : (
+            <PersonPage
+              cfg={cfg}
+              books={books}
+              excerpts={excerpts}
+              person={person}
+              onPerson={openPerson}
+              onOpen={(b) => {
+                setOpenId(b.id)
+                window.scrollTo(0, 0)
+              }}
+              onCategory={(id) => {
+                setPage('library'); setQ('')
+                setGroup(CATEGORY_GROUPS.findIndex((g) => g.items.some((x) => x.id === id)))
+                setCat(id); window.scrollTo(0, 0)
+              }}
+            />
+          )
         ) : page === 'refs' ? (
           <RefsPage
             view={refView}
@@ -879,6 +917,7 @@ export default function App() {
               onOpen={(b) => {
                 setPage('library'); setOpenId(b.id); window.scrollTo(0, 0)
               }}
+              onPerson={openPerson}
             />
           )
         ) : openId && byId.get(openId) && editing ? (
@@ -931,6 +970,7 @@ export default function App() {
                 setOpenId(b.id)
                 window.scrollTo(0, 0)
               }}
+              onPerson={openPerson}
               onSearch={(text) => {
                 setOpenId(null)
                 setGroup(-1)

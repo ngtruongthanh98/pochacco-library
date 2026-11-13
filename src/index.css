@@ -1183,3 +1183,89 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .backup-busy { margin: 0; color: var(--olive); font-weight: 650; }
 .backup-nudge { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; padding: 8px 12px; border-radius: 12px; background: #fff6dc; border: 1.5px solid var(--gold); font-size: 0.92rem; }
 .backup-nudge span { flex: 1 1 260px; }
+
+/* ---------- Thống kê chuyên sâu ---------- */
+.deep-insights { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.deep-insights li { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; background: var(--paper); border: 1.5px solid var(--line); font-size: 0.93rem; line-height: 1.45; }
+.di-kind { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 999px; text-align: center; background: var(--cream); border: 1.5px solid var(--line); color: var(--ink); }
+.di-focus .di-kind { border-color: #e6b8b1; color: var(--red-dark); }
+.di-link .di-kind { border-color: #cfcb97; color: var(--olive); }
+.di-gap .di-kind { border-color: #efd29c; color: #8a5a0b; }
+.di-fix .di-kind { border-color: #d9c2b1; color: var(--muted); }
+.table-scroll { overflow-x: auto; margin: 8px -4px 0; padding: 0 4px; }
+.cat-table, .author-table, .heat, .person-books { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.cat-table th, .cat-table td, .author-table th, .author-table td, .person-books td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.cat-table th.num, .cat-table td.num, .author-table .num, .person-books .num { text-align: right; white-space: nowrap; }
+.cat-table thead th, .author-table thead th { font-size: 0.78rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.th-sort { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.th-sort:where(:hover) { background: none; color: var(--red); }
+.th-sort.on { color: var(--red-dark); }
+.cat-table tr.clickable, .author-table tr.clickable, .person-books tr.clickable { cursor: pointer; }
+.cat-table tr.clickable:hover, .author-table tr.clickable:hover, .person-books tr.clickable:hover { background: #fdf0e6; }
+.cat-table tr.open { background: #fbe9e4; }
+.cat-table td.num { position: relative; }
+.cell-bar { display: block; height: 3px; border-radius: 2px; background: var(--red); margin: 4px 0 0 auto; opacity: 0.75; }
+.detail-row > td { background: var(--paper); padding: 0 !important; }
+.cat-detail { padding: 14px; border-left: 3px solid var(--red); }
+.cat-detail-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.cat-detail-head h4 { margin: 0; font-size: 1.1rem; }
+.cat-detail h5 { margin: 14px 0 6px; font-size: 0.85rem; color: var(--muted); }
+.cat-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 20px; }
+.small-tiles { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.small-tiles .tile-value { font-size: 1.3rem; }
+.heat th, .heat td { padding: 6px 8px; font-size: 0.85rem; }
+.heat thead th { color: var(--muted); font-weight: 600; text-align: center; }
+.heat tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+.heat-cell { text-align: center; border: 2px solid var(--paper); border-radius: 6px; min-width: 44px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.heat-cell.h0 { background: #faf3ea; }
+.heat-cell.h1 { background: #f8dcd4; }
+.heat-cell.h2 { background: #f0b6a8; }
+.heat-cell.h3 { background: #e2887a; }
+.heat-cell.h4 { background: #cc5348; color: #fff; }
+.heat-cell.h5 { background: #a1241f; color: #fff; }
+.author-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+.author-filters input { flex: 1 1 200px; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--paper); }
+.seg button { background: none; border: 0; border-radius: 0; color: var(--ink); padding: 6px 12px; font-size: 0.85rem; font-weight: 500; }
+.seg button:where(:hover) { background: #fbe9e4; }
+.seg button.on { background: var(--red); color: var(--cream); }
+
+/* ---------- Trang tác giả, nhân vật ---------- */
+.people-hub, .person-page { display: grid; gap: 16px; }
+.people-search { display: flex; gap: 8px; margin-top: 10px; }
+.people-search input { flex: 1; }
+.hub-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.people-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
+.people-list button { width: 100%; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'n c' 'm c'; text-align: left; gap: 0 8px; background: var(--paper); color: var(--ink); border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 12px; font-weight: 500; }
+.people-list button:where(:hover) { background: #fbe9e4; border-color: #f0c9bf; }
+.pl-name { grid-area: n; font-weight: 600; }
+.pl-meta { grid-area: m; font-size: 0.78rem; color: var(--muted); }
+.pl-count { grid-area: c; align-self: center; font-weight: 700; color: var(--red-dark); font-variant-numeric: tabular-nums; }
+.person-top h2 { margin: 6px 0 0; }
+.wiki { display: grid; grid-template-columns: 160px 1fr; gap: 18px; align-items: start; }
+.wiki:not(:has(.wiki-img)) { grid-template-columns: 1fr; }
+.wiki-img { width: 160px; max-height: 220px; object-fit: cover; object-position: top; border-radius: 12px; border: 1.5px solid var(--line); background: var(--cream); }
+.wiki-title h3 { margin: 0; display: inline; margin-right: 8px; }
+.wiki-facts { list-style: none; padding: 0; margin: 10px 0; display: grid; gap: 3px; font-size: 0.9rem; }
+.wiki-extract { line-height: 1.6; margin: 8px 0; }
+.wiki-links { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.wiki-links a { color: var(--red-dark); font-weight: 600; }
+.wiki-pick { margin-top: 14px; padding: 12px; border-radius: 10px; background: var(--paper); border: 1.5px dashed var(--line); }
+.wiki-pick h4 { margin: 0 0 8px; }
+.wiki-pick ul { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 4px; }
+.wiki-pick li button { width: 100%; text-align: left; background: #fff; color: var(--ink); border: 1.5px solid var(--line); border-radius: 8px; padding: 7px 10px; font-weight: 400; }
+.wiki-pick li button:where(:hover), .wiki-pick li button.on { border-color: var(--red); background: #fdf0e6; }
+.person-page textarea { width: 100%; box-sizing: border-box; }
+.person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 24px; }
+.person-books td:last-child { white-space: nowrap; color: var(--muted); }
+.person-quotes { list-style: none; padding: 0; display: grid; gap: 10px; }
+.person-quotes blockquote { margin: 0 0 2px; padding: 8px 12px; border-left: 3px solid var(--gold); background: var(--paper); border-radius: 0 8px 8px 0; font-style: italic; }
+.about-list { padding-left: 18px; display: grid; gap: 6px; }
+.warn-text { color: #8a5a0b; background: #fdf3df; border: 1px solid #efd29c; border-radius: 8px; padding: 6px 10px; }
+@media (max-width: 640px) {
+  .wiki { grid-template-columns: 1fr; }
+  .wiki-img { width: 120px; }
+  .deep-insights li { grid-template-columns: 1fr; gap: 4px; }
+  .di-kind { justify-self: start; }
+  .cat-table .hide-sm { display: none; }
+}

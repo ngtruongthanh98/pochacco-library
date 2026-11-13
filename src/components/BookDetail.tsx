@@ -74,6 +74,7 @@ const isbnPretty = (s?: string) =>
 
 /** Tên người bấm được: bấm thì tìm các sách khác có người này. */
 function People({ label, names, onSearch }: { label: string; names?: Name[]; onSearch: (q: string) => void }) {
+  // onSearch ở đây mở trang tác giả (tiểu sử, mọi sách của người đó).
   if (!names?.length) return null
   return (
     <div className="people">
@@ -81,7 +82,7 @@ function People({ label, names, onSearch }: { label: string; names?: Name[]; onS
       {names.map((n, i) => (
         <span key={i}>
           {i > 0 && ', '}
-          <button className="linkish" onClick={() => onSearch(nameToString(n))}>
+          <button className="linkish" onClick={() => onSearch(nameToString(n))} title="Xem trang tác giả">
             {nameToString(n)}
           </button>
         </span>
@@ -108,6 +109,7 @@ export default function BookDetail({
   onTopic,
   onOpen,
   onSearch,
+  onPerson,
   onCategory,
   onRead,
 }: {
@@ -128,6 +130,7 @@ export default function BookDetail({
   onTopic: (t: string) => void
   onOpen: (b: Book) => void
   onSearch: (q: string) => void
+  onPerson: (name: string) => void
   onCategory: (id: string) => void
   onRead: (h: EbookHolding) => void
 }) {
@@ -251,9 +254,9 @@ export default function BookDetail({
               Nguyên tác: <i>{book.originalTitle}</i>
             </div>
           )}
-          <People label="Tác giả" names={book.authors} onSearch={onSearch} />
-          <People label="Dịch giả" names={book.translators} onSearch={onSearch} />
-          <People label="Biên soạn" names={book.editors} onSearch={onSearch} />
+          <People label="Tác giả" names={book.authors} onSearch={onPerson} />
+          <People label="Dịch giả" names={book.translators} onSearch={onPerson} />
+          <People label="Biên soạn" names={book.editors} onSearch={onPerson} />
           {(book.publisher || facts.length > 0) && (
             <div className="facts">
               {book.publisher && <span>{book.publisher}</span>}
