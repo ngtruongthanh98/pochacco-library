@@ -23,17 +23,38 @@ export const TOP = Object.fromEntries(TOPPINGS.map((t) => [t.id, t])) as Record<
 export const SPICE_NAMES = ['Không cay', 'Cay nhẹ', 'Hơi cay', 'Cay vừa', 'Khá cay', 'Cay nhiều', 'Rất cay', 'Cay xé lưỡi']
 
 // ---- Khách ----
-export type CustKind = 'cuu' | 'haicau' | 'aomua'
-export const CUST: Record<CustKind, { img: string; label: string }> = {
-  cuu: { img: 'kh-cuu', label: 'Em Bé Dê' },
-  haicau: { img: 'kh-haicau', label: 'Hải Cẩu' },
-  aomua: { img: 'kh-aomua', label: 'Pochacco áo mưa' },
+export type CustKind = 'cuu' | 'haicau' | 'aomua' | 'hong' | 'plot' | 'cuuxam' | 'ngu' | 'banh'
+export type Mood = 'arrive' | 'wait' | 'worried' | 'angry' | 'happy'
+/** Tư thế theo tâm trạng: số thứ tự hình trong bộ 9 tư thế (kh-<id>-<số>.webp). */
+type Poses = Record<Exclude<Mood, 'happy'>, number> & { happy: number[] }
+export type CustDef = { img: string; label: string; fixed: boolean; poses?: Poses }
+export const CUST: Record<CustKind, CustDef> = {
+  cuu: { img: 'kh-cuu', label: 'Em Bé Dê', fixed: true },
+  haicau: { img: 'kh-haicau', label: 'Hải Cẩu', fixed: false },
+  aomua: { img: 'kh-aomua', label: 'Pochacco áo mưa', fixed: false },
+  hong: { img: 'kh-hong', label: 'Em Bé Hồng', fixed: true, poses: { arrive: 0, wait: 3, worried: 5, angry: 4, happy: [1, 2, 8] } },
+  plot: { img: 'kh-plot', label: 'Em Bé Plot', fixed: true, poses: { arrive: 0, wait: 7, worried: 3, angry: 4, happy: [1, 5, 8] } },
+  cuuxam: { img: 'kh-cuuxam', label: 'Em Bé Cừu', fixed: true, poses: { arrive: 1, wait: 0, worried: 5, angry: 4, happy: [2, 7, 8] } },
+  ngu: { img: 'kh-ngu', label: 'Em Bé Đi Ngủ', fixed: true, poses: { arrive: 0, wait: 5, worried: 4, angry: 3, happy: [7, 2] } },
+  banh: { img: 'kh-banh', label: 'Em Bé Trái Banh', fixed: true, poses: { arrive: 0, wait: 3, worried: 7, angry: 2, happy: [1, 4, 8] } },
 }
+/** Khách ăn tại quán (khách mang về luôn là Pochacco áo mưa). */
+export const DINE_IN: CustKind[] = ['cuu', 'haicau', 'hong', 'plot', 'cuuxam', 'ngu', 'banh']
+/** Tên hình của khách theo tâm trạng; seed chọn một trong các tư thế vui. */
+export function custImg(kind: CustKind, mood: Mood, seed = 0) {
+  const d = CUST[kind]
+  if (!d.poses) return d.img
+  const k = mood === 'happy' ? d.poses.happy[seed % d.poses.happy.length] : d.poses[mood]
+  return `${d.img}-${k}`
+}
+/** Lời khách nói khi rời quán. */
+export const SAY_HAPPY = ['Ngon quá!', 'Cay đã luôn!', 'Mai mình lại tới!', 'Đúng ý quá!']
+export const SAY_SAD = ['Hừm…', 'Chờ lâu quá à…', 'Chưa đúng món rồi…']
 /** Chủ tiệm. */
 export const OWNER = 'Em Bé Nơ'
 /** Tên tiệm, ghi trên bảng hiệu. */
 export const SHOP_NAME = 'Nơ'
-/** Tên ngẫu nhiên cho khách không có tên riêng (Em Bé Dê luôn mang tên mình). */
+/** Tên ngẫu nhiên cho khách không có tên riêng (các Em Bé luôn mang tên mình). */
 export const NAMES = ['Bạn Hải Cẩu', 'Anh Áo Mưa', 'Chị Mây', 'Cô Bé Tóc Xù', 'Chú Gấu Nâu', 'Bạn Mèo Mun', 'Bé Thỏ Trắng', 'Anh Shipper', 'Cô giáo Lan']
 
 // ---- Nâng cấp tiệm (giá theo cấp kế tiếp) ----

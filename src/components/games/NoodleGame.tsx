@@ -3,16 +3,16 @@ import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import {
-  ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
+  ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, custImg, DINE_IN, SAY_HAPPY, SAY_SAD, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
   seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOPPINGS, UPGRADES,
-  type CustKind, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
+  type CustKind, type Mood, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
 } from './noodle'
 
 const LOCAL_KEY = 'pochacco-library:micay'
 const CLOUD_FILE = 'micay' // config/micay.json trong repo dữ liệu
 const CLOUD_DELAY = 20_000
 
-type Cust = { id: number; kind: CustKind; name: string; order: Order; arrive: number; patience: number; stove: number | null }
+type Cust = { id: number; kind: CustKind; name: string; order: Order; arrive: number; patience: number; stove: number | null; seed: number; leaving?: { at: number; mood: 'happy' | 'angry'; say: string } }
 type Stove = { cust: number | null; tops: TopId[]; spice: number; cookAt: number | null }
 type Pop = { id: number; text: string; tone: 'good' | 'bad' | 'info'; at: number }
 type Run = {
@@ -60,6 +60,15 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const dirtyRef = useRef(false)
   const [loaded, setLoaded] = useState(false)
   const season = seasonAt()
+
+  // Tải trước các tư thế của khách để đổi tâm trạng không bị chớp
+  useEffect(() => {
+    for (const k of Object.keys(CUST) as CustKind[]) {
+      const p = CUST[k].poses
+      const names = p ? [p.arrive, p.wait, p.worried, p.angry, ...p.happy].map((n) => `${CUST[k].img}-${n}`) : [CUST[k].img]
+      for (const n of names) new Image().src = nAsset(n)
+    }
+  }, [])
 
   // ---------- Lưu tiến trình ----------
   useEffect(() => {
@@ -190,20 +199,25 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
       // khách mới
       if (r.t >= r.nextSpawn && r.t < SHIFT_SECONDS * 1000 - 12_000) {
         if (r.custs.length < seatsOf(s)) {
-          const kinds = Object.keys(CUST) as CustKind[]
           const order = newOrder(s)
-          const kind: CustKind = order.takeaway ? 'aomua' : kinds[Math.floor(Math.random() * 2)]
-          r.custs.push({ id: r.seq++, kind, name: kind === 'cuu' ? CUST.cuu.label : NAMES[Math.floor(Math.random() * NAMES.length)], order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null })
+          // khách có tên riêng không xuất hiện hai lần cùng lúc
+          const pool = DINE_IN.filter((k) => !CUST[k].fixed || !r.custs.some((c) => c.kind === k))
+          const kind: CustKind = order.takeaway ? 'aomua' : pool[Math.floor(Math.random() * pool.length)]
+          const name = CUST[kind].fixed ? CUST[kind].label : NAMES[Math.floor(Math.random() * NAMES.length)]
+          r.custs.push({ id: r.seq++, kind, name, order, arrive: r.t, patience: patienceMs(s) * (order.takeaway ? 0.85 : 1), stove: null, seed: Math.floor(Math.random() * 6) })
         }
         r.nextSpawn = r.t + spawnGap(s.day)
       }
       // khách hết kiên nhẫn
       r.custs = r.custs.filter((c) => {
+        if (c.leaving) return r.t - c.leaving.at < 1500
         if (r.t - c.arrive < c.patience) return true
         r.lost++
         if (c.stove !== null) r.stoves[c.stove] = emptyStove()
+        c.stove = null
+        c.leaving = { at: r.t, mood: 'angry', say: 'Chờ lâu quá à…' }
         pop(r, `${c.name} chờ lâu quá nên bỏ về…`, 'bad')
-        return false
+        return true
       })
       // rửa bát
       if (r.washUntil !== null && r.t >= r.washUntil) {
@@ -234,7 +248,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const takeOrder = (cid: number) =>
     act((r) => {
       const c = r.custs.find((x) => x.id === cid)
-      if (!c || c.stove !== null) return
+      if (!c || c.stove !== null || c.leaving) return
       const free = r.stoves.findIndex((s) => s.cust === null)
       if (free < 0) return pop(r, 'Các bếp đều đang bận', 'bad')
       r.stoves[free] = { cust: cid, tops: [], spice: 0, cookAt: null }
@@ -271,7 +285,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
     act((r) => {
       const st = r.stoves[i]
       const c = r.custs.find((x) => x.id === st.cust)
-      if (!c || st.cookAt === null) return
+      if (!c || c.leaving || st.cookAt === null) return
       if (r.clean <= 0) return pop(r, 'Hết bát sạch, rửa bát đã!', 'bad')
       const s = shopRef.current
       const cooked = (r.t - st.cookAt) / cookMsOf(s)
@@ -292,7 +306,10 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
       r.clean--
       r.dirty++
       r.lastServe = r.t
-      r.custs = r.custs.filter((x) => x.id !== c.id)
+      c.stove = null
+      c.leaving = j.stars >= 2
+        ? { at: r.t, mood: 'happy', say: SAY_HAPPY[c.seed % SAY_HAPPY.length] }
+        : { at: r.t, mood: 'angry', say: SAY_SAD[j.notes.length ? 2 : 0] }
       r.stoves[i] = emptyStove()
       const starText = j.stars ? '★'.repeat(j.stars) : 'Chê'
       pop(r, `${starText} ${c.name}: +${pay + tip} xu${tip ? ` (tiền boa ${tip})` : ''}${j.stars === 3 ? ' +1 💎' : ''}${j.notes.length ? ` · ${j.notes.join(', ')}` : ''}`, j.stars >= 2 ? 'good' : 'bad')
@@ -401,6 +418,15 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
             r.custs.length ? (
               r.custs.map((c) => {
                 const left = Math.max(0, 1 - (r.t - c.arrive) / c.patience)
+                const mood: Mood = c.leaving ? c.leaving.mood : r.t - c.arrive < 1600 ? 'arrive' : left < 0.3 ? 'worried' : 'wait'
+                if (c.leaving)
+                  return (
+                    <div key={c.id} className={`ns-cust leaving ${c.leaving.mood}`}>
+                      <div className="ns-bubble say">{c.leaving.say}</div>
+                      <img className="ns-cust-img" src={nAsset(custImg(c.kind, mood, c.seed))} alt="" />
+                      <span className="ns-cust-name">{c.name}</span>
+                    </div>
+                  )
                 return (
                   <div key={c.id} className={`ns-cust ${c.stove !== null ? 'taken' : ''}`}>
                     <div className="ns-bubble">
@@ -424,7 +450,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                         <span className="ns-at">Bếp {c.stove + 1}</span>
                       )}
                     </div>
-                    <img className="ns-cust-img" src={nAsset(CUST[c.kind].img)} alt="" />
+                    <img className="ns-cust-img" src={nAsset(custImg(c.kind, mood, c.seed))} alt="" />
                     <span className="ns-cust-name">{c.name}</span>
                   </div>
                 )
@@ -659,6 +685,20 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
             <p className="muted small">
               Bày tối đa {MAX_SHOWN} món trên quầy ({shop.shown.length}/{MAX_SHOWN}). Mỗi món bày làm khách vui, tiền boa tăng 3%; bày đồ đúng mùa thì tiền boa tăng thêm 10%.
             </p>
+          </section>
+
+          <section>
+            <h4>Khách quen của tiệm {SHOP_NAME}</h4>
+            <div className="ns-regulars">
+              {(Object.keys(CUST) as CustKind[])
+                .filter((k) => CUST[k].fixed)
+                .map((k) => (
+                  <div key={k} className="ns-regular">
+                    <img src={nAsset(custImg(k, 'arrive'))} alt="" />
+                    <span>{CUST[k].label}</span>
+                  </div>
+                ))}
+            </div>
           </section>
 
           <section>
