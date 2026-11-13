@@ -1269,3 +1269,16 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
   .di-kind { justify-self: start; }
   .cat-table .hide-sm { display: none; }
 }
+
+/* Nâng/hạ cấp phân loại */
+.tax-dialog { max-width: 560px; }
+.tax-opts { border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 10px 0; display: grid; gap: 8px; }
+.tax-opts legend { font-size: 0.9rem; padding: 0 4px; }
+.tax-opts .radio { display: flex; gap: 8px; align-items: flex-start; font-size: 0.92rem; }
+.tax-opts .radio > input { margin-top: 4px; flex: none; width: auto; }
+.tax-opts .radio > span { display: grid; gap: 4px; }
+.tax-inline { width: 100%; }
+.tax-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 12px; }
+.tax-checks .check { display: flex; gap: 6px; align-items: center; font-size: 0.9rem; }
+.tax-checks .check input { width: auto; }
+.tax-field { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 600; }
