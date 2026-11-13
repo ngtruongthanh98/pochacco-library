@@ -1,3 +1,4 @@
+import { fmtVnd, parseVnd, SHOP_DEFAULTS, todayIso } from '../data/money'
 import { useMemo, useState } from 'react'
 import { placeIndex, suggestPlace } from '../data/publisherPlace'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
@@ -61,7 +62,8 @@ type Fields = Record<
   | 'publisher' | 'partner' | 'place' | 'year' | 'edition' | 'pages' | 'sizeCm' | 'language'
   | 'isbn' | 'containerTitle' | 'volume' | 'issue' | 'pageRange' | 'genre'
   | 'subjects' | 'tags' | 'series' | 'seriesNo'
-  | 'location' | 'copies' | 'condition' | 'binding' | 'status' | 'notes' | 'description',
+  | 'location' | 'copies' | 'condition' | 'binding' | 'status' | 'notes' | 'description'
+  | 'buyDate' | 'buyFrom' | 'buyPrice' | 'coverPrice' | 'gift',
   string
 >
 
@@ -71,6 +73,7 @@ const EMPTY: Fields = {
   isbn: '', containerTitle: '', volume: '', issue: '', pageRange: '', genre: '',
   subjects: '', tags: '', series: '', seriesNo: '',
   location: '', copies: '1', condition: '', binding: '', status: 'owned', notes: '', description: '',
+  buyDate: '', buyFrom: '', buyPrice: '', coverPrice: '', gift: '',
 }
 
 type Built = { book: Book } | { error: string }
@@ -79,7 +82,7 @@ const MANAGED = [
   'type', 'isbn13', 'isbn10', 'title', 'subtitle', 'originalTitle', 'authors', 'translators', 'editors',
   'publisher', 'partner', 'place', 'year', 'edition', 'pages', 'sizeCm', 'language',
   'containerTitle', 'volume', 'issue', 'pageRange', 'genre', 'categories', 'subjects', 'tags',
-  'series', 'seriesNo', 'holdings', 'status', 'notes', 'description',
+  'series', 'seriesNo', 'holdings', 'status', 'notes', 'description', 'acquired', 'coverPrice',
 ] as const
 
 const toFields = (b: Book): Fields => {
@@ -100,6 +103,10 @@ const toFields = (b: Book): Fields => {
     condition: p?.kind === 'print' ? s(p.condition) : '',
     binding: p?.kind === 'print' ? s(p.binding) : '',
     status: b.status, notes: s(b.notes), description: s(b.description),
+    buyDate: s(b.acquired?.date), buyFrom: s(b.acquired?.from),
+    buyPrice: b.acquired?.price !== undefined ? b.acquired.price.toLocaleString('vi-VN') : '',
+    coverPrice: b.coverPrice !== undefined ? b.coverPrice.toLocaleString('vi-VN') : '',
+    gift: b.acquired?.gift ? '1' : '',
   }
 }
 
@@ -121,6 +128,22 @@ const build = (
   for (const [k, label] of [['pages', 'Số trang'], ['edition', 'Lần tái bản'], ['copies', 'Số bản']] as const)
     if (f[k].trim() && !toInt(f[k])) return { error: `${label} phải là số nguyên dương.` }
   for (const x of extraPrints) if (x.copies.trim() && !toInt(x.copies)) return { error: 'Số bản của bản giấy khác phải là số nguyên dương.' }
+
+  const buyPrice = parseVnd(f.buyPrice)
+  const coverPrice = parseVnd(f.coverPrice)
+  if (buyPrice === null) return { error: 'Giá mua không đọc được. Ví dụ: 85000, 85.000 hoặc 85k.' }
+  if (coverPrice === null) return { error: 'Giá bìa không đọc được. Ví dụ: 120000, 120.000 hoặc 120k.' }
+  const gift = f.gift === '1'
+  const bought = f.status !== 'wishlist' && (buyPrice !== undefined || gift || f.buyFrom.trim() || f.buyDate)
+  const acquired = bought
+    ? {
+        // Ghi giá mà chưa ghi ngày thì tính là mua hôm nay.
+        date: f.buyDate || todayIso(),
+        from: f.buyFrom.trim() || undefined,
+        price: gift ? undefined : buyPrice,
+        gift: gift || undefined,
+      }
+    : undefined
 
   let isbn13: string | undefined
   let isbn10: string | undefined
@@ -188,6 +211,8 @@ const build = (
       ...ebooks,
     ],
     status: f.status as Book['status'],
+    acquired,
+    coverPrice,
     notes: opt(f.notes.trim()),
     description: opt(f.description.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()),
     source: 'manual',
@@ -232,6 +257,7 @@ export default function BookForm({
   prefill,
   banner,
   cancelLabel = 'Hủy',
+  markBought = false,
   onSaved,
   onCancel,
 }: {
@@ -243,12 +269,16 @@ export default function BookForm({
   /** Dòng thông báo phía trên biểu mẫu, ví dụ tiến độ bổ sung hàng loạt */
   banner?: React.ReactNode
   cancelLabel?: string
+  /** Mở từ nút "Đã mua cuốn này": chuyển sang Đang có, ngày mua hôm nay */
+  markBought?: boolean
   onSaved: (b: Book) => void
   onCancel: () => void
 }) {
   const [f, setF] = useState<Fields>(() =>
     initial
-      ? toFields(initial)
+      ? markBought
+        ? { ...toFields(initial), status: 'owned', buyDate: initial.acquired?.date ?? todayIso() }
+        : toFields(initial)
       : prefill
         ? toFields({ id: '', type: 'book', title: '', holdings: [], status: 'owned', createdAt: '', updatedAt: '', ...prefill })
         : EMPTY,
@@ -366,6 +396,12 @@ export default function BookForm({
 
   // --- Gợi ý từ thư viện ---
   const opts = useLibraryOptions(books, initial?.id)
+  const buyFromOpts = useMemo(() => {
+    const c = new Map<string, number>()
+    for (const b of books) if (b.acquired?.from) c.set(b.acquired.from, (c.get(b.acquired.from) ?? 0) + 1)
+    for (const d of SHOP_DEFAULTS) if (!c.has(d)) c.set(d, 0)
+    return [...c.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, count }))
+  }, [books])
   const placeIdx = useMemo(() => placeIndex(books), [books])
 
   /** Giá trị hay đi kèm nhất trong những sách thỏa điều kiện (vd: nơi xuất bản của một NXB). */
@@ -864,6 +900,49 @@ export default function BookForm({
           Ghi chú
           <textarea rows={2} value={f.notes} onChange={set('notes')} />
         </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mua sách</legend>
+        {f.status === 'wishlist' ? (
+          <p className="hint">Sách đang ở danh sách muốn mua. Khi mua về, đổi trạng thái thành “Đang có” rồi ghi giá mua ở đây.</p>
+        ) : (
+          <p className="hint">Dùng cho trang Thống kê → Chi tiêu. Gõ số tiền kiểu 85000, 85.000 hay 85k đều được. Ghi giá mà bỏ trống ngày thì tính là mua hôm nay.</p>
+        )}
+        {f.status !== 'wishlist' && (
+          <>
+            <div className="row">
+              <label>
+                Ngày mua
+                <input type="date" value={f.buyDate} max={todayIso()} onChange={set('buyDate')} />
+              </label>
+              <SuggestInput label="Mua ở đâu" placeholder="Fahasa, Oreka, hội sách..." value={f.buyFrom} onChange={setField('buyFrom')} options={buyFromOpts} />
+            </div>
+            <label className="check">
+              <input type="checkbox" checked={f.gift === '1'} onChange={(e) => setField('gift')(e.target.checked ? '1' : '')} />
+              Được tặng (không tính tiền)
+            </label>
+          </>
+        )}
+        <div className="row">
+          {f.status !== 'wishlist' && (
+            <label>
+              Giá mua
+              <input inputMode="decimal" placeholder="85.000" value={f.buyPrice} onChange={set('buyPrice')} disabled={f.gift === '1'} />
+            </label>
+          )}
+          <label>
+            Giá bìa
+            <input inputMode="decimal" placeholder="120.000" value={f.coverPrice} onChange={set('coverPrice')} />
+          </label>
+        </div>
+        {(() => {
+          const b = parseVnd(f.buyPrice)
+          const c = parseVnd(f.coverPrice)
+          if (f.gift === '1' || !b || !c || f.status === 'wishlist') return null
+          const d = Math.round((1 - b / c) * 100)
+          return <p className="hint">{d > 0 ? `Rẻ hơn giá bìa ${d}% (tiết kiệm ${fmtVnd(c - b)}).` : d < 0 ? `Đắt hơn giá bìa ${-d}%.` : 'Đúng giá bìa.'}</p>
+        })()}
       </fieldset>
 
       <fieldset>

@@ -7,6 +7,7 @@ import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
 import { otherEditions } from '../search/editions'
+import { fmtVnd } from '../data/money'
 import { bindingLabel, nameToString, type Book, type EbookHolding, type Name } from '../types/book'
 import Cover from './Cover'
 
@@ -97,6 +98,7 @@ export default function BookDetail({
   books,
   onBack,
   onEdit,
+  onBought,
   onDuplicate,
   onAddEdition,
   picked = false,
@@ -118,6 +120,7 @@ export default function BookDetail({
   books: Book[]
   onBack: () => void
   onEdit: () => void
+  onBought?: () => void
   onDuplicate: () => void
   onAddEdition: () => void
   picked?: boolean
@@ -282,6 +285,33 @@ export default function BookDetail({
               </button>
             ) : null
           })()}
+          {book.status === 'wishlist' && onBought && (
+            <button className="read-now bought-btn" onClick={onBought}>
+              ✓ Đã mua cuốn này
+            </button>
+          )}
+          {(book.acquired || book.coverPrice) && (
+            <div className="buy-info small">
+              {book.acquired?.gift ? 'Được tặng' : book.acquired ? 'Mua' : ''}
+              {book.acquired?.date && ` ngày ${dmy(book.acquired.date)}`}
+              {book.acquired?.from && ` ${book.acquired.gift ? 'từ' : 'ở'} ${book.acquired.from}`}
+              {book.acquired?.price !== undefined && !book.acquired.gift && (
+                <>
+                  {book.acquired ? ' · ' : ''}
+                  <b>{fmtVnd(book.acquired.price)}</b>
+                </>
+              )}
+              {book.coverPrice !== undefined && (
+                <span className="muted">
+                  {book.acquired ? ' · ' : ''}giá bìa {fmtVnd(book.coverPrice)}
+                  {book.acquired?.price !== undefined && !book.acquired.gift && book.coverPrice > 0 && (() => {
+                    const d = Math.round((1 - book.acquired!.price! / book.coverPrice!) * 100)
+                    return d ? ` (${d > 0 ? `rẻ hơn ${d}%` : `đắt hơn ${-d}%`})` : ''
+                  })()}
+                </span>
+              )}
+            </div>
+          )}
           {book.loan && (
             <div className="loan">
               Cho <b>{book.loan.to}</b> mượn từ {dmy(book.loan.date)}

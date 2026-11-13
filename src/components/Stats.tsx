@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { computeStats, type Row } from '../search/stats'
 import { nameToString, type Book } from '../types/book'
 import StatsDeep from './StatsDeep'
+import Spending from './Spending'
 import { BarList, Columns, DataTable, Tile, nf, pct } from './charts'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
@@ -108,6 +109,8 @@ export default function Stats({
           </div>
         )}
       </section>
+
+      <Spending books={books} onOpen={onOpen} onSearch={onSearch} />
 
       <section className="card">
         <h3>Theo nhóm danh mục</h3>

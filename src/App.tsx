@@ -479,6 +479,7 @@ export default function App() {
     } else setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))
   }
   const [moreOpen, setMoreOpen] = useState(false)
+  const [buyMode, setBuyMode] = useState(false)
   useEffect(() => setMoreOpen(false), [page, openId])
   const goTab = (pg: typeof page) => {
     setPage(pg); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0)
@@ -960,14 +961,23 @@ export default function App() {
           )
         ) : openId && byId.get(openId) && editing ? (
           <BookForm
-            key={`edit-${openId}`}
+            key={`edit-${openId}-${buyMode}`}
             cfg={cfg}
             books={books}
             initial={byId.get(openId)}
-            onCancel={() => goBack(() => setEditing(false))}
+            markBought={buyMode}
+            banner={
+              buyMode ? (
+                <div className="dup-banner">
+                  <b>Đã mua «{byId.get(openId)!.title}»</b>
+                  <span>Trạng thái đã chuyển sang “Đang có”, ngày mua là hôm nay. Ghi giá mua, giá bìa, nơi mua và vị trí kệ rồi bấm Lưu.</span>
+                </div>
+              ) : undefined
+            }
+            onCancel={() => goBack(() => { setEditing(false); setBuyMode(false) })}
             onSaved={(b) => {
               setBooks((prev) => prev.map((x) => (x.id === b.id ? b : x)))
-              goBack(() => setEditing(false))
+              goBack(() => { setEditing(false); setBuyMode(false) })
             }}
           />
         ) : openId && byId.get(openId) ? (
@@ -1025,7 +1035,8 @@ export default function App() {
                 window.scrollTo(0, 0)
               }}
               onBack={() => goBack(() => setOpenId(null))}
-              onEdit={() => { setEditing(true); window.scrollTo(0, 0) }}
+              onEdit={() => { setBuyMode(false); setEditing(true); window.scrollTo(0, 0) }}
+              onBought={() => { setBuyMode(true); setEditing(true); window.scrollTo(0, 0) }}
               onDeleted={(b) => {
                 setBooks((prev) => prev.filter((x) => x.id !== b.id))
                 const orphan = excerpts.filter((e) => e.bookId === b.id).map((e) => e.id)

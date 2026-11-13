@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { SHOP_DEFAULTS, todayIso } from '../data/money'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { saveBatch, type StoreConfig } from '../data/githubStore'
 import { placeIndex, pubKey, suggestPlace } from '../data/publisherPlace'
@@ -17,7 +18,7 @@ const LANGS = [
   ['th', 'Tiếng Thái'],
 ] as const
 
-type FieldKey = 'publisher' | 'place' | 'year' | 'language' | 'series' | 'location' | 'binding' | 'category' | 'subjects'
+type FieldKey = 'publisher' | 'place' | 'year' | 'language' | 'series' | 'location' | 'binding' | 'category' | 'subjects' | 'buyDate' | 'buyFrom'
 const LABEL: Record<FieldKey, string> = {
   publisher: 'Nhà xuất bản',
   place: 'Nơi xuất bản',
@@ -28,6 +29,8 @@ const LABEL: Record<FieldKey, string> = {
   binding: 'Loại bìa',
   category: 'Thêm danh mục',
   subjects: 'Thêm chủ đề',
+  buyDate: 'Ngày mua',
+  buyFrom: 'Mua ở đâu',
 }
 
 /**
@@ -70,8 +73,8 @@ export default function BulkEdit({
   const [usePlaces, setUsePlaces] = useState<Record<string, boolean>>(() => Object.fromEntries(groups.map((g) => [g.key, !!g.hint])))
 
   // Phần 2: trường chung
-  const [on, setOn] = useState<Record<FieldKey, boolean>>(() => ({ publisher: false, place: false, year: false, language: false, series: false, location: false, binding: false, category: false, subjects: false, ...(focus ? { [focus]: true } : {}) }))
-  const [val, setVal] = useState<Record<FieldKey, string>>({ publisher: '', place: '', year: '', language: 'vi', series: '', location: '', binding: 'paperback', category: '', subjects: '' })
+  const [on, setOn] = useState<Record<FieldKey, boolean>>(() => ({ publisher: false, place: false, year: false, language: false, series: false, location: false, binding: false, category: false, subjects: false, buyDate: false, buyFrom: false, ...(focus ? { [focus]: true } : {}) }))
+  const [val, setVal] = useState<Record<FieldKey, string>>({ publisher: '', place: '', year: '', language: 'vi', series: '', location: '', binding: 'paperback', category: '', subjects: '', buyDate: todayIso(), buyFrom: '' })
   const [onlyEmpty, setOnlyEmpty] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +124,18 @@ export default function BulkEdit({
       if (more.length) {
         b = { ...b, subjects: [...cur, ...more] }
         changed = true
+      }
+    }
+    if ((on.buyDate && val.buyDate) || (on.buyFrom && val.buyFrom.trim())) {
+      if (b.status !== 'wishlist') {
+        const a = { ...(b.acquired ?? {}) }
+        if (on.buyDate && val.buyDate && (!onlyEmpty || !a.date)) a.date = val.buyDate
+        if (on.buyFrom && val.buyFrom.trim() && (!onlyEmpty || !a.from)) a.from = val.buyFrom.trim()
+        if (a.from && !a.date) a.date = val.buyDate || todayIso()
+        if (JSON.stringify(a) !== JSON.stringify(b.acquired ?? {})) {
+          b = { ...b, acquired: a }
+          changed = true
+        }
       }
     }
     return changed ? { ...b, updatedAt: new Date().toISOString() } : null
@@ -182,6 +197,10 @@ export default function BulkEdit({
             ))}
           </select>
         )
+      case 'buyDate':
+        return <input type="date" value={val.buyDate} max={todayIso()} onChange={(e) => set('buyDate')(e.target.value)} />
+      case 'buyFrom':
+        return <SuggestInput label={null} value={val.buyFrom} onChange={set('buyFrom')} options={SHOP_DEFAULTS.map((value) => ({ value, count: 0 }))} placeholder="Hội sách, Oreka…" />
       case 'subjects':
         return <input value={val.subjects} onChange={(e) => set('subjects')(e.target.value)} placeholder="triết học Mác, tha hóa (cách nhau bằng dấu phẩy)" />
     }

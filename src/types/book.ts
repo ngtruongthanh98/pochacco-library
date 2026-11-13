@@ -89,7 +89,10 @@ export type Book = {
   holdings: Holding[]
   status: 'owned' | 'lent' | 'lost' | 'wishlist'
   loan?: { to: string; date: string; due?: string }
+  /** Mua lúc nào, ở đâu, trả bao nhiêu (đồng) */
   acquired?: { date?: string; from?: string; price?: number; gift?: boolean }
+  /** Giá bìa in trên sách (đồng) */
+  coverPrice?: number
   /** Mô tả, giới thiệu nội dung sách (nhiều đoạn, ngăn bằng dòng trống) */
   description?: string
   notes?: string
