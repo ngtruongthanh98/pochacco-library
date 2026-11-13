@@ -1062,3 +1062,6 @@ picture { display: contents; }
 .ns-tray-group { flex: 0 1 auto; }
 .ns-top { width: 76px; }
 .ns-top img { width: 40px; height: 40px; }
+.ns-money { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; vertical-align: middle; }
+.ns-money img, .ns-inline { width: 1.25em; height: 1.25em; object-fit: contain; vertical-align: middle; }
+button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }

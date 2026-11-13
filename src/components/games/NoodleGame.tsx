@@ -45,6 +45,37 @@ const loadLocal = (): Shop | null => {
 }
 const emptyStove = (): Stove => ({ cust: null, tops: [], spice: 0, cookAt: null })
 
+/** Số xu kèm hình đồng xu của tiệm. */
+const Xu = ({ n, sign = '' }: { n: number; sign?: string }) => (
+  <span className="ns-money">
+    {sign}
+    {n.toLocaleString('vi-VN')}
+    <img src={nAsset('coin')} alt=" xu" />
+  </span>
+)
+/** Số kim cương kèm hình viên kim cương của tiệm. */
+const KimCuong = ({ n, sign = '' }: { n: number; sign?: string }) => (
+  <span className="ns-money">
+    {sign}
+    {n}
+    <img src={nAsset('gem')} alt=" kim cương" />
+  </span>
+)
+/** Thông báo có chèn hình: {xu:123} và {kc:1} được thay bằng số kèm hình. */
+function Rich({ text }: { text: string }) {
+  const parts = text.split(/(\{(?:xu|kc):[^}]+\})/)
+  return (
+    <>
+      {parts.map((p, i) => {
+        const m = p.match(/^\{(xu|kc):([^}]+)\}$/)
+        if (!m) return p
+        const n = Number(m[2])
+        return m[1] === 'xu' ? <Xu key={i} n={n} /> : <KimCuong key={i} n={n} />
+      })}
+    </>
+  )
+}
+
 /** Tiệm mì cay Nơ của Em Bé Nơ: người chơi là chủ tiệm. */
 export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   const [shop, setShop] = useState<Shop>(() => loadLocal() ?? newShop())
@@ -312,7 +343,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
         : { at: r.t, mood: 'angry', say: SAY_SAD[j.notes.length ? 2 : 0] }
       r.stoves[i] = emptyStove()
       const starText = j.stars ? '★'.repeat(j.stars) : 'Chê'
-      pop(r, `${starText} ${c.name}: +${pay + tip} xu${tip ? ` (tiền boa ${tip})` : ''}${j.stars === 3 ? ' +1 💎' : ''}${j.notes.length ? ` · ${j.notes.join(', ')}` : ''}`, j.stars >= 2 ? 'good' : 'bad')
+      pop(r, `${starText} ${c.name}: +{xu:${pay + tip}}${tip ? ` (tiền boa {xu:${tip}})` : ''}${j.stars === 3 ? ' +{kc:1}' : ''}${j.notes.length ? ` · ${j.notes.join(', ')}` : ''}`, j.stars >= 2 ? 'good' : 'bad')
     })
   const wash = () =>
     act((r) => {
@@ -370,10 +401,10 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
     <div className="noodle" style={{ ['--tint' as string]: season.def.tint }}>
       <div className="ns-hud">
         <span className="ns-chip">
-          <img src={nAsset('coin')} alt="" /> <b>{(shop.coins + (r?.earned ?? 0)).toLocaleString('vi-VN')}</b> xu
+          <img src={nAsset('coin')} alt="Xu" /> <b>{(shop.coins + (r?.earned ?? 0)).toLocaleString('vi-VN')}</b>
         </span>
         <span className="ns-chip">
-          <img src={nAsset('gem')} alt="" /> <b>{shop.gems + (r?.gems ?? 0)}</b>
+          <img src={nAsset('gem')} alt="Kim cương" /> <b>{shop.gems + (r?.gems ?? 0)}</b>
         </span>
         <span className="ns-chip">Ngày {shop.day}</span>
         {playing && r && (
@@ -468,7 +499,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           <div className="ns-pops" aria-live="polite">
             {r.pops.map((p) => (
               <div key={p.id} className={`ns-pop ${p.tone}`}>
-                {p.text}
+                <Rich text={p.text} />
               </div>
             ))}
           </div>
@@ -587,12 +618,12 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           <div>
             <h3>{summary.best ? 'Kỷ lục doanh thu mới!' : 'Đóng cửa, hết ca rồi!'}</h3>
             <p>
-              Bán <b>{summary.served}</b> tô · thu <b>{summary.earned.toLocaleString('vi-VN')} xu</b> · <b>{summary.gems}</b> 💎 · trung bình {summary.avg.toFixed(1)} ★
+              Bán <b>{summary.served}</b> tô · thu <b><Xu n={summary.earned} /></b> · <b><KimCuong n={summary.gems} /></b> · trung bình {summary.avg.toFixed(1)} ★
               {summary.lost ? ` · ${summary.lost} khách bỏ về` : ''}
             </p>
             {summary.badge && (
               <p className="ns-badge-new">
-                <img src={nAsset(`${summary.badge}-badge`)} alt="" /> Nhận {SEASONS[summary.badge].badge}! +10 💎
+                <img src={nAsset(`${summary.badge}-badge`)} alt="" /> Nhận {SEASONS[summary.badge].badge}! <KimCuong n={10} sign="+" />
               </p>
             )}
           </div>
@@ -604,7 +635,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           <div className="ns-start">
             <button onClick={startShift}>{phase === 'summary' ? `Mở tiệm ngày ${shop.day}` : `Mở tiệm, bán ngày ${shop.day}`}</button>
             <span className="muted small">
-              Một ca hai phút rưỡi: nhận đơn, bỏ đúng topping, chọn đúng cấp cay, canh mì chín tới rồi múc ra. Đừng quên rửa bát! Tô 3 sao được thêm 1 💎.
+              Một ca hai phút rưỡi: nhận đơn, bỏ đúng topping, chọn đúng cấp cay, canh mì chín tới rồi múc ra. Đừng quên rửa bát! Tô 3 sao được thêm <KimCuong n={1} />.
             </span>
           </div>
 
@@ -623,7 +654,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                       <div className="muted small">{def.desc}</div>
                     </div>
                     <button className="small-btn" disabled={cost === undefined || shop.coins < cost} onClick={() => buyUpgrade(u)}>
-                      {cost === undefined ? 'Tối đa' : `${cost.toLocaleString('vi-VN')} xu`}
+                      {cost === undefined ? 'Tối đa' : <Xu n={cost} />}
                     </button>
                   </div>
                 )
@@ -646,10 +677,10 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                         <img src={nAsset(t.id)} alt="" />
                         <b>{t.name}</b>
                         {own ? (
-                          <span className="muted small">+{t.price} xu/tô</span>
+                          <span className="muted small"><Xu n={t.price} sign="+" />/tô</span>
                         ) : (
                           <button className="small-btn" disabled={shop.coins < t.unlock} onClick={() => unlockTop(t.id)}>
-                            {t.unlock} xu
+                            <Xu n={t.unlock} />
                           </button>
                         )}
                       </div>
@@ -662,7 +693,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
 
           <section>
             <h4>
-              Đồ trang trí {season.def.name.toLowerCase()} <span className="muted small">(mua bằng 💎, chỉ bán trong mùa, giữ mãi)</span>
+              Đồ trang trí {season.def.name.toLowerCase()} <span className="muted small">(mua bằng <img className="ns-inline" src={nAsset('gem')} alt="kim cương" />, chỉ bán trong mùa, giữ mãi)</span>
             </h4>
             <div className="ns-decor-shop">
               {season.def.decor.map((x) => {
@@ -677,7 +708,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
                       </button>
                     ) : (
                       <button className="small-btn" disabled={shop.gems < x.gems} onClick={() => buyDecor(x.id)}>
-                        {x.gems} 💎
+                        <KimCuong n={x.gems} />
                       </button>
                     )}
                   </div>
@@ -733,7 +764,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           </section>
 
           <p className="muted small">
-            {shopRank(shop.served)} · đã bán {shop.served.toLocaleString('vi-VN')} tô, {shop.perfect} tô 3 sao · tổng thu {shop.earned.toLocaleString('vi-VN')} xu · kỷ lục một ngày {shop.best.toLocaleString('vi-VN')} xu ·{' '}
+            {shopRank(shop.served)} · đã bán {shop.served.toLocaleString('vi-VN')} tô, {shop.perfect} tô 3 sao · tổng thu <Xu n={shop.earned} /> · kỷ lục một ngày <Xu n={shop.best} /> ·{' '}
             <button className="link" onClick={() => setAskReset(true)}>
               Làm lại từ đầu
             </button>
