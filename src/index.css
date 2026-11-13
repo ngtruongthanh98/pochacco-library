@@ -35,10 +35,10 @@ body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-even
 
 /* Thanh tab: dải đỏ dính trên cùng khi cuộn */
 .topbar { position: sticky; top: 0; z-index: 20; background: var(--red); box-shadow: 0 2px 0 var(--gold), 0 6px 18px rgba(97, 30, 20, 0.18); }
-.topbar .pages { max-width: 760px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 2px; border: 0; }
+.topbar .pages { max-width: 1040px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 2px; border: 0; overflow-x: auto; scrollbar-width: none; }
+.topbar .pages::-webkit-scrollbar { display: none; }
 main:has(.stats) { max-width: 1040px; }
-body:has(main .stats) .topbar .pages { max-width: 1040px; }
-.topbar .page-tab { color: #fde9d9; font-weight: 650; padding: 13px 16px 11px; border-radius: 0; background: none; border-bottom: 3px solid transparent; margin: 0; }
+.topbar .page-tab { white-space: nowrap; flex: none; color: #fde9d9; font-weight: 650; padding: 13px 16px 11px; border-radius: 0; background: none; border-bottom: 3px solid transparent; margin: 0; }
 .topbar .page-tab:hover { background: rgba(255, 255, 255, 0.10); color: #fff; }
 .topbar .page-tab.active { color: #fff; border-bottom-color: var(--gold); background: rgba(0, 0, 0, 0.10); }
 .topbar .logout { margin-left: auto; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fde9d9; cursor: pointer; }
