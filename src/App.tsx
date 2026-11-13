@@ -617,6 +617,7 @@ export default function App() {
         ) : page === 'games' ? (
           <Suspense fallback={<State img="anim-read" title="Pochacco đang dọn sân chơi..." />}>
             <GamesPage
+              cfg={cfg}
               books={books}
               onOpenBook={(b) => {
                 setPage('library')
