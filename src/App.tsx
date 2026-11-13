@@ -455,11 +455,12 @@ export default function App() {
   return (
     <>
       <header className="hero">
-        <div className="hero-art" style={{ backgroundImage: `url(${asset('banner-wide.webp')})` }} aria-hidden="true" />
+        <div className="hero-art" aria-hidden="true" />
         <div className="hero-inner">
-          <img className="hero-emblem" src={asset('sticker-emblem.webp')} alt="" />
           <div className="hero-text">
-            <h1>Pochacco Library</h1>
+            <h1>
+              <img className="wordmark" src={asset('wordmark.webp')} alt="Pochacco Library" width={900} height={308} />
+            </h1>
             <p className="hero-sub">Thư viện sách cá nhân</p>
             {cfg && !loading && books.length > 0 && (
               <p className="hero-stats">

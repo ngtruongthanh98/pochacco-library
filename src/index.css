@@ -16,23 +16,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 
-.hero { position: relative; overflow: hidden; background: var(--cream); }
-/* Tranh minh họa nằm bên phải, mờ dần sang trái để chữ nổi trên nền kem */
-.hero-art { position: absolute; inset: 0 0 0 auto; width: clamp(420px, 60vw, 900px); background-repeat: no-repeat; background-size: cover; background-position: 72% 42%;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 30%); mask-image: linear-gradient(to right, transparent 0, #000 30%); }
-.hero::before { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background-image: radial-gradient(circle at 1px 1px, rgba(191, 44, 39, 0.10) 1px, transparent 0); background-size: 22px 22px;
-  -webkit-mask-image: linear-gradient(to right, #000 0, transparent 55%); mask-image: linear-gradient(to right, #000 0, transparent 55%); }
-.hero-inner { position: relative; max-width: 1040px; margin: 0 auto; padding: 0 24px; height: 270px; display: flex; align-items: center; gap: 18px; }
-.hero-emblem { width: 92px; height: 92px; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(97, 30, 20, 0.25)); }
-.hero-text { min-width: 0; }
-.hero h1 { margin: 0; font-family: 'Playfair Display', Georgia, 'Times New Roman', serif; font-weight: 800; font-size: 2.7rem; line-height: 1.05; color: var(--red);
-  letter-spacing: 0.3px; text-shadow: 0 2px 0 rgba(233, 169, 59, 0.35); }
-.hero-sub { margin: 6px 0 0; display: inline-flex; align-items: center; gap: 10px; color: var(--olive); font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; font-size: 0.8rem; }
-.hero-sub::before, .hero-sub::after { content: ''; width: 26px; height: 2px; background: var(--gold); border-radius: 2px; }
-.hero-stats { margin: 14px 0 0; display: flex; flex-wrap: wrap; gap: 6px 8px; }
-.hero-stats span { padding: 4px 11px; border-radius: 999px; background: rgba(255, 250, 242, 0.85); border: 1px solid #ecd9bf; color: var(--muted); font-size: 0.82rem; backdrop-filter: blur(2px); }
+.hero { position: relative; overflow: hidden; background: #fdf1e4; }
+/* Tranh 4:1 neo bên phải; phần trống bên trái của tranh chính là chỗ đặt chữ */
+.hero-art { position: absolute; inset: 0; background: url(/assets/banner-header.webp) right center / auto 100% no-repeat; }
+.hero-inner { position: relative; max-width: 1040px; margin: 0 auto; padding: 0 24px; height: 260px; display: flex; align-items: center; }
+.hero-text { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.hero h1 { margin: 0; line-height: 0; }
+.wordmark { width: 360px; height: auto; filter: drop-shadow(0 6px 10px rgba(97, 30, 20, 0.18)); }
+.hero-sub { margin: 2px 0 0 18px; display: inline-flex; align-items: center; gap: 10px; color: var(--olive); font-weight: 650; letter-spacing: 2.5px; text-transform: uppercase; font-size: 0.78rem; }
+.hero-sub::before, .hero-sub::after { content: ''; width: 24px; height: 2px; background: var(--gold); border-radius: 2px; }
+.hero-stats { margin: 12px 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.hero-stats span { padding: 4px 11px; border-radius: 999px; background: rgba(255, 250, 242, 0.9); border: 1px solid #ecd9bf; color: var(--muted); font-size: 0.82rem; }
 .hero-stats b { color: var(--red-dark); font-weight: 750; }
+
+/* Họa tiết sách, sao, nguyệt quế rất nhạt làm nền trang */
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.07;
+  background: url(/assets/pattern.webp) 0 0 / 360px 360px repeat; }
 
 /* Thanh tab: dải đỏ dính trên cùng khi cuộn */
 .topbar { position: sticky; top: 0; z-index: 20; background: var(--red); box-shadow: 0 2px 0 var(--gold), 0 6px 18px rgba(97, 30, 20, 0.18); }
@@ -47,20 +46,17 @@ body:has(main .stats) .topbar .pages { max-width: 1040px; }
 
 @media (max-width: 900px) {
   .hero-inner { height: 210px; }
-  .hero-art { width: 62%; background-position: 70% 45%; }
+  .wordmark { width: 290px; }
 }
 @media (max-width: 600px) {
-  .hero-inner { height: 150px; gap: 12px; padding: 0 16px; }
-  .hero-emblem { width: 50px; height: 50px; }
-  .hero h1 { font-size: 1.75rem; }
-  .hero-sub { font-size: 0.68rem; letter-spacing: 1.8px; }
-  .hero-sub::before, .hero-sub::after { width: 14px; }
-  .hero-stats { display: none; }
-  .hero-art { width: 46%; background-position: 62% 40%; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%); mask-image: linear-gradient(to right, transparent 0, #000 45%); }
-  .hero-text { max-width: 58%; }
-  .hero h1 { font-size: 1.45rem; }
-  .hero-sub { letter-spacing: 1.2px; }
+  .hero-inner { height: 170px; padding: 0 14px; }
+  .hero-art { background-image: url(/assets/banner-mobile.webp); background-size: auto 100%; background-position: 72% bottom; left: 40%;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 30%); mask-image: linear-gradient(to right, transparent 0, #000 30%); }
+  .hero-text { max-width: 62%; }
+  .wordmark { width: 100%; max-width: 230px; }
+  .hero-sub { margin-left: 8px; font-size: 0.64rem; letter-spacing: 1.2px; }
   .hero-sub::before, .hero-sub::after { display: none; }
+  .hero-stats { display: none; }
   .topbar .pages { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
   .topbar .pages::-webkit-scrollbar { display: none; }
   .topbar .page-tab { padding: 12px 11px 10px; white-space: nowrap; }
