@@ -1079,3 +1079,57 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .edition-card { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 12px; background: #fff8ec; border: 1.5px solid var(--gold); color: var(--ink); font-weight: 400; }
 .edition-card:hover { background: #fdf0dc; }
 .edition-card .cover-sm { width: 52px; height: 75px; }
+
+/* Chọn sách để trích dẫn */
+.book { position: relative; }
+.book.selecting { cursor: copy; }
+.book.picked { outline: 2.5px solid var(--olive); outline-offset: -2px; background: #f4f6e8; }
+.pick-box { position: absolute; top: 8px; right: 8px; z-index: 2; width: 28px; height: 28px; padding: 0; border-radius: 8px; background: #fff; border: 2px solid var(--line); color: #fff; font-weight: 800; font-size: 1rem; line-height: 1; }
+.pick-box.on { background: var(--olive); border-color: var(--olive); }
+.pick-box:hover { border-color: var(--olive); }
+.pick-hint { margin: -4px 0 10px; padding: 8px 12px; border-radius: 10px; background: #f4f6e8; color: var(--olive); font-size: 0.9rem; }
+.pick-bar { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 96px);
+  padding: 10px 16px; border-radius: 999px; background: var(--olive); color: var(--cream); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+.pick-bar .small-btn { background: var(--cream); color: var(--olive); }
+.pick-bar .link { color: var(--cream); }
+
+/* Trang tài liệu tham khảo */
+.refs { display: grid; gap: 12px; }
+.refs h2 { margin: 0; }
+.refs-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.refs-head-actions { display: flex; gap: 12px; align-items: center; }
+.refs-styles { flex-wrap: wrap; }
+.refs-note, .refs-opt { margin: 0; }
+.refs-warn { padding: 10px 14px; border-radius: 14px; background: #fff6dc; border: 1.5px solid var(--gold); }
+.refs-warn.has-error { background: #fdeceb; border-color: #e0958f; }
+.refs-warn-title { font-weight: 700; margin-bottom: 6px; color: #8a5a00; }
+.refs-warn.has-error .refs-warn-title { color: var(--red-dark); }
+.refs-warn ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.refs-warn li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.refs-issues { display: flex; gap: 4px; flex-wrap: wrap; flex: 1 1 200px; }
+.refs-issue { font-size: 0.78rem; padding: 1px 8px; border-radius: 99px; }
+.refs-issue.error { background: #f8d3cf; color: var(--red-dark); font-weight: 650; }
+.refs-issue.warn { background: #fbecc5; color: #7a5600; }
+.refs-ok { margin: 0; padding: 8px 12px; border-radius: 12px; background: #eef4e4; color: #4f6a16; font-weight: 650; }
+.refs-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.refs-copied { color: #4f6a16; font-weight: 650; font-size: 0.9rem; }
+.refs-group { margin: 6px 0 4px; font-size: 1rem; color: var(--olive); }
+.refs-list ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.refs-list li { display: flex; gap: 8px; padding: 8px 10px; border-radius: 10px; border-left: 3px solid transparent; }
+.refs-list li:hover { background: #fbf5ec; }
+.refs-list li.warn { border-left-color: var(--gold); }
+.refs-list li.err { border-left-color: var(--red); }
+.refs-num { font-weight: 700; color: var(--muted); min-width: 2.2em; }
+.refs-entry { flex: 1; min-width: 0; }
+.refs-entry p { margin: 0; font-family: 'Times New Roman', Georgia, serif; font-size: 1.05rem; line-height: 1.5; padding-left: 2em; text-indent: -2em; }
+.refs-list ol.numbered .refs-entry p { padding-left: 0; text-indent: 0; }
+.refs-entry pre { margin: 0; white-space: pre-wrap; font-size: 0.85rem; background: #faf6ef; padding: 8px 10px; border-radius: 8px; }
+.refs-meta { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-top: 3px; }
+.refs-meta code { font-size: 0.85rem; }
+.refs-flag { font-size: 0.78rem; font-weight: 700; padding: 0 7px; border-radius: 99px; }
+.refs-flag.error { background: #f8d3cf; color: var(--red-dark); }
+.refs-flag.warn { background: #fbecc5; color: #7a5600; }
+@media (max-width: 640px) {
+  .pick-bar { left: 12px; right: 76px; transform: none; max-width: none; border-radius: 16px; padding: 8px 12px; gap: 6px 10px; justify-content: space-between; font-size: 0.88rem; }
+  .pick-bar .small-btn { padding: 6px 10px; }
+}

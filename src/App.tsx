@@ -20,7 +20,10 @@ import { topicCounts } from './data/cite'
 import type { Excerpt } from './types/excerpt'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft, editionDraft } from './data/duplicate'
+import RefsPage from './components/RefsPage'
 import { bindingLabel, type Binding } from './types/book'
+
+const PICK_KEY = 'pochacco-library:cite-picks'
 
 /** Nhãn loại bìa trên thẻ sách: chỉ hiện khi khác bìa mềm, hoặc khi cuốn có nhiều loại bìa. */
 const bindingTags = (b: Book): Binding[] => {
@@ -259,13 +262,34 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
   )
 }
 
-function BookRow({ b, cfg, onOpen, index = 0 }: { b: Book; cfg: StoreConfig; onOpen: () => void; index?: number }) {
+function BookRow({ b, cfg, onOpen, index = 0, selecting = false, picked = false, onPick }: { b: Book; cfg: StoreConfig; onOpen: () => void; index?: number; selecting?: boolean; picked?: boolean; onPick?: () => void }) {
   const people = (b.authors ?? []).map(nameToString).join(', ')
   const print = b.holdings.find((h) => h.kind === 'print')
   const hasEbook = b.holdings.some((h) => h.kind === 'ebook')
   const ebookOnly = isEbookOnly(b)
   return (
-    <li className="book" style={{ '--i': Math.min(index, 12) } as CSSProperties} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
+    <li
+      className={`book${picked ? ' picked' : ''}${selecting ? ' selecting' : ''}`}
+      style={{ '--i': Math.min(index, 12) } as CSSProperties}
+      role="button"
+      tabIndex={0}
+      onClick={selecting ? onPick : onOpen}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (selecting ? onPick?.() : onOpen())}
+    >
+      {(selecting || picked) && (
+        <button
+          type="button"
+          className={`pick-box${picked ? ' on' : ''}`}
+          aria-pressed={picked}
+          aria-label={picked ? 'Bỏ chọn cuốn này' : 'Chọn cuốn này để trích dẫn'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onPick?.()
+          }}
+        >
+          {picked ? '✓' : ''}
+        </button>
+      )}
       <Cover book={b} cfg={cfg} />
       <div className="book-body">
       <div className="title">{b.title}</div>
@@ -303,7 +327,23 @@ export default function App() {
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
   const [dupMode, setDupMode] = useState<'copy' | 'edition'>('copy')
-  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games'>(initial.page)
+  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs'>(initial.page)
+  // Các cuốn đã chọn để tạo danh mục tài liệu tham khảo (giữ qua các lần mở trang)
+  const [picked, setPickedState] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(PICK_KEY) ?? '[]')
+    } catch {
+      return []
+    }
+  })
+  const setPicked = (fn: (xs: string[]) => string[]) =>
+    setPickedState((xs) => {
+      const next = fn(xs)
+      localStorage.setItem(PICK_KEY, JSON.stringify(next))
+      return next
+    })
+  const togglePick = (id: string) => setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))
+  const [selecting, setSelecting] = useState(false)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
@@ -472,7 +512,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -625,6 +665,28 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'refs' ? (
+          <RefsPage
+            books={picked.map((id) => byId.get(id)).filter((b): b is Book => !!b)}
+            onRemove={(id) => setPicked((xs) => xs.filter((x) => x !== id))}
+            onClear={() => setPicked(() => [])}
+            onOpenBook={(b) => {
+              setPage('library')
+              setOpenId(b.id)
+              window.scrollTo(0, 0)
+            }}
+            onEditBook={(b) => {
+              setPage('library')
+              setOpenId(b.id)
+              setEditing(true)
+              window.scrollTo(0, 0)
+            }}
+            onBack={() => {
+              setPage('library')
+              setSelecting(true)
+              window.scrollTo(0, 0)
+            }}
+          />
         ) : page === 'games' ? (
           <Suspense fallback={<State img="anim-read" title="Pochacco đang dọn sân chơi..." />}>
             <GamesPage
@@ -745,6 +807,8 @@ export default function App() {
                 setEditing(false)
                 window.scrollTo(0, 0)
               }}
+              picked={picked.includes(openId)}
+              onTogglePick={() => togglePick(openId)}
               onAddEdition={() => {
                 const src = byId.get(openId)!
                 setPrefill(editionDraft(src))
@@ -940,7 +1004,15 @@ export default function App() {
                 Nhập sách điện tử
               </button>
               <button onClick={() => { setSaved(null); setNotice(null); setPrefill(null); setAdding(true) }}>+ Thêm sách</button>
+              <button className={selecting ? '' : 'secondary'} onClick={() => setSelecting(!selecting)} aria-pressed={selecting}>
+                {selecting ? 'Xong, thôi chọn' : 'Chọn sách để trích dẫn'}
+              </button>
             </div>
+            {selecting && (
+              <p className="pick-hint">
+                Chạm vào cuốn sách để chọn hoặc bỏ chọn. Có thể tìm kiếm, đổi danh mục rồi chọn tiếp; các cuốn đã chọn vẫn được giữ.
+              </p>
+            )}
             <input
               className="search"
               autoFocus
@@ -1087,7 +1159,16 @@ export default function App() {
             )}
             <ul className="list">
               {results.map((b, i) => (
-                <BookRow key={b.id} b={b} cfg={cfg} index={i} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
+                <BookRow
+                  key={b.id}
+                  b={b}
+                  cfg={cfg}
+                  index={i}
+                  selecting={selecting}
+                  picked={picked.includes(b.id)}
+                  onPick={() => togglePick(b.id)}
+                  onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }}
+                />
               ))}
             </ul>
             {sorted.length > 0 && (
@@ -1114,6 +1195,27 @@ export default function App() {
           </>
         )}
       </main>
+      {cfg && picked.length > 0 && page === 'library' && !adding && !editing && reading === null && !scanMode && (
+        <div className="pick-bar" role="status">
+          <span>
+            Đã chọn <b>{picked.length}</b> cuốn để trích dẫn
+          </span>
+          <button
+            className="small-btn"
+            onClick={() => {
+              setSelecting(false)
+              setOpenId(null)
+              setPage('refs')
+              window.scrollTo(0, 0)
+            }}
+          >
+            Tạo danh mục tài liệu
+          </button>
+          <button className="link" onClick={() => setPicked(() => [])}>
+            Bỏ chọn
+          </button>
+        </div>
+      )}
       {cfg && <ScrollTop />}
       {cfg && <Napper />}
       {confirmLogout && (

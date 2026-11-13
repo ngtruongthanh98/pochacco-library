@@ -98,6 +98,8 @@ export default function BookDetail({
   onEdit,
   onDuplicate,
   onAddEdition,
+  picked = false,
+  onTogglePick,
   onDeleted,
   excerpts,
   allTopics,
@@ -115,6 +117,8 @@ export default function BookDetail({
   onEdit: () => void
   onDuplicate: () => void
   onAddEdition: () => void
+  picked?: boolean
+  onTogglePick?: () => void
   onDeleted: (b: Book) => void
   excerpts: Excerpt[]
   allTopics: string[]
@@ -205,6 +209,11 @@ export default function BookDetail({
           >
             Thêm bản bìa khác
           </button>
+          {onTogglePick && (
+            <button className={`small-btn ${picked ? '' : 'secondary'}`} onClick={onTogglePick} aria-pressed={picked}>
+              {picked ? '✓ Đã chọn để trích dẫn' : 'Thêm vào trích dẫn'}
+            </button>
+          )}
           <button className="secondary small-btn" onClick={onEdit}>
             Sửa thông tin
           </button>

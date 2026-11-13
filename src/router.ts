@@ -13,7 +13,7 @@ import { FORMAT_OPTIONS, type FormatFilter } from './data/format'
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
 export type Route = {
-  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games'
+  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs'
   openId: string | null
   editing: boolean
   reading: number | null
@@ -60,6 +60,7 @@ export function formatRoute(r: Route): string {
   if (r.page === 'stats') return '#/thong-ke'
   if (r.page === 'settings') return '#/cai-dat'
   if (r.page === 'games') return '#/tro-choi'
+  if (r.page === 'refs') return '#/tai-lieu-tham-khao'
   if (r.page === 'quotes') return r.topic ? `#/trich-dan?${new URLSearchParams({ 'chu-de': r.topic })}` : '#/trich-dan'
   if (r.scanMode) return `#/${SCAN_PATH[r.scanMode]}`
   if (r.adding) return '#/them'
@@ -88,6 +89,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'thong-ke') return { ...r, page: 'stats' }
   if (parts[0] === 'cai-dat') return { ...r, page: 'settings' }
   if (parts[0] === 'tro-choi') return { ...r, page: 'games' }
+  if (parts[0] === 'tai-lieu-tham-khao') return { ...r, page: 'refs' }
   if (parts[0] === 'trich-dan') return { ...r, page: 'quotes', topic: new URLSearchParams(qs).get('chu-de') }
   if (parts[0] === 'them') return { ...r, adding: true }
   const scan = (Object.keys(SCAN_PATH) as ScanMode[]).find((k) => SCAN_PATH[k] === parts[0])
