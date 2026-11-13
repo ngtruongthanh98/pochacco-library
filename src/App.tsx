@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import BookDetail from './components/BookDetail'
 import Cover from './components/Cover'
 import EbookReader from './components/EbookReader'
@@ -29,10 +29,49 @@ import { nameToString, type Book, type EbookHolding } from './types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
-function State({ img, title, text }: { img: string; title: string; text?: string }) {
+/** Hình động Pochacco; người dùng tắt hiệu ứng chuyển động thì hiện hình tĩnh. */
+type AnimName = 'walk' | 'read' | 'carry' | 'sleepy'
+function Anim({ name, className }: { name: AnimName; className?: string }) {
   return (
-    <div className="state">
-      <img src={asset(img)} alt="" />
+    <picture className={`${className ?? ''} anim-${name}`}>
+      <source srcSet={asset(`anim-${name}-still.webp`)} media="(prefers-reduced-motion: reduce)" />
+      <img src={asset(`anim-${name}.webp`)} alt="" width={240} height={240} />
+    </picture>
+  )
+}
+
+/** Để yên vài phút không thao tác: Pochacco ngủ gật ở góc màn hình; động vào là tỉnh. */
+function Napper() {
+  const [nap, setNap] = useState(false)
+  useEffect(() => {
+    let t = 0
+    const arm = () => {
+      window.clearTimeout(t)
+      setNap(false)
+      t = window.setTimeout(() => setNap(!document.querySelector('.reader, .dialog-backdrop')), 3 * 60 * 1000)
+    }
+    const evs = ['pointerdown', 'keydown', 'scroll', 'wheel', 'touchstart'] as const
+    evs.forEach((e) => window.addEventListener(e, arm, { passive: true }))
+    arm()
+    return () => {
+      window.clearTimeout(t)
+      evs.forEach((e) => window.removeEventListener(e, arm))
+    }
+  }, [])
+  if (!nap) return null
+  return (
+    <div className="napper" role="status">
+      <Anim name="sleepy" />
+      <span>Pochacco ngủ gật bên trang sách rồi… zzz</span>
+    </div>
+  )
+}
+
+function State({ img, title, text }: { img: string; title: string; text?: string }) {
+  const anim = img.match(/^anim-(walk|read|carry|sleepy)$/)?.[1] as AnimName | undefined
+  return (
+    <div className={anim ? 'state state-anim' : 'state'}>
+      {anim ? <Anim name={anim} /> : <img src={asset(img)} alt="" />}
       <div>
         <div className="state-title">{title}</div>
         {text && <div className="muted">{text}</div>}
@@ -212,13 +251,13 @@ function CreateAccount({ onBack }: { onBack: () => void }) {
   )
 }
 
-function BookRow({ b, cfg, onOpen }: { b: Book; cfg: StoreConfig; onOpen: () => void }) {
+function BookRow({ b, cfg, onOpen, index = 0 }: { b: Book; cfg: StoreConfig; onOpen: () => void; index?: number }) {
   const people = (b.authors ?? []).map(nameToString).join(', ')
   const print = b.holdings.find((h) => h.kind === 'print')
   const hasEbook = b.holdings.some((h) => h.kind === 'ebook')
   const ebookOnly = isEbookOnly(b)
   return (
-    <li className="book" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
+    <li className="book" style={{ '--i': Math.min(index, 12) } as CSSProperties} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
       <Cover book={b} cfg={cfg} />
       <div className="book-body">
       <div className="title">{b.title}</div>
@@ -456,6 +495,7 @@ export default function App() {
     <>
       <header className="hero">
         <div className="hero-art" aria-hidden="true" />
+        <Anim name="walk" className="hero-walker" />
         <div className="hero-inner">
           <div className="hero-text">
             <h1>
@@ -561,9 +601,9 @@ export default function App() {
           />
         ) : page === 'quotes' ? (
           loading ? (
-            <State img="sticker-reading.webp" title="Pochacco đang gom trích dẫn..." />
+            <State img="anim-read" title="Pochacco đang gom trích dẫn..." />
           ) : exError ? (
-            <State img="sticker-sleeping.webp" title="Không tải được trích dẫn" text={exError} />
+            <State img="anim-sleepy" title="Không tải được trích dẫn" text={exError} />
           ) : (
             <QuotesPage
               excerpts={excerpts}
@@ -580,7 +620,7 @@ export default function App() {
           )
         ) : page === 'settings' ? (
           loading ? (
-            <State img="sticker-reading.webp" title="Pochacco đang mở tủ sách..." />
+            <State img="anim-read" title="Pochacco đang mở tủ sách..." />
           ) : (
             <>
             <Settings
@@ -614,7 +654,7 @@ export default function App() {
           )
         ) : page === 'stats' ? (
           loading ? (
-            <State img="sticker-reading.webp" title="Pochacco đang đếm sách..." />
+            <State img="anim-read" title="Pochacco đang đếm sách..." />
           ) : (
             <Stats
               books={books}
@@ -796,8 +836,8 @@ export default function App() {
         ) : (
           <>
             {notice && (
-              <div className="toast">
-                <img src={asset('sticker-sleeping.webp')} alt="" />
+              <div className="toast toast-anim">
+                <Anim name="carry" />
                 <div>
                   <div className="state-title">{notice.title}</div>
                   <div className="muted">{notice.text}</div>
@@ -820,10 +860,10 @@ export default function App() {
               </div>
             )}
             {saved && (
-              <div className="toast">
-                <img src={asset('sticker-salute.webp')} alt="" />
+              <div className="toast toast-anim">
+                <Anim name="carry" />
                 <div>
-                  <div className="state-title">Đã lưu vào thư viện</div>
+                  <div className="state-title">Pochacco đã xếp sách lên kệ</div>
                   <div className="muted">{saved.title}</div>
                 </div>
                 <button className="link" onClick={() => setSaved(null)}>
@@ -901,9 +941,9 @@ export default function App() {
                 )}
               </nav>
             )}
-            {loading && <State img="sticker-reading.webp" title="Pochacco đang lật danh mục..." />}
+            {loading && <State img="anim-read" title="Pochacco đang lật danh mục..." />}
             {error && (
-              <State img="sticker-sleeping.webp" title="Chưa tải được danh mục" text={error} />
+              <State img="anim-sleepy" title="Chưa tải được danh mục" text={error} />
             )}
             {!loading && !error && books.length === 0 && (
               <div className="empty">
@@ -988,8 +1028,8 @@ export default function App() {
               </div>
             )}
             <ul className="list">
-              {results.map((b) => (
-                <BookRow key={b.id} b={b} cfg={cfg} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
+              {results.map((b, i) => (
+                <BookRow key={b.id} b={b} cfg={cfg} index={i} onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }} />
               ))}
             </ul>
             {sorted.length > 0 && (
@@ -1002,10 +1042,22 @@ export default function App() {
                 onPage={goPage}
               />
             )}
+            {sorted.length > 0 && curPage === pages && (
+              <div className="list-end">
+                <Anim name="read" />
+                <span>
+                  {filtering
+                    ? `Hết ${sorted.length.toLocaleString('vi-VN')} cuốn phù hợp.`
+                    : `Đã xem hết ${books.length.toLocaleString('vi-VN')} cuốn trên kệ.`}{' '}
+                  Pochacco ngồi đọc tiếp đây.
+                </span>
+              </div>
+            )}
           </>
         )}
       </main>
       {cfg && <ScrollTop />}
+      {cfg && <Napper />}
       {confirmLogout && (
         <ConfirmDialog
           title="Đăng xuất khỏi thư viện?"

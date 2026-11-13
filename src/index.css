@@ -30,7 +30,7 @@ body { margin: 0; }
 .hero-stats b { color: var(--red-dark); font-weight: 750; }
 
 /* Họa tiết sách, sao, nguyệt quế rất nhạt làm nền trang */
-body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.07;
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.05;
   background: url(/assets/pattern.webp) 0 0 / 360px 360px repeat; }
 
 /* Thanh tab: dải đỏ dính trên cùng khi cuộn */
@@ -606,3 +606,45 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .paste-table tr.differs { background: #fff4d6; }
 .paste-table tr.same { opacity: 0.55; }
 .paste-table th:nth-child(2) { width: 120px; } .paste-table th:last-child { width: 140px; white-space: nowrap; }
+
+/* ---- Sinh động hơn ---- */
+picture { display: contents; }
+.state-anim img { width: 104px; height: 104px; }
+.toast-anim img { width: 64px; height: 64px; }
+.toast-anim { animation: toast-in .35s ease-out; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Pochacco đi ngang dưới chân banner rồi khuất, lặp lại mỗi 45 giây */
+.hero-walker img { position: absolute; bottom: 0; left: 0; width: 76px; height: 76px; pointer-events: none; z-index: 1;
+  animation: walk-across 45s linear 1.5s infinite both; filter: drop-shadow(0 3px 3px rgba(97, 30, 20, 0.18)); }
+@keyframes walk-across {
+  0% { transform: translateX(-90px); }
+  32% { transform: translateX(calc(100vw + 10px)); }
+  100% { transform: translateX(calc(100vw + 10px)); }
+}
+
+/* Sách hiện lần lượt, nghiêng nhẹ bìa khi rê chuột */
+.list .book { animation: rise .38s ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.list .book .cover, .list .book img { transition: transform .2s ease; }
+.list .book:hover .cover, .list .book:focus-visible .cover { transform: rotate(-3deg) translateY(-2px) scale(1.03); }
+.list .book:hover { box-shadow: 0 6px 18px rgba(97, 30, 20, 0.10); }
+
+.list-end { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0 4px; color: var(--muted); font-size: 0.9rem; text-align: left; }
+.list-end img { width: 72px; height: 72px; flex-shrink: 0; }
+
+@media (max-width: 600px) { .hero-walker img { width: 56px; height: 56px; } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-walker { display: none; }
+  .hero-walker img { display: none; }
+  .list .book, .toast-anim { animation: none; }
+}
+
+/* Pochacco bông buồn ngủ: ảnh có nền kem nên cắt tròn như một khung ảnh */
+.anim-sleepy img { border-radius: 50%; box-shadow: 0 0 0 3px #fff8ee, 0 0 0 4.5px var(--gold); background: #fbf3e8; }
+.napper { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px 8px 8px; border-radius: 999px; background: #fffaf2; border: 1.5px solid #ecd9bf; box-shadow: 0 8px 22px rgba(97, 30, 20, 0.16);
+  color: var(--muted); font-size: 0.88rem; animation: nap-in .6s ease-out; max-width: calc(100vw - 90px); }
+.napper img { width: 64px; height: 64px; flex-shrink: 0; }
+@keyframes nap-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .napper { animation: none; } }
