@@ -1488,3 +1488,76 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .buy-info { margin-top: 8px; padding: 6px 10px; border-radius: 10px; background: #f6f1e4; border: 1px solid var(--line); }
 .bought-btn { background: var(--olive) !important; }
 @media (max-width: 600px) { .spend-head .seg button { padding: 6px 9px; } .spend-table th:nth-child(4), .spend-table td:nth-child(4) { display: none; } }
+
+/* ---------- Pochacco Golf ---------- */
+.golf { display: grid; gap: 12px; }
+.golf-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.golf-title { width: 170px; height: auto; }
+.golf-wallet { display: flex; flex-wrap: wrap; gap: 6px; }
+.golf-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 4px; border-radius: 999px; background: #fffaf0; border: 1.5px solid #ecdcbf; font-weight: 700; font-variant-numeric: tabular-nums; }
+.golf-chip img { width: 26px; height: 26px; }
+.golf-chip.lv { gap: 6px; }
+.golf-xp { display: inline-block; width: 54px; height: 7px; border-radius: 999px; background: #ece0cf; overflow: hidden; }
+.golf-xp span { display: block; height: 100%; background: linear-gradient(90deg, #e9c24b, #e9a93b); }
+.golf-host { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: linear-gradient(180deg, #eef6e2, #e2efcf); border: 1.5px solid #cfe2b2; }
+.golf-host img { width: 76px; height: auto; }
+.golf-say { display: grid; gap: 3px; font-size: 0.92rem; line-height: 1.45; }
+.golf-say b { color: #4a6a1c; }
+.golf-holes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.golf-hole { position: relative; display: grid; justify-items: center; gap: 1px; padding: 8px 4px 6px; border-radius: 14px; background: #f5faea; color: var(--ink); border: 2px solid #d5e6bb; font-weight: 500; min-height: 118px; }
+.golf-hole:where(:hover):not(:disabled) { background: #eaf4d8; border-color: #9cc46a; }
+.golf-hole img { width: 34px; height: 44px; object-fit: contain; }
+.golf-hole b { font-size: 0.95rem; }
+.gh-name { font-size: 0.74rem; color: var(--muted); text-align: center; line-height: 1.2; }
+.gh-par { font-size: 0.72rem; color: #4a6a1c; font-weight: 600; }
+.gh-stars { letter-spacing: 1px; color: #d8cdb8; font-size: 0.9rem; }
+.gh-stars .on { color: #e9a93b; }
+.gh-stars.big { font-size: 1.8rem; }
+.golf-hole.locked { opacity: 0.55; background: #f2efe8; border-color: var(--line); }
+.golf-hole.done { border-color: #a9cd77; }
+.gh-lock { position: absolute; top: 6px; right: 8px; font-size: 0.8rem; }
+.golf-play { display: inline-flex; align-items: center; justify-content: center; gap: 10px; justify-self: center; min-height: 54px; padding: 6px 26px 6px 8px; border-radius: 999px; font-size: 1.1rem; background: #6aa84f; border-color: #6aa84f; }
+.golf-play:where(:hover) { background: #5b9842; }
+.golf-play img { width: 42px; height: 42px; }
+.golf-help { margin: 0; }
+.golf.playing { gap: 8px; }
+.golf-hud { display: flex; align-items: center; gap: 8px; }
+.golf-hud-mid { flex: 1; min-width: 0; display: grid; line-height: 1.25; }
+.golf-hud-mid > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.golf-hud-mid span { font-size: 0.85rem; color: var(--muted); }
+.golf-hud-mid .over { color: var(--red-dark); }
+.golf-icon-btn { background: none !important; border: 0; padding: 0; min-height: 0; width: 44px; height: 44px; flex: none; }
+.golf-icon-btn img { width: 44px; height: 44px; }
+.golf-stage { position: relative; display: grid; justify-items: center; }
+.golf-canvas { display: block; touch-action: none; border-radius: 18px; box-shadow: 0 4px 16px rgba(60, 90, 30, 0.18); cursor: crosshair; -webkit-user-select: none; user-select: none; }
+.golf-result { position: absolute; inset: auto 8px 18% 8px; margin: 0 auto; max-width: 340px; display: grid; justify-items: center; gap: 4px; padding: 14px; border-radius: 20px; background: rgba(255, 252, 244, 0.97); border: 2px solid #e9c24b; box-shadow: 0 12px 30px rgba(40, 60, 20, 0.28); text-align: center; animation: pop-in .25s ease-out; }
+.golf-result img { width: 92px; height: auto; }
+.golf-result h3 { margin: 0; font-size: 1.5rem; color: #4a6a1c; }
+.golf-result p { margin: 0; }
+.golf-reward { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.golf-reward img { width: 24px; height: 24px; }
+.golf-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.golf-result-actions button { min-height: 44px; }
+.golf-bottom { display: flex; align-items: center; gap: 10px; }
+.golf-poch { width: 74px; height: 74px; object-fit: contain; flex: none; }
+.golf-bottom-mid { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.golf-power { position: relative; height: 22px; border-radius: 999px; background: #efe6d6; border: 2px solid #fff; box-shadow: 0 0 0 1.5px #d9c9a8; overflow: hidden; }
+.golf-power span { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #7fb04a 0%, #e9c24b 55%, #e0533b 100%); background-size: 340px 100%; border-radius: 999px; }
+.golf-power em { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal; font-size: 0.75rem; font-weight: 800; color: #5a4a2a; }
+.golf-tip { color: var(--muted); line-height: 1.3; }
+.golf-hint { flex: none; min-height: 44px; padding: 6px 12px; font-size: 0.85rem; background: #fff6dc; color: #8a5a0b; border: 2px solid #e9c24b; }
+.golf-hint.on { background: #e9c24b; color: #fff; }
+@media (max-width: 640px) {
+  body.golf-playing { overflow: hidden; overscroll-behavior: none; }
+  body.golf-playing .scroll-top { display: none; }
+  .golf.playing {
+    position: fixed; inset: 0; z-index: 60; height: 100dvh; box-sizing: border-box; display: flex; flex-direction: column;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
+    background: #f4f8ec; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .golf.playing .golf-stage { flex: 1; min-height: 0; align-content: center; }
+  .golf-holes { gap: 6px; }
+  .golf-hole { min-height: 108px; padding: 6px 2px; }
+  .golf-title { width: 140px; }
+  .golf-poch { width: 64px; height: 64px; }
+}
