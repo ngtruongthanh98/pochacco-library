@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import type { RefList } from '../data/refLists'
 import { buildReferences, STYLES, type RefEntry, type StyleId } from '../data/references'
 import type { Book } from '../types/book'
 
@@ -11,31 +12,41 @@ const loadStyle = (): StyleId => {
 }
 
 /**
- * Danh mục tài liệu tham khảo từ các cuốn đã chọn: chọn kiểu trích dẫn, xem cảnh báo thiếu thông tin,
+ * Một danh mục tài liệu tham khảo: chọn kiểu trích dẫn, xem cảnh báo thiếu thông tin,
  * sao chép (giữ chữ nghiêng khi dán vào Word) hoặc tải tệp.
  */
-export default function RefsPage({
+function RefsView({
+  title,
+  headActions,
+  fileName,
   books,
+  style,
+  numbered,
+  onStyle,
+  onNumbered,
   onRemove,
-  onClear,
+  onPickMore,
   onOpenBook,
   onEditBook,
-  onBack,
+  onBulk,
 }: {
+  title: ReactNode
+  headActions?: ReactNode
+  fileName: string
   books: Book[]
+  style: StyleId
+  numbered: boolean
+  onStyle: (s: StyleId) => void
+  onNumbered: (v: boolean) => void
   onRemove: (id: string) => void
-  onClear: () => void
+  onPickMore: () => void
   onOpenBook: (b: Book) => void
   onEditBook: (b: Book) => void
-  onBack: () => void
+  onBulk: (books: Book[]) => void
 }) {
-  const [style, setStyleState] = useState<StyleId>(loadStyle)
-  const [numbered, setNumbered] = useState(() => localStorage.getItem(NUM_KEY) !== '0')
   const [copied, setCopied] = useState<string | null>(null)
-  const setStyle = (s: StyleId) => {
-    setStyleState(s)
-    localStorage.setItem(STYLE_KEY, s)
-  }
+  const setStyle = onStyle
+  const setNumbered = onNumbered
   const entries = useMemo(() => buildReferences(books, style), [books, style])
   const isVn = style === 'vn'
   const isBib = style === 'bibtex'
@@ -99,7 +110,7 @@ export default function RefsPage({
     }
   }
   const download = (kind: 'doc' | 'txt' | 'bib') => {
-    const name = `tai-lieu-tham-khao-${STYLES.find((s) => s.id === style)!.label.toLowerCase().replace(/\s+/g, '-')}`
+    const name = `${fileName}-${STYLES.find((s) => s.id === style)!.label.toLowerCase().replace(/\s+/g, '-')}`
     const data =
       kind === 'doc'
         ? `<html><head><meta charset="utf-8"><title>Tài liệu tham khảo</title></head><body style="font-family:'Times New Roman';font-size:13pt"><h3>TÀI LIỆU THAM KHẢO</h3>${html()}</body></html>`
@@ -114,27 +125,31 @@ export default function RefsPage({
 
   if (!books.length)
     return (
-      <section className="card refs">
-        <h2>Tài liệu tham khảo</h2>
+      <>
+        <div className="refs-head">
+          <h2>{title}</h2>
+          <div className="refs-head-actions">{headActions}</div>
+        </div>
         <p className="muted">
-          Chưa chọn cuốn nào. Ở trang Thư viện, bấm <b>Chọn sách để trích dẫn</b> rồi tick các cuốn cần dùng; hoặc mở một cuốn và bấm{' '}
+          Danh mục này chưa có cuốn nào. Bấm <b>Chọn sách</b> để sang Thư viện và chạm vào các cuốn cần dùng; hoặc mở một cuốn và bấm{' '}
           <b>Thêm vào trích dẫn</b>.
         </p>
-        <button onClick={onBack}>Về thư viện để chọn sách</button>
-      </section>
+        <button onClick={onPickMore}>Chọn sách</button>
+      </>
     )
 
+  const missingPlace = entries.filter((e) => e.book.publisher && e.issues.some((i) => i.field === 'place'))
   return (
-    <section className="card refs">
+    <>
       <div className="refs-head">
-        <h2>Tài liệu tham khảo <span className="muted small">({books.length} cuốn)</span></h2>
+        <h2>
+          {title} <span className="muted small">({books.length} cuốn)</span>
+        </h2>
         <div className="refs-head-actions">
-          <button className="secondary small-btn" onClick={onBack}>
+          <button className="secondary small-btn" onClick={onPickMore}>
             + Chọn thêm sách
           </button>
-          <button className="link" onClick={onClear}>
-            Bỏ chọn tất cả
-          </button>
+          {headActions}
         </div>
       </div>
 
@@ -156,7 +171,6 @@ export default function RefsPage({
             checked={numbered}
             onChange={(e) => {
               setNumbered(e.target.checked)
-              localStorage.setItem(NUM_KEY, e.target.checked ? '1' : '0')
             }}
           />
           Đánh số [1], [2]… (dẫn trong bài bằng số)
@@ -168,6 +182,18 @@ export default function RefsPage({
           <div className="refs-warn-title">
             ⚠️ {withIssues.length} cuốn cần bổ sung thông tin cho {STYLES.find((s) => s.id === style)!.label}
             {errors.length > 0 && <span> ({errors.length} cuốn thiếu thông tin bắt buộc)</span>}
+          </div>
+          <div className="refs-bulk">
+            {missingPlace.length > 1 && (
+              <button className="small-btn" onClick={() => onBulk(missingPlace.map((e) => e.book))}>
+                Điền nơi xuất bản cho {missingPlace.length} cuốn
+              </button>
+            )}
+            {withIssues.length > 1 && (
+              <button className="secondary small-btn" onClick={() => onBulk(withIssues.map((e) => e.book))}>
+                Sửa hàng loạt {withIssues.length} cuốn này
+              </button>
+            )}
           </div>
           <ul>
             {withIssues.map((e) => (
@@ -245,6 +271,237 @@ export default function RefsPage({
           </div>
         ))}
       </div>
+    </>
+  )
+}
+
+const TEMP = 'tam'
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('vi-VN')
+
+/**
+ * Trang Tài liệu tham khảo: các danh mục đã lưu theo bài viết và danh sách tạm.
+ * Mở một danh mục để xem, sửa, xuất lại; danh mục đang mở là nơi nhận các cuốn được chọn ở Thư viện.
+ */
+export default function RefsPage({
+  view,
+  lists,
+  tempIds,
+  byId,
+  onView,
+  onCreate,
+  onRename,
+  onDelete,
+  onPatch,
+  onTempChange,
+  onPickMore,
+  onOpenBook,
+  onEditBook,
+  onBulk,
+}: {
+  view: string | null
+  lists: RefList[]
+  tempIds: string[]
+  byId: Map<string, Book>
+  onView: (v: string | null) => void
+  onCreate: (name: string, ids: string[]) => void
+  onRename: (id: string, name: string) => void
+  onDelete: (id: string) => void
+  onPatch: (id: string, patch: Partial<Pick<RefList, 'books' | 'style' | 'numbered'>>) => void
+  onTempChange: (ids: string[]) => void
+  onPickMore: (view: string) => void
+  onOpenBook: (b: Book) => void
+  onEditBook: (b: Book) => void
+  onBulk: (books: Book[]) => void
+}) {
+  const [tempStyle, setTempStyle] = useState<StyleId>(loadStyle)
+  const [tempNum, setTempNum] = useState(() => localStorage.getItem(NUM_KEY) !== '0')
+  const [newName, setNewName] = useState('')
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [askDelete, setAskDelete] = useState(false)
+  const booksOf = (ids: string[]) => ids.map((id) => byId.get(id)).filter((b): b is Book => !!b)
+  const list = view && view !== TEMP ? lists.find((l) => l.id === view) : undefined
+
+  // ----- Trang tổng: các danh mục -----
+  if (!view || (view !== TEMP && !list)) {
+    const create = () => {
+      const n = newName.trim()
+      if (!n) return
+      onCreate(n, [])
+      setNewName('')
+    }
+    return (
+      <section className="card refs">
+        <div className="refs-head">
+          <h2>Tài liệu tham khảo</h2>
+        </div>
+        <p className="muted">Mỗi bài viết một danh mục: chọn sách vào danh mục, xem cảnh báo thiếu thông tin, rồi xuất theo kiểu trích dẫn của tạp chí.</p>
+        <form
+          className="refs-new"
+          onSubmit={(e) => {
+            e.preventDefault()
+            create()
+          }}
+        >
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Tên danh mục mới, vd. Bài Feenberg CELG 2026" />
+          <button type="submit" disabled={!newName.trim()}>
+            + Tạo danh mục
+          </button>
+        </form>
+        <ul className="refs-lists">
+          {tempIds.length > 0 && (
+            <li>
+              <button className="refs-listcard temp" onClick={() => onView(TEMP)}>
+                <b>Danh sách tạm</b>
+                <span className="muted small">{tempIds.length} cuốn chưa lưu vào danh mục nào</span>
+              </button>
+            </li>
+          )}
+          {[...lists]
+            .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+            .map((l) => (
+              <li key={l.id}>
+                <button className="refs-listcard" onClick={() => onView(l.id)}>
+                  <b>{l.name}</b>
+                  <span className="muted small">
+                    {l.books.length} cuốn · {STYLES.find((s) => s.id === l.style)?.label} · sửa {fmtDate(l.updatedAt)}
+                  </span>
+                </button>
+              </li>
+            ))}
+        </ul>
+        {!lists.length && !tempIds.length && <p className="muted small">Chưa có danh mục nào. Tạo một danh mục cho bài đang viết để bắt đầu.</p>}
+      </section>
+    )
+  }
+
+  // ----- Danh sách tạm -----
+  if (view === TEMP)
+    return (
+      <section className="card refs">
+        <button className="link back" onClick={() => onView(null)}>
+          ← Các danh mục
+        </button>
+        <RefsView
+          title="Danh sách tạm"
+          fileName="tai-lieu-tham-khao"
+          books={booksOf(tempIds)}
+          style={tempStyle}
+          numbered={tempNum}
+          onStyle={(s) => {
+            setTempStyle(s)
+            localStorage.setItem(STYLE_KEY, s)
+          }}
+          onNumbered={(v) => {
+            setTempNum(v)
+            localStorage.setItem(NUM_KEY, v ? '1' : '0')
+          }}
+          onRemove={(id) => onTempChange(tempIds.filter((x) => x !== id))}
+          onPickMore={() => onPickMore(TEMP)}
+          onOpenBook={onOpenBook}
+          onEditBook={onEditBook}
+          onBulk={onBulk}
+          headActions={
+            <>
+              <form
+                className="refs-save-as"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (!newName.trim()) return
+                  onCreate(newName.trim(), tempIds)
+                  onTempChange([])
+                  setNewName('')
+                }}
+              >
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Đặt tên để lưu thành danh mục" />
+                <button type="submit" className="small-btn" disabled={!newName.trim()}>
+                  Lưu
+                </button>
+              </form>
+              <button className="link" onClick={() => onTempChange([])}>
+                Bỏ chọn tất cả
+              </button>
+            </>
+          }
+        />
+      </section>
+    )
+
+  // ----- Một danh mục đã lưu -----
+  const l = list!
+  return (
+    <section className="card refs">
+      <button className="link back" onClick={() => onView(null)}>
+        ← Các danh mục
+      </button>
+      <RefsView
+        title={
+          renaming !== null ? (
+            <form
+              className="refs-rename"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (renaming.trim()) onRename(l.id, renaming.trim())
+                setRenaming(null)
+              }}
+            >
+              <input autoFocus value={renaming} onChange={(e) => setRenaming(e.target.value)} />
+              <button type="submit" className="small-btn">
+                Đổi tên
+              </button>
+            </form>
+          ) : (
+            l.name
+          )
+        }
+        fileName={l.name}
+        books={booksOf(l.books)}
+        style={l.style}
+        numbered={l.numbered}
+        onStyle={(s) => onPatch(l.id, { style: s })}
+        onNumbered={(v) => onPatch(l.id, { numbered: v })}
+        onRemove={(id) => onPatch(l.id, { books: l.books.filter((x) => x !== id) })}
+        onPickMore={() => onPickMore(l.id)}
+        onOpenBook={onOpenBook}
+        onEditBook={onEditBook}
+        onBulk={onBulk}
+        headActions={
+          <>
+            {renaming === null && (
+              <button className="link" onClick={() => setRenaming(l.name)}>
+                Đổi tên
+              </button>
+            )}
+            <button className="link" onClick={() => setAskDelete(true)}>
+              Xóa danh mục
+            </button>
+          </>
+        }
+      />
+      {l.books.length > booksOf(l.books).length && (
+        <p className="muted small">{l.books.length - booksOf(l.books).length} cuốn trong danh mục đã bị xóa khỏi thư viện nên không hiện ở đây.</p>
+      )}
+      {askDelete && (
+        <div className="dialog-backdrop" role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && setAskDelete(false)}>
+          <div className="dialog">
+            <h3>Xóa danh mục “{l.name}”?</h3>
+            <p>Chỉ xóa danh mục, các cuốn sách trong thư viện vẫn giữ nguyên.</p>
+            <div className="dialog-actions">
+              <button className="secondary" onClick={() => setAskDelete(false)}>
+                Giữ lại
+              </button>
+              <button
+                className="danger"
+                onClick={() => {
+                  setAskDelete(false)
+                  onDelete(l.id)
+                }}
+              >
+                Xóa danh mục
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

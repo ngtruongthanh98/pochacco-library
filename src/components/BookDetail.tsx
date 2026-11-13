@@ -99,6 +99,7 @@ export default function BookDetail({
   onDuplicate,
   onAddEdition,
   picked = false,
+  pickName,
   onTogglePick,
   onDeleted,
   excerpts,
@@ -118,6 +119,7 @@ export default function BookDetail({
   onDuplicate: () => void
   onAddEdition: () => void
   picked?: boolean
+  pickName?: string
   onTogglePick?: () => void
   onDeleted: (b: Book) => void
   excerpts: Excerpt[]
@@ -211,7 +213,7 @@ export default function BookDetail({
           </button>
           {onTogglePick && (
             <button className={`small-btn ${picked ? '' : 'secondary'}`} onClick={onTogglePick} aria-pressed={picked}>
-              {picked ? '✓ Đã chọn để trích dẫn' : 'Thêm vào trích dẫn'}
+              {picked ? (pickName ? `✓ Có trong «${pickName}»` : '✓ Đã chọn để trích dẫn') : pickName ? `Thêm vào «${pickName}»` : 'Thêm vào trích dẫn'}
             </button>
           )}
           <button className="secondary small-btn" onClick={onEdit}>

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { placeIndex, suggestPlace } from '../data/publisherPlace'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { addBook, prepareCover, updateBook, uploadCover, type StoreConfig } from '../data/githubStore'
 import Cover from './Cover'
@@ -365,6 +366,7 @@ export default function BookForm({
 
   // --- Gợi ý từ thư viện ---
   const opts = useLibraryOptions(books, initial?.id)
+  const placeIdx = useMemo(() => placeIndex(books), [books])
 
   /** Giá trị hay đi kèm nhất trong những sách thỏa điều kiện (vd: nơi xuất bản của một NXB). */
   const mostCommon = (match: (b: Book) => boolean, get: (b: Book) => string | undefined) => {
@@ -671,7 +673,17 @@ export default function BookForm({
           )}
         </div>
         <div className="row3">
-          <SuggestInput label="Nơi xuất bản" placeholder="Hà Nội" value={f.place} onChange={setField('place')} options={opts.places} />
+          <div className="place-field">
+            <SuggestInput label="Nơi xuất bản" placeholder="Hà Nội" value={f.place} onChange={setField('place')} options={opts.places} />
+            {(() => {
+              const h = !f.place.trim() && f.type !== 'thesis' ? suggestPlace(f.publisher, placeIdx) : null
+              return h ? (
+                <button type="button" className="place-hint" onClick={() => setF((cur) => ({ ...cur, place: h.place }))} title={h.from === 'library' ? `Theo ${h.count} cuốn khác của NXB này trong thư viện` : 'Trụ sở chính của NXB này'}>
+                  Gợi ý: {h.place}
+                </button>
+              ) : null
+            })()}
+          </div>
           <label>
             Năm
             <input inputMode="numeric" value={f.year} onChange={set('year')} />

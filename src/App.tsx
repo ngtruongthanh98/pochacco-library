@@ -21,9 +21,14 @@ import type { Excerpt } from './types/excerpt'
 import { buildIndex } from './search/searchIndex'
 import { duplicateDraft, editionDraft } from './data/duplicate'
 import RefsPage from './components/RefsPage'
+import BulkEdit from './components/BulkEdit'
+import BackupPanel, { downloadBackup, LAST_BACKUP_KEY } from './components/BackupPanel'
+import { loadRefLists, newListId, saveRefLists, type RefList } from './data/refLists'
 import { bindingLabel, type Binding } from './types/book'
 
 const PICK_KEY = 'pochacco-library:cite-picks'
+const TARGET_KEY = 'pochacco-library:cite-target'
+const SNOOZE_KEY = 'pochacco-library:backup-snooze'
 
 /** Nhãn loại bìa trên thẻ sách: chỉ hiện khi khác bìa mềm, hoặc khi cuốn có nhiều loại bìa. */
 const bindingTags = (b: Book): Binding[] => {
@@ -342,8 +347,28 @@ export default function App() {
       localStorage.setItem(PICK_KEY, JSON.stringify(next))
       return next
     })
-  const togglePick = (id: string) => setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))
   const [selecting, setSelecting] = useState(false)
+  // Danh mục tài liệu theo bài viết (config/reflists.json)
+  const [refLists, setRefLists] = useState<RefList[]>([])
+  const refSha = useRef<string | null>(null)
+  const refLoaded = useRef(false)
+  const refTimer = useRef(0)
+  const refListsRef = useRef(refLists)
+  refListsRef.current = refLists
+  const [refView, setRefView] = useState<string | null>(initial.refList)
+  /** Nơi nhận các cuốn được chọn: 'tam' (danh sách tạm) hoặc id danh mục. */
+  const [pickTarget, setPickTargetState] = useState<string>(() => localStorage.getItem(TARGET_KEY) ?? 'tam')
+  const setPickTarget = (t: string) => {
+    setPickTargetState(t)
+    localStorage.setItem(TARGET_KEY, t)
+  }
+  const targetList = pickTarget !== 'tam' ? refLists.find((l) => l.id === pickTarget) : undefined
+  const workingIds = targetList ? targetList.books : picked
+  const [bulk, setBulk] = useState<Book[] | null>(null)
+  // Nhắc tải bản sao lưu về máy mỗi tuần
+  const [lastBackup, setLastBackup] = useState(() => localStorage.getItem(LAST_BACKUP_KEY))
+  const [snooze, setSnooze] = useState(() => localStorage.getItem(SNOOZE_KEY))
+  const [backupBusy, setBackupBusy] = useState(false)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
   const [queue, setQueue] = useState<{ ids: string[]; total: number } | null>(null)
@@ -371,7 +396,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg, refList: page === 'refs' ? refView : null }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -402,6 +427,7 @@ export default function App() {
       setSort(r.sort)
       setFmt(r.fmt)
       setTopic(r.topic)
+      setRefView(r.refList)
       setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
@@ -424,6 +450,41 @@ export default function App() {
     setScanMode(null)
     setAdding(false)
     setPage('library')
+  }
+
+  /** Sửa danh mục tài liệu: cập nhật ngay trên màn hình, ghi lên repo sau 1,5 giây yên lặng. */
+  const changeLists = (fn: (ls: RefList[]) => RefList[], message: string) => {
+    const next = fn(refListsRef.current)
+    refListsRef.current = next
+    setRefLists(next)
+    if (!cfg) return
+    window.clearTimeout(refTimer.current)
+    refTimer.current = window.setTimeout(() => {
+      saveRefLists(cfg, refListsRef.current, refSha.current, message)
+        .then((sha) => (refSha.current = sha))
+        .catch((e: Error) => setNotice({ title: 'Chưa lưu được danh mục tài liệu', text: e.message }))
+    }, 1500)
+  }
+  const now = () => new Date().toISOString()
+  const patchList = (id: string, patch: Partial<Pick<RefList, 'books' | 'style' | 'numbered' | 'name'>>) =>
+    changeLists((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch, updatedAt: now() } : l)), `Danh mục tài liệu: ${refListsRef.current.find((l) => l.id === id)?.name ?? ''}`)
+  const togglePick = (id: string) => {
+    if (targetList) {
+      const has = targetList.books.includes(id)
+      patchList(targetList.id, { books: has ? targetList.books.filter((x) => x !== id) : [...targetList.books, id] })
+    } else setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))
+  }
+  const openRefs = (view: string | null) => {
+    setSelecting(false)
+    setOpenId(null)
+    setAdding(false)
+    setEditing(false)
+    setReading(null)
+    setScanMode(null)
+    if (view) setPickTarget(view)
+    setRefView(view)
+    setPage('refs')
+    window.scrollTo(0, 0)
   }
 
   /** Quay về trang trước trong lịch sử nếu nó thuộc ứng dụng; nếu không (mở thẳng từ link) thì tự chuyển trang. */
@@ -458,6 +519,13 @@ export default function App() {
       .then((r) => {
         setReaderCfg(r?.data ?? {})
         setReaderSha(r?.sha ?? null)
+      })
+      .catch(() => undefined)
+    loadRefLists(cfg)
+      .then((r) => {
+        refSha.current = r.sha
+        setRefLists(r.lists)
+        refLoaded.current = true
       })
       .catch(() => undefined)
     Promise.all([fetchCatalog(cfg).then(setBooks), tax, ex, rc])
@@ -504,6 +572,10 @@ export default function App() {
     window.scrollTo(0, 0)
   }
   const byId = useMemo(() => new Map(books.map((b) => [b.id, b])), [books])
+  const backupDue =
+    !!cfg && !loading && books.length > 0 &&
+    (!lastBackup || Date.now() - new Date(lastBackup).getTime() > 7 * 86_400_000) &&
+    (!snooze || Date.now() > new Date(snooze).getTime())
   const openBook = openId ? byId.get(openId) : undefined
   const readingHolding =
     openBook && reading !== null && openBook.holdings[reading]?.kind === 'ebook'
@@ -586,6 +658,9 @@ export default function App() {
           >
             Trích dẫn
           </button>
+          <button className={page === 'refs' ? 'page-tab active' : 'page-tab'} onClick={() => openRefs(null)} title="Danh mục tài liệu tham khảo theo bài viết">
+            Tài liệu
+          </button>
           <button
             className={page === 'games' ? 'page-tab active' : 'page-tab'}
             onClick={() => { setPage('games'); setOpenId(null); setAdding(false); setScanMode(null); setEditing(false); setReading(null); window.scrollTo(0, 0) }}
@@ -667,9 +742,36 @@ export default function App() {
           />
         ) : page === 'refs' ? (
           <RefsPage
-            books={picked.map((id) => byId.get(id)).filter((b): b is Book => !!b)}
-            onRemove={(id) => setPicked((xs) => xs.filter((x) => x !== id))}
-            onClear={() => setPicked(() => [])}
+            view={refView}
+            lists={refLists}
+            tempIds={picked}
+            byId={byId}
+            onView={(v) => {
+              if (v) setPickTarget(v)
+              setRefView(v)
+              window.scrollTo(0, 0)
+            }}
+            onCreate={(name, ids) => {
+              const id = newListId()
+              const t = now()
+              changeLists((ls) => [...ls, { id, name, style: (localStorage.getItem('pochacco-library:cite-style') as RefList['style']) || 'vn', numbered: true, books: ids, createdAt: t, updatedAt: t }], `Tạo danh mục tài liệu: ${name}`)
+              setPickTarget(id)
+              setRefView(id)
+            }}
+            onRename={(id, name) => patchList(id, { name })}
+            onDelete={(id) => {
+              changeLists((ls) => ls.filter((l) => l.id !== id), 'Xóa danh mục tài liệu')
+              if (pickTarget === id) setPickTarget('tam')
+              setRefView(null)
+            }}
+            onPatch={patchList}
+            onTempChange={(ids) => setPicked(() => ids)}
+            onPickMore={(v) => {
+              setPickTarget(v)
+              setPage('library')
+              setSelecting(true)
+              window.scrollTo(0, 0)
+            }}
             onOpenBook={(b) => {
               setPage('library')
               setOpenId(b.id)
@@ -681,11 +783,7 @@ export default function App() {
               setEditing(true)
               window.scrollTo(0, 0)
             }}
-            onBack={() => {
-              setPage('library')
-              setSelecting(true)
-              window.scrollTo(0, 0)
-            }}
+            onBulk={(bs) => setBulk(bs)}
           />
         ) : page === 'games' ? (
           <Suspense fallback={<State img="anim-read" title="Pochacco đang dọn sân chơi..." />}>
@@ -750,6 +848,15 @@ export default function App() {
                 setReaderSha(sha)
               }}
             />
+            <BackupPanel
+              cfg={cfg}
+              books={books}
+              excerpts={excerpts}
+              onRestored={() => {
+                fetchCatalog(cfg).then(setBooks).catch(() => undefined)
+                fetchExcerpts(cfg).then(setExcerpts).catch(() => undefined)
+              }}
+            />
             </>
           )
         ) : page === 'stats' ? (
@@ -807,7 +914,8 @@ export default function App() {
                 setEditing(false)
                 window.scrollTo(0, 0)
               }}
-              picked={picked.includes(openId)}
+              picked={workingIds.includes(openId)}
+              pickName={targetList?.name}
               onTogglePick={() => togglePick(openId)}
               onAddEdition={() => {
                 const src = byId.get(openId)!
@@ -993,6 +1101,39 @@ export default function App() {
                 </button>
               </div>
             )}
+            {backupDue && (
+              <div className="backup-nudge">
+                <span>
+                  {lastBackup ? `Đã ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86_400_000)} ngày chưa tải bản sao lưu về máy.` : 'Chưa có bản sao lưu nào trên máy này.'} Nên giữ một bản ngoài GitHub phòng khi cần khôi phục.
+                </span>
+                <button
+                  className="small-btn"
+                  disabled={backupBusy}
+                  onClick={() => {
+                    setBackupBusy(true)
+                    downloadBackup(cfg, false)
+                      .then((m) => {
+                        setLastBackup(m.createdAt)
+                        setNotice({ title: 'Đã tải bản sao lưu', text: `${m.books} sách, ${m.excerpts} trích dẫn. Cất tệp .zip ở nơi an toàn (Google Drive, máy tính).` })
+                      })
+                      .catch((e: Error) => setNotice({ title: 'Chưa tải được bản sao lưu', text: e.message }))
+                      .finally(() => setBackupBusy(false))
+                  }}
+                >
+                  {backupBusy ? 'Đang nén…' : 'Tải bản sao lưu'}
+                </button>
+                <button
+                  className="link"
+                  onClick={() => {
+                    const until = new Date(Date.now() + 3 * 86_400_000).toISOString()
+                    localStorage.setItem(SNOOZE_KEY, until)
+                    setSnooze(until)
+                  }}
+                >
+                  Nhắc sau
+                </button>
+              </div>
+            )}
             <div className="toolbar">
               <button className="secondary" onClick={() => { setSaved(null); setNotice(null); setScanMode('shelf') }}>
                 Quét theo kệ
@@ -1010,6 +1151,7 @@ export default function App() {
             </div>
             {selecting && (
               <p className="pick-hint">
+                {targetList ? <>Đang chọn sách cho danh mục <b>«{targetList.name}»</b>. </> : null}
                 Chạm vào cuốn sách để chọn hoặc bỏ chọn. Có thể tìm kiếm, đổi danh mục rồi chọn tiếp; các cuốn đã chọn vẫn được giữ.
               </p>
             )}
@@ -1165,7 +1307,7 @@ export default function App() {
                   cfg={cfg}
                   index={i}
                   selecting={selecting}
-                  picked={picked.includes(b.id)}
+                  picked={workingIds.includes(b.id)}
                   onPick={() => togglePick(b.id)}
                   onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }}
                 />
@@ -1195,26 +1337,49 @@ export default function App() {
           </>
         )}
       </main>
-      {cfg && picked.length > 0 && page === 'library' && !adding && !editing && reading === null && !scanMode && (
+      {cfg && (workingIds.length > 0 || (selecting && targetList)) && page === 'library' && !adding && !editing && reading === null && !scanMode && (
         <div className="pick-bar" role="status">
           <span>
-            Đã chọn <b>{picked.length}</b> cuốn để trích dẫn
+            {targetList ? (
+              <>
+                «{targetList.name}»: <b>{workingIds.length}</b> cuốn
+              </>
+            ) : (
+              <>
+                Đã chọn <b>{workingIds.length}</b> cuốn
+              </>
+            )}
           </span>
-          <button
-            className="small-btn"
-            onClick={() => {
-              setSelecting(false)
-              setOpenId(null)
-              setPage('refs')
-              window.scrollTo(0, 0)
-            }}
-          >
-            Tạo danh mục tài liệu
+          <button className="small-btn" onClick={() => openRefs(targetList ? targetList.id : 'tam')} disabled={!workingIds.length}>
+            {targetList ? 'Xem danh mục' : 'Tạo danh mục tài liệu'}
           </button>
-          <button className="link" onClick={() => setPicked(() => [])}>
-            Bỏ chọn
+          <button className="link" onClick={() => setBulk(workingIds.map((id) => byId.get(id)).filter((b): b is Book => !!b))} disabled={!workingIds.length}>
+            Sửa hàng loạt
           </button>
+          {targetList ? (
+            <button className="link" onClick={() => { setSelecting(false); setPickTarget('tam') }}>
+              Xong
+            </button>
+          ) : (
+            <button className="link" onClick={() => setPicked(() => [])}>
+              Bỏ chọn
+            </button>
+          )}
         </div>
+      )}
+      {cfg && bulk && (
+        <BulkEdit
+          cfg={cfg}
+          books={bulk}
+          all={books}
+          onClose={() => setBulk(null)}
+          onSaved={(updated) => {
+            const m = new Map(updated.map((b) => [b.id, b]))
+            setBooks((prev) => prev.map((b) => m.get(b.id) ?? b))
+            setBulk(null)
+            setNotice({ title: 'Đã sửa hàng loạt', text: `Đã cập nhật ${updated.length} cuốn.` })
+          }}
+        />
       )}
       {cfg && <ScrollTop />}
       {cfg && <Napper />}

@@ -1,6 +1,7 @@
 // Tạo danh mục tài liệu tham khảo theo nhiều kiểu trích dẫn, và kiểm tra thông tin còn thiếu của từng cuốn.
 import type { Book, Name } from '../types/book'
 import { foldVi } from '../search/normalizeVi'
+import { withNxb } from './publisherPlace'
 
 export type StyleId = 'vn' | 'apa' | 'chicago' | 'mla' | 'harvard' | 'bibtex'
 export const STYLES: { id: StyleId; label: string; note: string }[] = [
@@ -78,7 +79,9 @@ function vn(b: Book): Seg[] {
   const ed = b.edition && b.edition > 1 ? `tái bản lần ${b.edition - 1}` : ''
   const vol = b.volume ? `t.${b.volume}` : b.seriesNo !== undefined && b.series ? `t.${b.seriesNo}` : ''
   const pp = b.pageRange ? `tr. ${pagesOf(b.pageRange)}` : ''
-  const pub = [b.publisher, b.place].filter(Boolean).join(', ')
+  // Sách tiếng Việt ghi "Nxb ..." theo quy định trình bày
+  const publisher = b.publisher && isVi(b) && b.type !== 'thesis' ? withNxb(b.publisher) : b.publisher
+  const pub = [publisher, b.place].filter(Boolean).join(', ')
   switch (b.type) {
     case 'chapter':
       return [head, `“${titleFull(b)}”, trong: `, ...(b.editors?.length ? [`${b.editors.map(vnAuthor).join(', ')} (chủ biên), `] : []), { i: b.containerTitle ?? '' }, end(`, ${[pub, pp].filter(Boolean).join(', ')}`)]
@@ -91,7 +94,7 @@ function vn(b: Book): Seg[] {
     case 'webpage':
       return [head, `“${titleFull(b)}”, `, end([b.containerTitle, b.url].filter(Boolean).join(', '))]
     default:
-      return [head, { i: titleFull(b) }, end(['', vol, tr, ed, b.publisher, b.place].filter((x, k) => k === 0 || x).join(', ').replace(/^, /, ', '))]
+      return [head, { i: titleFull(b) }, end(['', vol, tr, ed, publisher, b.place].filter((x, k) => k === 0 || x).join(', ').replace(/^, /, ', '))]
   }
 }
 
