@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { addBook, prepareCover, updateBook, uploadCover, type StoreConfig } from '../data/githubStore'
 import Cover from './Cover'
+import { countOptions, SuggestInput, SuggestLines, type Option } from './Suggest'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
@@ -231,9 +232,6 @@ const findDuplicates = (book: Book, books: Book[]) => {
   )
 }
 
-const uniq = (xs: (string | undefined)[]) =>
-  [...new Set(xs.filter((x): x is string => !!x && !!x.trim()))].sort((a, b) => a.localeCompare(b, 'vi'))
-
 export default function BookForm({
   cfg,
   books,
@@ -367,16 +365,79 @@ export default function BookForm({
     setF({ ...f, [k]: e.target.value })
   }
 
-  const lists = useMemo(
-    () => ({
-      publishers: uniq(books.map((b) => b.publisher)),
-      partners: uniq(books.map((b) => b.partner)),
-      places: uniq(books.map((b) => b.place)),
-      locations: uniq(books.flatMap((b) => b.holdings.map((h) => (h.kind === 'print' ? h.location : undefined)))),
-      series: uniq(books.map((b) => b.series)),
-    }),
-    [books],
-  )
+
+  // --- Gợi ý từ thư viện ---
+  const opts = useMemo(() => {
+    const others = books.filter((b) => b.id !== initial?.id)
+    // Người: gộp tác giả, dịch giả, chủ biên; ghi chú vai trò để dễ phân biệt người trùng tên.
+    const people = new Map<string, { value: string; roles: Record<string, number> }>()
+    const addPeople = (ns: Name[] | undefined, role: string) => {
+      for (const n of ns ?? []) {
+        const v = namesToText([n]).replace(/,$/, '').trim()
+        if (!v) continue
+        const k = v.toLocaleLowerCase('vi')
+        const cur = people.get(k) ?? { value: v, roles: {} }
+        cur.roles[role] = (cur.roles[role] ?? 0) + 1
+        people.set(k, cur)
+      }
+    }
+    for (const b of others) {
+      addPeople(b.authors, 'tác giả')
+      addPeople(b.translators, 'dịch giả')
+      addPeople(b.editors, 'chủ biên')
+    }
+    const peopleOpts: Option[] = [...people.values()]
+      .map((p) => ({
+        value: p.value,
+        count: Object.values(p.roles).reduce((a, b) => a + b, 0),
+        hint: Object.entries(p.roles)
+          .sort((a, b) => b[1] - a[1])
+          .map(([r, n]) => `${r} ${n}`)
+          .join(' · '),
+      }))
+      .sort((a, b) => b.count - a.count)
+    return {
+      people: peopleOpts,
+      publishers: countOptions(others.map((b) => b.publisher)),
+      partners: countOptions(others.map((b) => b.partner)),
+      places: countOptions(others.map((b) => b.place), ['Hà Nội', 'TP. Hồ Chí Minh', 'Huế', 'Đà Nẵng']),
+      series: countOptions(others.map((b) => b.series)),
+      locations: countOptions(others.flatMap((b) => b.holdings.map((h) => (h.kind === 'print' ? h.location : undefined)))),
+    }
+  }, [books, initial?.id])
+
+  /** Giá trị hay đi kèm nhất trong những sách thỏa điều kiện (vd: nơi xuất bản của một NXB). */
+  const mostCommon = (match: (b: Book) => boolean, get: (b: Book) => string | undefined) => {
+    const c = new Map<string, number>()
+    for (const b of books) if (b.id !== initial?.id && match(b)) {
+      const v = get(b)?.trim()
+      if (v) c.set(v, (c.get(v) ?? 0) + 1)
+    }
+    return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+  }
+  const same = (a?: string, b?: string) => !!a && !!b && a.trim().toLocaleLowerCase('vi') === b.trim().toLocaleLowerCase('vi')
+  const [autoMsg, setAutoMsg] = useState<string | null>(null)
+  const setField = (k: keyof Fields) => (v: string) => {
+    setError(null)
+    setF((cur) => ({ ...cur, [k]: v }))
+  }
+  const pickPublisher = (pub: string) => {
+    const place = mostCommon((b) => same(b.publisher, pub), (b) => b.place)
+    setF((cur) => (cur.place.trim() || !place ? cur : { ...cur, place }))
+    if (place && !f.place.trim()) setAutoMsg(`Đã điền nơi xuất bản “${place}” theo các sách khác của ${pub}.`)
+  }
+  const pickSeries = (series: string) => {
+    const pub = mostCommon((b) => same(b.series, series), (b) => b.publisher)
+    const partner = mostCommon((b) => same(b.series, series), (b) => b.partner)
+    const place = mostCommon((b) => same(b.series, series), (b) => b.place)
+    const filled: string[] = []
+    const patch: Partial<Fields> = {}
+    if (!f.publisher.trim() && pub) (patch.publisher = pub), filled.push('nhà xuất bản')
+    if (!f.partner.trim() && partner) (patch.partner = partner), filled.push('đơn vị liên kết')
+    if (!f.place.trim() && place) (patch.place = place), filled.push('nơi xuất bản')
+    setF((cur) => ({ ...cur, ...patch }))
+    if (filled.length) setAutoMsg(`Đã điền ${filled.join(', ')} theo các cuốn khác trong tùng thư “${series}”.`)
+  }
   const inContainer = ['chapter', 'article-journal', 'paper-conference'].includes(f.type)
 
   const save = async (force: boolean) => {
@@ -552,18 +613,9 @@ export default function BookForm({
           và pháp danh viết như bình thường, không dấu phẩy.
         </p>
         <div className="row3">
-          <label>
-            Tác giả
-            <textarea rows={2} value={f.authors} onChange={set('authors')} />
-          </label>
-          <label>
-            Dịch giả
-            <textarea rows={2} value={f.translators} onChange={set('translators')} />
-          </label>
-          <label>
-            Chủ biên, biên soạn
-            <textarea rows={2} value={f.editors} onChange={set('editors')} />
-          </label>
+          <SuggestLines label="Tác giả" value={f.authors} onChange={setField('authors')} options={opts.people} />
+          <SuggestLines label="Dịch giả" value={f.translators} onChange={setField('translators')} options={opts.people} />
+          <SuggestLines label="Chủ biên, biên soạn" value={f.editors} onChange={setField('editors')} options={opts.people} />
         </div>
         <label>
           Mô tả, giới thiệu nội dung
@@ -606,28 +658,33 @@ export default function BookForm({
 
       <fieldset>
         <legend>Xuất bản</legend>
+        {autoMsg && (
+          <p className="auto-msg" role="status">
+            {autoMsg}{' '}
+            <button type="button" className="link" onClick={() => setAutoMsg(null)}>
+              Ẩn
+            </button>
+          </p>
+        )}
         <div className="row">
-          <label>
-            {f.type === 'thesis' ? 'Cơ sở đào tạo' : 'Nhà xuất bản'}
-            <input list="dl-publishers" value={f.publisher} onChange={set('publisher')} />
-          </label>
+          <SuggestInput
+            label={f.type === 'thesis' ? 'Cơ sở đào tạo' : 'Nhà xuất bản'}
+            value={f.publisher}
+            onChange={setField('publisher')}
+            options={opts.publishers}
+            onPick={pickPublisher}
+          />
           {f.type === 'thesis' ? (
             <label>
               Loại (vd. Luận văn thạc sĩ)
               <input value={f.genre} onChange={set('genre')} />
             </label>
           ) : (
-            <label>
-              Đơn vị liên kết
-              <input list="dl-partners" placeholder="Nhã Nam, Omega Plus..." value={f.partner} onChange={set('partner')} />
-            </label>
+            <SuggestInput label="Đơn vị liên kết" placeholder="Nhã Nam, Omega Plus..." value={f.partner} onChange={setField('partner')} options={opts.partners} />
           )}
         </div>
         <div className="row3">
-          <label>
-            Nơi xuất bản
-            <input list="dl-places" placeholder="Hà Nội" value={f.place} onChange={set('place')} />
-          </label>
+          <SuggestInput label="Nơi xuất bản" placeholder="Hà Nội" value={f.place} onChange={setField('place')} options={opts.places} />
           <label>
             Năm
             <input inputMode="numeric" value={f.year} onChange={set('year')} />
@@ -704,10 +761,7 @@ export default function BookForm({
             Nhãn
             <input value={f.tags} onChange={set('tags')} />
           </label>
-          <label>
-            Tùng thư
-            <input list="dl-series" value={f.series} onChange={set('series')} />
-          </label>
+          <SuggestInput label="Tùng thư" value={f.series} onChange={setField('series')} options={opts.series} onPick={pickSeries} />
           <label>
             Số trong tùng thư
             <input inputMode="decimal" value={f.seriesNo} onChange={set('seriesNo')} />
@@ -730,10 +784,14 @@ export default function BookForm({
               ))}
             </select>
           </label>
-          <label>
-            Vị trí (tủ, kệ)
-            <input list="dl-locations" placeholder="T1-K2" value={f.location} onChange={set('location')} disabled={f.status === 'wishlist' || !hasPrint} />
-          </label>
+          <SuggestInput
+            label="Vị trí (tủ, kệ)"
+            placeholder="T1-K2"
+            value={f.location}
+            onChange={setField('location')}
+            options={opts.locations}
+            disabled={f.status === 'wishlist' || !hasPrint}
+          />
         </div>
         <div className="row">
           <label>
@@ -828,11 +886,6 @@ export default function BookForm({
         {driveErr && <p className="error">{driveErr}</p>}
       </fieldset>
 
-      <datalist id="dl-publishers">{lists.publishers.map((x) => <option key={x} value={x} />)}</datalist>
-      <datalist id="dl-partners">{lists.partners.map((x) => <option key={x} value={x} />)}</datalist>
-      <datalist id="dl-places">{['Hà Nội', 'TP. Hồ Chí Minh', 'Huế', 'Đà Nẵng', ...lists.places].filter((x, i, a) => a.indexOf(x) === i).map((x) => <option key={x} value={x} />)}</datalist>
-      <datalist id="dl-locations">{lists.locations.map((x) => <option key={x} value={x} />)}</datalist>
-      <datalist id="dl-series">{lists.series.map((x) => <option key={x} value={x} />)}</datalist>
 
       {dupes && (
         <div className="dupes">
