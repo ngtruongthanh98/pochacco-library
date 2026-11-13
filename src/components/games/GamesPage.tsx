@@ -5,12 +5,13 @@ import FarmGame from './FarmGame'
 import CatchGame from './CatchGame'
 import QuizGame from './QuizGame'
 import ArcheryGame from './ArcheryGame'
+import NoodleGame from './NoodleGame'
 
-type Tab = 'farm' | 'archery' | 'catch' | 'quiz'
+type Tab = 'farm' | 'noodle' | 'archery' | 'catch' | 'quiz'
 export default function GamesPage({ cfg, books, onOpenBook }: { cfg: StoreConfig; books: Book[]; onOpenBook: (b: Book) => void }) {
   const [tab, setTab] = useState<Tab>(() => {
     const v = sessionStorage.getItem('pochacco-library:game-tab')
-    return v === 'catch' || v === 'quiz' || v === 'archery' ? v : 'farm'
+    return v === 'catch' || v === 'quiz' || v === 'archery' || v === 'noodle' ? v : 'farm'
   })
   const pick = (t: Tab) => {
     setTab(t)
@@ -24,6 +25,9 @@ export default function GamesPage({ cfg, books, onOpenBook }: { cfg: StoreConfig
           <button role="tab" aria-selected={tab === 'farm'} className={`fmt-pill ${tab === 'farm' ? 'active' : ''}`} onClick={() => pick('farm')}>
             Nông trại
           </button>
+          <button role="tab" aria-selected={tab === 'noodle'} className={`fmt-pill ${tab === 'noodle' ? 'active' : ''}`} onClick={() => pick('noodle')}>
+            Tiệm mì cay
+          </button>
           <button role="tab" aria-selected={tab === 'archery'} className={`fmt-pill ${tab === 'archery' ? 'active' : ''}`} onClick={() => pick('archery')}>
             Bắn cung
           </button>
@@ -35,7 +39,7 @@ export default function GamesPage({ cfg, books, onOpenBook }: { cfg: StoreConfig
           </button>
         </div>
       </div>
-      {tab === 'farm' ? <FarmGame cfg={cfg} /> : tab === 'archery' ? <ArcheryGame /> : tab === 'catch' ? <CatchGame /> : <QuizGame books={books} onOpenBook={onOpenBook} />}
+      {tab === 'farm' ? <FarmGame cfg={cfg} /> : tab === 'noodle' ? <NoodleGame cfg={cfg} /> : tab === 'archery' ? <ArcheryGame /> : tab === 'catch' ? <CatchGame /> : <QuizGame books={books} onOpenBook={onOpenBook} />}
     </section>
   )
 }

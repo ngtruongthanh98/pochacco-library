@@ -155,8 +155,8 @@ export const EVENTS: Record<EventId, EventDef> = {
     decor: [{ id: 'giomua', name: 'Giỏ mừng mùa', icon: '🧺', cost: 300 }, { id: 'trau', name: 'Chú trâu cày', icon: '🐃', cost: 900 }],
   },
 }
-const TET_DAYS = ['2026-02-17', '2027-02-06', '2028-01-26', '2029-02-13', '2030-02-03', '2031-01-23', '2032-02-11']
-const TRUNGTHU_DAYS = ['2026-09-25', '2027-09-15', '2028-10-03', '2029-09-22', '2030-09-12', '2031-10-01', '2032-09-19']
+export const TET_DAYS = ['2026-02-17', '2027-02-06', '2028-01-26', '2029-02-13', '2030-02-03', '2031-01-23', '2032-02-11']
+export const TRUNGTHU_DAYS = ['2026-09-25', '2027-09-15', '2028-10-03', '2029-09-22', '2030-09-12', '2031-10-01', '2032-09-19']
 const DAY = 86_400_000
 const atMidnight = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
