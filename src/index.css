@@ -558,3 +558,11 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .toc-select { width: auto; max-width: 260px; padding: 6px 28px 6px 10px; border-radius: 8px; font-size: 0.88rem; }
 .book-progress { flex: 1 1 140px; min-width: 100px; accent-color: var(--red); }
 .book-status { padding: 4px 12px; font-size: 0.8rem; color: var(--muted); background: var(--cream); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Nhập sách điện tử: thông tin sách mới */
+.import-common { margin: 12px 0; }
+.import-common .hint { margin-top: 0; }
+.import-info { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin: 8px 0 4px; }
+.import-info .full { grid-column: 1 / -1; }
+.import-info textarea { resize: vertical; min-height: 40px; }
+@media (max-width: 640px) { .import-info { grid-template-columns: 1fr 1fr; } .import-info .suggest:has(textarea) { grid-column: 1 / -1; } }

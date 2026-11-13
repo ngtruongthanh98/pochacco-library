@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { addBook, prepareCover, updateBook, uploadCover, type StoreConfig } from '../data/githubStore'
 import Cover from './Cover'
-import { countOptions, SuggestInput, SuggestLines, type Option } from './Suggest'
+import { SuggestInput, SuggestLines, useLibraryOptions } from './Suggest'
+import { namesToText, parseNames } from '../data/names'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
 import { driveViewUrl, guessFormat, parseDriveLink } from '../data/drive'
 import { lookupIsbn, searchByTitle, type Candidate } from '../data/lookup'
-import { nameToString, type Book, type EbookHolding, type ItemType, type Name } from '../types/book'
+import { nameToString, type Book, type EbookHolding, type ItemType } from '../types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -39,22 +40,6 @@ const STATUSES: { value: Book['status']; label: string }[] = [
   { value: 'wishlist', label: 'Muốn mua' },
   { value: 'lost', label: 'Thất lạc' },
 ]
-
-/** Mỗi dòng một người. "Họ, Tên" (có dấu phẩy) cho tên nước ngoài; không dấu phẩy thì giữ nguyên thứ tự. */
-const parseNames = (text: string): Name[] =>
-  text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => {
-      const i = l.indexOf(',')
-      if (i > 0) {
-        const family = l.slice(0, i).trim()
-        const given = l.slice(i + 1).trim()
-        return given ? { family, given } : { family }
-      }
-      return { literal: l }
-    })
 
 const splitList = (text: string) =>
   text
@@ -89,9 +74,6 @@ const MANAGED = [
   'containerTitle', 'volume', 'issue', 'pageRange', 'genre', 'categories', 'subjects', 'tags',
   'series', 'seriesNo', 'holdings', 'status', 'notes', 'description',
 ] as const
-
-const namesToText = (ns?: Name[]) =>
-  (ns ?? []).map((n) => ('literal' in n ? n.literal : n.given ? `${n.family}, ${n.given}` : `${n.family},`)).join('\n')
 
 const toFields = (b: Book): Fields => {
   const p = b.holdings.find((h) => h.kind === 'print')
@@ -367,44 +349,7 @@ export default function BookForm({
 
 
   // --- Gợi ý từ thư viện ---
-  const opts = useMemo(() => {
-    const others = books.filter((b) => b.id !== initial?.id)
-    // Người: gộp tác giả, dịch giả, chủ biên; ghi chú vai trò để dễ phân biệt người trùng tên.
-    const people = new Map<string, { value: string; roles: Record<string, number> }>()
-    const addPeople = (ns: Name[] | undefined, role: string) => {
-      for (const n of ns ?? []) {
-        const v = namesToText([n]).replace(/,$/, '').trim()
-        if (!v) continue
-        const k = v.toLocaleLowerCase('vi')
-        const cur = people.get(k) ?? { value: v, roles: {} }
-        cur.roles[role] = (cur.roles[role] ?? 0) + 1
-        people.set(k, cur)
-      }
-    }
-    for (const b of others) {
-      addPeople(b.authors, 'tác giả')
-      addPeople(b.translators, 'dịch giả')
-      addPeople(b.editors, 'chủ biên')
-    }
-    const peopleOpts: Option[] = [...people.values()]
-      .map((p) => ({
-        value: p.value,
-        count: Object.values(p.roles).reduce((a, b) => a + b, 0),
-        hint: Object.entries(p.roles)
-          .sort((a, b) => b[1] - a[1])
-          .map(([r, n]) => `${r} ${n}`)
-          .join(' · '),
-      }))
-      .sort((a, b) => b.count - a.count)
-    return {
-      people: peopleOpts,
-      publishers: countOptions(others.map((b) => b.publisher)),
-      partners: countOptions(others.map((b) => b.partner)),
-      places: countOptions(others.map((b) => b.place), ['Hà Nội', 'TP. Hồ Chí Minh', 'Huế', 'Đà Nẵng']),
-      series: countOptions(others.map((b) => b.series)),
-      locations: countOptions(others.flatMap((b) => b.holdings.map((h) => (h.kind === 'print' ? h.location : undefined)))),
-    }
-  }, [books, initial?.id])
+  const opts = useLibraryOptions(books, initial?.id)
 
   /** Giá trị hay đi kèm nhất trong những sách thỏa điều kiện (vd: nơi xuất bản của một NXB). */
   const mostCommon = (match: (b: Book) => boolean, get: (b: Book) => string | undefined) => {

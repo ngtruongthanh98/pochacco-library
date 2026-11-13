@@ -1,5 +1,7 @@
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { foldVi } from '../search/normalizeVi'
+import { namesToText } from '../data/names'
+import type { Book, Name } from '../types/book'
 
 export type Option = { value: string; count: number; hint?: string }
 
@@ -263,3 +265,57 @@ export function SuggestLines({
     </label>
   )
 }
+
+/** Danh sách gợi ý lấy từ toàn bộ thư viện (bỏ qua cuốn đang sửa). */
+export function useLibraryOptions(books: Book[], exceptId?: string) {
+  return useMemo(() => {
+    const others = books.filter((b) => b.id !== exceptId)
+    // Người: gộp tác giả, dịch giả, chủ biên; ghi chú vai trò để dễ phân biệt người trùng tên.
+    const people = new Map<string, { value: string; roles: Record<string, number> }>()
+    const addPeople = (ns: Name[] | undefined, role: string) => {
+      for (const n of ns ?? []) {
+        const v = namesToText([n]).replace(/,$/, '').trim()
+        if (!v) continue
+        const k = v.toLocaleLowerCase('vi')
+        const cur = people.get(k) ?? { value: v, roles: {} }
+        cur.roles[role] = (cur.roles[role] ?? 0) + 1
+        people.set(k, cur)
+      }
+    }
+    for (const b of others) {
+      addPeople(b.authors, 'tác giả')
+      addPeople(b.translators, 'dịch giả')
+      addPeople(b.editors, 'chủ biên')
+    }
+    const peopleOpts: Option[] = [...people.values()]
+      .map((p) => ({
+        value: p.value,
+        count: Object.values(p.roles).reduce((a, b) => a + b, 0),
+        hint: Object.entries(p.roles)
+          .sort((a, b) => b[1] - a[1])
+          .map(([r, n]) => `${r} ${n}`)
+          .join(' · '),
+      }))
+      .sort((a, b) => b.count - a.count)
+    return {
+      people: peopleOpts,
+      publishers: countOptions(others.map((b) => b.publisher)),
+      partners: countOptions(others.map((b) => b.partner)),
+      places: countOptions(others.map((b) => b.place), ['Hà Nội', 'TP. Hồ Chí Minh', 'Huế', 'Đà Nẵng']),
+      series: countOptions(others.map((b) => b.series)),
+      locations: countOptions(others.flatMap((b) => b.holdings.map((h) => (h.kind === 'print' ? h.location : undefined)))),
+    }
+  }, [books, exceptId])
+}
+
+/** Giá trị hay đi kèm nhất trong những sách thỏa điều kiện (vd: nơi xuất bản của một NXB). */
+export function mostCommon(books: Book[], match: (b: Book) => boolean, get: (b: Book) => string | undefined) {
+  const c = new Map<string, number>()
+  for (const b of books)
+    if (match(b)) {
+      const v = get(b)?.trim()
+      if (v) c.set(v, (c.get(v) ?? 0) + 1)
+    }
+  return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+}
+export const sameText = (a?: string, b?: string) => !!a && !!b && a.trim().toLocaleLowerCase('vi') === b.trim().toLocaleLowerCase('vi')

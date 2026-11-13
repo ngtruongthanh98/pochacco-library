@@ -5,6 +5,8 @@ import { saveBatch, type StoreConfig } from '../data/githubStore'
 import { ulid } from '../data/ulid'
 import { foldVi } from '../search/normalizeVi'
 import { nameToString, type Book, type EbookHolding } from '../types/book'
+import { parseNames } from '../data/names'
+import { mostCommon, sameText, SuggestInput, SuggestLines, useLibraryOptions } from './Suggest'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -18,7 +20,18 @@ type Row = {
   target: string // 'new' hoặc id sách có sẵn
   include: boolean
   suggestions: { book: Book; score: number }[]
+  // Thông tin cho sách mới
+  authors: string
+  translators: string
+  publisher: string
+  place: string
+  year: string
+  pages: string
 }
+
+type Common = { publisher: string; place: string; year: string }
+const EMPTY_INFO = { authors: '', translators: '', publisher: '', place: '', year: '', pages: '' }
+const digits = (v: string) => v.replace(/\D/g, '').slice(0, 5)
 
 const words = (s: string) => new Set(foldVi(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1))
 const similarity = (a: string, b: string) => {
@@ -44,6 +57,9 @@ export default function ImportEbooks({
   const [text, setText] = useState('')
   const [rows, setRows] = useState<Row[] | null>(null)
   const [category, setCategory] = useState('')
+  const [common, setCommon] = useState<Common>({ publisher: '', place: '', year: '' })
+  const opts = useLibraryOptions(books)
+  const placeOf = (pub: string) => mostCommon(books, (b) => sameText(b.publisher, pub), (b) => b.place)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +73,7 @@ export default function ImportEbooks({
     const seen = new Set<string>()
     setRows(
       parsePasted(text).map((l, i) => {
-        const base = { key: `${i}`, raw: l.raw, title: l.text, format: guessFormat(l.raw), target: 'new', include: false, suggestions: [] }
+        const base = { key: `${i}`, raw: l.raw, title: l.text, format: guessFormat(l.raw), target: 'new', include: false, suggestions: [], ...EMPTY_INFO }
         if (!l.ref) return { ...base, problem: 'Không phải link Google Drive' }
         if (l.ref.kind === 'folder') return { ...base, problem: 'Link thư mục: hãy dán link của từng tệp trong thư mục' }
         if (seen.has(l.ref.id)) return { ...base, fileId: l.ref.id, problem: 'Trùng với một dòng phía trên' }
@@ -100,17 +116,32 @@ export default function ImportEbooks({
     const holding = (r: Row): EbookHolding => ({ kind: 'ebook', format: r.format, storage: 'gdrive', fileId: r.fileId })
     const added: Book[] = ready
       .filter((r) => r.target === 'new')
-      .map((r) => ({
+      .map((r) => {
+        const authors = parseNames(r.authors)
+        const translators = parseNames(r.translators)
+        const publisher = (r.publisher || common.publisher).trim()
+        // Nơi XB chung chỉ dùng khi sách theo NXB chung (NXB riêng thì nơi XB có thể khác).
+        const place = (r.place || (!r.publisher.trim() || sameText(r.publisher, common.publisher) ? common.place : '')).trim()
+        const year = Number(r.year || common.year)
+        const pages = Number(r.pages)
+        return {
         id: ulid(),
-        type: 'book',
+        type: 'book' as const,
         title: r.title.trim(),
+        ...(authors.length ? { authors } : {}),
+        ...(translators.length ? { translators } : {}),
+        ...(publisher ? { publisher } : {}),
+        ...(place ? { place } : {}),
+        ...(year >= 1000 && year <= 2100 ? { year } : {}),
+        ...(pages > 0 ? { pages } : {}),
         ...(category ? { categories: [category] } : {}),
         holdings: [holding(r)],
-        status: 'owned',
-        source: 'import',
+        status: 'owned' as const,
+        source: 'import' as const,
         createdAt: now,
         updatedAt: now,
-      }))
+      }
+      })
     const byBook = new Map<string, EbookHolding[]>()
     for (const r of ready.filter((r) => r.target !== 'new')) byBook.set(r.target, [...(byBook.get(r.target) ?? []), holding(r)])
     const updated: Book[] = [...byBook].map(([id, hs]) => {
@@ -179,6 +210,29 @@ export default function ImportEbooks({
               ))}
             </select>
           </label>
+          {nNew > 0 && (
+            <fieldset className="import-common">
+              <legend>Điền chung cho các sách mới</legend>
+              <p className="hint">Dùng cho những sách mới để trống ô tương ứng. Tiện khi cả loạt cùng một nhà xuất bản hoặc một bộ.</p>
+              <div className="row3">
+                <SuggestInput
+                  label="Nhà xuất bản"
+                  value={common.publisher}
+                  onChange={(v) => setCommon((c) => ({ ...c, publisher: v }))}
+                  options={opts.publishers}
+                  onPick={(pub) => {
+                    const pl = placeOf(pub)
+                    if (pl) setCommon((c) => (c.place ? c : { ...c, place: pl }))
+                  }}
+                />
+                <SuggestInput label="Nơi xuất bản" value={common.place} onChange={(v) => setCommon((c) => ({ ...c, place: v }))} options={opts.places} />
+                <label>
+                  Năm
+                  <input inputMode="numeric" value={common.year} onChange={(e) => setCommon((c) => ({ ...c, year: digits(e.target.value) }))} />
+                </label>
+              </div>
+            </fieldset>
+          )}
           <ul className="scan-list">
             {rows.map((r) => (
               <li key={r.key} className={`scan-item ${r.problem ? 's-exists' : ''}`}>
@@ -240,11 +294,34 @@ export default function ImportEbooks({
                         </label>
                       </div>
                       {r.target === 'new' && (
-                        <input
-                          placeholder="Nhan đề sách (bắt buộc với sách mới)"
-                          value={r.title}
-                          onChange={(e) => patch(r.key, { title: e.target.value })}
-                        />
+                        <div className="import-info">
+                          <label className="full">
+                            Nhan đề *
+                            <input placeholder="Bắt buộc với sách mới" value={r.title} onChange={(e) => patch(r.key, { title: e.target.value })} />
+                          </label>
+                          <SuggestLines label="Tác giả" rows={1} value={r.authors} onChange={(v) => patch(r.key, { authors: v })} options={opts.people} />
+                          <SuggestLines label="Dịch giả" rows={1} value={r.translators} onChange={(v) => patch(r.key, { translators: v })} options={opts.people} />
+                          <SuggestInput
+                            label="Nhà xuất bản"
+                            placeholder={common.publisher}
+                            value={r.publisher}
+                            onChange={(v) => patch(r.key, { publisher: v })}
+                            options={opts.publishers}
+                            onPick={(pub) => {
+                              const pl = placeOf(pub)
+                              if (pl && !r.place) patch(r.key, { publisher: pub, place: pl })
+                            }}
+                          />
+                          <SuggestInput label="Nơi xuất bản" placeholder={common.place} value={r.place} onChange={(v) => patch(r.key, { place: v })} options={opts.places} />
+                          <label>
+                            Năm
+                            <input inputMode="numeric" placeholder={common.year} value={r.year} onChange={(e) => patch(r.key, { year: digits(e.target.value) })} />
+                          </label>
+                          <label>
+                            Số trang
+                            <input inputMode="numeric" value={r.pages} onChange={(e) => patch(r.key, { pages: digits(e.target.value) })} />
+                          </label>
+                        </div>
                       )}
                       {!r.suggestions.length && r.title && r.target === 'new' && (
                         <div className="muted small">Không thấy sách giấy nào có nhan đề gần giống.</div>
