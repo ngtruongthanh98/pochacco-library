@@ -23,7 +23,7 @@ export const TOP = Object.fromEntries(TOPPINGS.map((t) => [t.id, t])) as Record<
 export const SPICE_NAMES = ['Không cay', 'Cay nhẹ', 'Hơi cay', 'Cay vừa', 'Khá cay', 'Cay nhiều', 'Rất cay', 'Cay xé lưỡi']
 
 // ---- Khách ----
-export type CustKind = 'cuu' | 'haicau' | 'aomua' | 'hong' | 'plot' | 'cuuxam' | 'ngu' | 'banh'
+export type CustKind = 'cuu' | 'haicau' | 'aomua' | 'hong' | 'plot' | 'cuuxam' | 'ngu' | 'banh' | 'snoopy' | 'misa' | 'nonho'
 export type Mood = 'arrive' | 'wait' | 'worried' | 'angry' | 'happy'
 /** Tư thế theo tâm trạng: số thứ tự hình trong bộ 9 tư thế (kh-<id>-<số>.webp). */
 type Poses = Record<Exclude<Mood, 'happy'>, number> & { happy: number[] }
@@ -37,9 +37,12 @@ export const CUST: Record<CustKind, CustDef> = {
   cuuxam: { img: 'kh-cuuxam', label: 'Em Bé Cừu', fixed: true, poses: { arrive: 1, wait: 0, worried: 5, angry: 4, happy: [2, 7, 8] } },
   ngu: { img: 'kh-ngu', label: 'Em Bé Đi Ngủ', fixed: true, poses: { arrive: 0, wait: 5, worried: 4, angry: 3, happy: [7, 2] } },
   banh: { img: 'kh-banh', label: 'Em Bé Trái Banh', fixed: true, poses: { arrive: 0, wait: 3, worried: 7, angry: 2, happy: [1, 4, 8] } },
+  snoopy: { img: 'kh-snoopy', label: 'Snoopy Noel', fixed: true, poses: { arrive: 0, wait: 3, worried: 4, angry: 4, happy: [2, 6, 8, 1] } },
+  misa: { img: 'kh-misa', label: 'Gấu Misa', fixed: true, poses: { arrive: 0, wait: 5, worried: 3, angry: 7, happy: [1, 2, 6, 8] } },
+  nonho: { img: 'kh-nonho', label: 'Bé Nơ Nhỏ', fixed: true, poses: { arrive: 0, wait: 3, worried: 5, angry: 4, happy: [1, 2, 8] } },
 }
 /** Khách ăn tại quán (khách mang về luôn là Pochacco áo mưa). */
-export const DINE_IN: CustKind[] = ['cuu', 'haicau', 'hong', 'plot', 'cuuxam', 'ngu', 'banh']
+export const DINE_IN: CustKind[] = ['cuu', 'haicau', 'hong', 'plot', 'cuuxam', 'ngu', 'banh', 'snoopy', 'misa', 'nonho']
 /** Tên hình của khách theo tâm trạng; seed chọn một trong các tư thế vui. */
 export function custImg(kind: CustKind, mood: Mood, seed = 0) {
   const d = CUST[kind]
