@@ -4,6 +4,8 @@ import { addBook, prepareCover, updateBook, uploadCover, type StoreConfig } from
 import Cover from './Cover'
 import { SuggestInput, SuggestLines, useLibraryOptions } from './Suggest'
 import { namesToText, parseNames } from '../data/names'
+import { PasteInfo } from './PasteInfo'
+import { FIELD_LABEL } from '../data/pasteParse'
 import { ulid } from '../data/ulid'
 import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
@@ -260,6 +262,7 @@ export default function BookForm({
   const [driveLink, setDriveLink] = useState('')
   const [lookupState, setLookupState] = useState<'idle' | 'busy' | 'done'>('idle')
   const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [pasteOpen, setPasteOpen] = useState(false)
   const [filledMsg, setFilledMsg] = useState<string | null>(null)
   const [pendingCover, setPendingCover] = useState<string | undefined>(undefined)
   const lookup = async () => {
@@ -506,8 +509,35 @@ export default function BookForm({
           <button type="button" className="secondary small-btn" disabled={lookupState === 'busy' || (!f.title.trim() && !f.isbn.trim())} onClick={() => void lookup()}>
             {lookupState === 'busy' ? 'Đang tra...' : 'Tra thông tin trực tuyến'}
           </button>
-          <span className="hint">Theo ISBN nếu có, không thì theo nhan đề và tác giả; chỉ điền vào ô còn trống.</span>
+          <button type="button" className="secondary small-btn" onClick={() => setPasteOpen((o) => !o)} aria-expanded={pasteOpen}>
+            Dán thông tin từ Fahasa, Tiki, Cục Xuất bản…
+          </button>
+          <span className="hint">Tra trực tuyến: theo ISBN nếu có, không thì theo nhan đề và tác giả. Sách Việt Nam thường thiếu ở đó, hãy dùng nút Dán thông tin.</span>
         </div>
+        {pasteOpen && (
+          <PasteInfo
+            query={f.isbn.trim() || [f.title.trim(), f.authors.split('\n')[0]?.trim()].filter(Boolean).join(' ')}
+            isbn={f.isbn.replace(/[^\dXx]/g, '')}
+            current={{
+              title: f.title, authors: f.authors, translators: f.translators, editors: f.editors, publisher: f.publisher,
+              partner: f.partner, place: f.place, year: f.year, pages: f.pages, sizeCm: f.sizeCm, isbn: f.isbn,
+              language: f.language, description: f.description,
+            }}
+            publishers={opts.publishers}
+            onClose={() => setPasteOpen(false)}
+            onApply={(patch, source) => {
+              setF((cur) => {
+                const next = { ...cur, ...patch }
+                if (source && !cur.notes.includes(source)) next.notes = [cur.notes.trim(), `Nguồn thông tin: ${source}`].filter(Boolean).join('\n')
+                return next
+              })
+              const names = (Object.keys(patch) as (keyof typeof FIELD_LABEL)[]).map((k) => FIELD_LABEL[k].toLowerCase())
+              setFilledMsg(`Đã điền ${names.join(', ')}${source ? '; đã ghi link nguồn vào ghi chú' : ''}. Kiểm tra lại rồi bấm Lưu.`)
+              setPasteOpen(false)
+              if (patch.publisher && !patch.place) pickPublisher(patch.publisher)
+            }}
+          />
+        )}
         {filledMsg && <p className="filled">{filledMsg}</p>}
         {lookupState === 'done' && (
           <div className="candidates">

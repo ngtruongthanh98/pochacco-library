@@ -590,3 +590,19 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .import-info .full { grid-column: 1 / -1; }
 .import-info textarea { resize: vertical; min-height: 40px; }
 @media (max-width: 640px) { .import-info { grid-template-columns: 1fr 1fr; } .import-info .suggest:has(textarea) { grid-column: 1 / -1; } }
+
+/* Dán thông tin từ trang sách */
+.paste-info { display: grid; gap: 10px; margin: 10px 0; padding: 14px 16px; border-radius: 14px; background: #fffaf2; border: 1.5px dashed var(--gold); }
+.paste-head { display: flex; justify-content: space-between; align-items: center; color: var(--red-dark); }
+.paste-steps { margin: 0; padding-left: 20px; line-height: 1.7; font-size: 0.92rem; }
+.paste-info textarea { font-family: ui-monospace, Menlo, monospace; font-size: 0.86rem; }
+.paste-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.paste-table th { text-align: left; font-weight: 650; color: var(--muted); font-size: 0.8rem; padding: 4px 6px; border-bottom: 1.5px solid var(--line); }
+.paste-table td { padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.paste-table td:first-child { width: 28px; }
+.paste-table td input { width: auto; }
+.paste-table .val { white-space: pre-line; font-weight: 600; }
+.paste-table .cur { white-space: pre-line; color: var(--muted); }
+.paste-table tr.differs { background: #fff4d6; }
+.paste-table tr.same { opacity: 0.55; }
+.paste-table th:nth-child(2) { width: 120px; } .paste-table th:last-child { width: 140px; white-space: nowrap; }
