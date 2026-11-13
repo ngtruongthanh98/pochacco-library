@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { Rich, Xu } from './money'
 import {
   ACHIEVEMENTS, activeEvent, addItem, ALL_DECOR, ANIMALS, baitNow, CROP, CROPS, dailyReward, EXPAND, expandPlots, FERT_LEVEL, FERT_PACK, fmtLeft, has,
   hasGold, ITEM_ORDER, ITEMS, levelOf, needsText, newFarm, newOrder, nextUnlock, ORCHARD_LEVEL, parseFarm, POND_LEVEL, rollTier, STATIONS, takeItems,
@@ -140,7 +141,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       const unlocked = unlocksBetween(lv0, lv1)
       notes.push(`Lên cấp ${lv1}!${unlocked.length ? ` Mở khóa ${unlocked.join(', ')}` : ''}`)
     }
-    for (const a of got) notes.push(`Thành tựu ${a.icon} ${a.name} (+${a.reward} xu)`)
+    for (const a of got) notes.push(`Thành tựu ${a.icon} ${a.name} (+{xu:${a.reward}})`)
     if (notes.length) say(notes.join(' · '))
   }
 
@@ -170,7 +171,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     if (!p) {
       const c = CROP[seed]
       if (c.event && c.event !== ev?.id) return say(`Hạt ${c.name} chỉ có trong sự kiện`)
-      if (farm.coins < c.seed) return say(`Không đủ xu mua hạt ${c.name} (${c.seed} xu)`)
+      if (farm.coins < c.seed) return say(`Không đủ xu mua hạt ${c.name} ({xu:${c.seed}})`)
       return update((f) => plantAt(f, [i], seed))
     }
     if (now >= p.readyAt) return harvest([i])
@@ -240,7 +241,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   }
 
   const buyFert = () => {
-    if (farm.coins < FERT_PACK.cost) return say(`Cần ${FERT_PACK.cost} xu`)
+    if (farm.coins < FERT_PACK.cost) return say(`Cần {xu:${FERT_PACK.cost}}`)
     update((f) => ({ ...f, coins: f.coins - FERT_PACK.cost, fert: f.fert + FERT_PACK.n }), `Mua ${FERT_PACK.n} túi phân bón 🧪`)
   }
 
@@ -299,7 +300,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       money += m * priceOf(id, tier)
       rest -= m
     }
-    update((f) => ({ ...f, ...takeItems(f, { [id]: k }), coins: f.coins + money, stats: { ...f.stats, earned: f.stats.earned + money } }), `Bán ${k} ${ITEMS[id].icon} được ${money.toLocaleString('vi-VN')} xu`)
+    update((f) => ({ ...f, ...takeItems(f, { [id]: k }), coins: f.coins + money, stats: { ...f.stats, earned: f.stats.earned + money } }), `Bán ${k} ${ITEMS[id].icon} được {xu:${money}}`)
   }
   const canDeliver = (o: Order) => has(farm.inv, o.want) && hasGold(farm, o.gold)
   const deliver = (o: Order) => {
@@ -313,7 +314,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
         xp: f.xp + o.xp,
         stats: { ...f.stats, delivered: f.stats.delivered + 1, earned: f.stats.earned + o.coins },
       }),
-      `${o.who} cảm ơn! +${o.coins} xu, +${o.xp} kinh nghiệm`,
+      `${o.who} cảm ơn! +{xu:${o.coins}}, +${o.xp} kinh nghiệm`,
     )
   }
   const skipOrder = (o: Order) => update((f) => ({ ...f, orders: f.orders.map((x) => (x.id === o.id ? newOrder(f.xp, ev?.id ?? null) : x)) }))
@@ -325,7 +326,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   const claim = () => {
     if (!canClaim) return
     const r = dailyReward(nextStreak)
-    update((f) => ({ ...f, coins: f.coins + r.coins, xp: f.xp + r.xp, daily: { last: day, streak: nextStreak } }), `Điểm danh ngày thứ ${nextStreak}: +${r.coins} xu, +${r.xp} KN`)
+    update((f) => ({ ...f, coins: f.coins + r.coins, xp: f.xp + r.xp, daily: { last: day, streak: nextStreak } }), `Điểm danh ngày thứ ${nextStreak}: +{xu:${r.coins}}, +${r.xp} KN`)
   }
 
   const reset = () => {
@@ -374,7 +375,9 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
         </div>
         <div className="farm-stats">
           <div className="farm-line">
-            <span className="coins">🪙 {farm.coins.toLocaleString('vi-VN')} xu</span>
+            <span className="coins">
+              <Xu n={farm.coins} />
+            </span>
             <span className="lv">Cấp {lvl.lv}</span>
             {farm.decor.length > 0 && (
               <span className="decor-strip" title={ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => d.name).join(', ')}>
@@ -424,7 +427,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
       {canClaim && (
         <div className="daily">
           <span>
-            📅 Điểm danh hôm nay {nextStreak > 1 ? `(chuỗi ${nextStreak} ngày)` : ''}: <b>+{dailyReward(nextStreak).coins} xu</b>, +{dailyReward(nextStreak).xp} KN
+            📅 Điểm danh hôm nay {nextStreak > 1 ? `(chuỗi ${nextStreak} ngày)` : ''}: <b><Xu n={dailyReward(nextStreak).coins} sign="+" /></b>, +{dailyReward(nextStreak).xp} KN
           </span>
           <button className="small-btn" onClick={claim}>
             Nhận quà
@@ -460,7 +463,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                 >
                   <span className="si">{locked ? '🔒' : c.icon}</span>
                   <span className="sn">{c.name}</span>
-                  <span className="sp">{locked ? `cấp ${c.level}` : `${c.seed} xu · ${fmtLeft(c.minutes * 60_000)}`}</span>
+                  <span className="sp">{locked ? `cấp ${c.level}` : <><Xu n={c.seed} /> · {fmtLeft(c.minutes * 60_000)}</>}</span>
                 </button>
               )
             })}
@@ -485,7 +488,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                 <input type="checkbox" checked={farm.useFert} onChange={(e) => update((f) => ({ ...f, useFert: e.target.checked }))} /> Bón khi gieo
               </label>
               <button className="secondary small-btn" disabled={farm.coins < FERT_PACK.cost} onClick={buyFert}>
-                Mua {FERT_PACK.n} túi ({FERT_PACK.cost} xu)
+                Mua {FERT_PACK.n} túi (<Xu n={FERT_PACK.cost} />)
               </button>
               <span className="muted small">Ô có bón phân ra hàng 🥈 bạc hoặc 🥇 vàng nhiều hơn, bán giá ×1,25 và ×1,6.</span>
             </div>
@@ -528,7 +531,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
           {nextSize && (
             <div className="expand">
               <span>
-                Mở rộng ruộng {nextSize}×{nextSize}: {EXPAND[nextSize].cost.toLocaleString('vi-VN')} xu, từ cấp {EXPAND[nextSize].level}
+                Mở rộng ruộng {nextSize}×{nextSize}: <Xu n={EXPAND[nextSize].cost} />, từ cấp {EXPAND[nextSize].level}
               </span>
               <button className="small-btn" disabled={lvl.lv < EXPAND[nextSize].level || farm.coins < EXPAND[nextSize].cost} onClick={expand}>
                 Mở rộng
@@ -587,7 +590,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                     </div>
                   </div>
                   <button className="small-btn" disabled={locked || count >= a.max || farm.coins < a.cost} onClick={() => buyAnimal(a.kind)}>
-                    {locked ? `Cấp ${a.level}` : count >= a.max ? 'Đủ chuồng' : `Mua ${a.cost} xu`}
+                    {locked ? `Cấp ${a.level}` : count >= a.max ? 'Đủ chuồng' : <>Mua <Xu n={a.cost} /></>}
                   </button>
                 </div>
               )
@@ -614,7 +617,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   <span className="ai">{done ? a.icon : '❔'}</span>
                   <b>{a.name}</b>
                   <span className="muted small">{a.desc}</span>
-                  <span className="ar">{done ? 'Đã đạt' : `+${a.reward} xu`}</span>
+                  <span className="ar">{done ? 'Đã đạt' : <Xu n={a.reward} sign="+" />}</span>
                 </div>
               )
             })}
@@ -624,7 +627,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
 
       {toast && (
         <div className="farm-toast" role="status">
-          {toast}
+          <Rich text={toast} />
         </div>
       )}
 
@@ -644,7 +647,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   <WantList farm={farm} want={o.want} gold={o.gold} />
                 </div>
                 <div className="order-reward">
-                  +{o.coins.toLocaleString('vi-VN')} xu · +{o.xp} KN
+                  <Xu n={o.coins} sign="+" /> · +{o.xp} KN
                 </div>
                 <div className="order-btns">
                   <button className="small-btn" disabled={!ok} onClick={() => deliver(o)}>
@@ -679,7 +682,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                       </small>
                     )}
                   </span>
-                  <span className="muted small">{priceOf(id).toLocaleString('vi-VN')} xu/cái</span>
+                  <span className="muted small"><Xu n={priceOf(id)} />/cái</span>
                   <button className="link" onClick={() => sell(id, 1)}>
                     Bán 1
                   </button>
@@ -692,7 +695,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             </ul>
           )}
           <p className="muted small farm-meta">
-            Thu hoạch {farm.stats.harvested.toLocaleString('vi-VN')} lần · hái {farm.stats.fruits} quả · nhặt {farm.stats.collected} · câu {farm.stats.fished} cá · làm {farm.stats.crafted} món · giao {farm.stats.delivered} đơn, {farm.stats.trips} chuyến xe · {farm.stats.gold} hàng 🥇 · kiếm {farm.stats.earned.toLocaleString('vi-VN')} xu ·{' '}
+            Thu hoạch {farm.stats.harvested.toLocaleString('vi-VN')} lần · hái {farm.stats.fruits} quả · nhặt {farm.stats.collected} · câu {farm.stats.fished} cá · làm {farm.stats.crafted} món · giao {farm.stats.delivered} đơn, {farm.stats.trips} chuyến xe · {farm.stats.gold} hàng 🥇 · kiếm <Xu n={farm.stats.earned} /> ·{' '}
             <button className="link" onClick={() => setAskReset(true)}>
               Làm lại từ đầu
             </button>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { readConfigFile, writeConfigFile } from '../../data/configStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { KimCuong, Rich, Xu } from './money'
 import {
   ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, custImg, DINE_IN, SAY_HAPPY, SAY_SAD, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
   seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOP_GROUPS, TOPPINGS, UPGRADES,
@@ -44,37 +45,6 @@ const loadLocal = (): Shop | null => {
   }
 }
 const emptyStove = (): Stove => ({ cust: null, tops: [], spice: 0, cookAt: null })
-
-/** Số xu kèm hình đồng xu của tiệm. */
-const Xu = ({ n, sign = '' }: { n: number; sign?: string }) => (
-  <span className="ns-money">
-    {sign}
-    {n.toLocaleString('vi-VN')}
-    <img src={nAsset('coin')} alt=" xu" />
-  </span>
-)
-/** Số kim cương kèm hình viên kim cương của tiệm. */
-const KimCuong = ({ n, sign = '' }: { n: number; sign?: string }) => (
-  <span className="ns-money">
-    {sign}
-    {n}
-    <img src={nAsset('gem')} alt=" kim cương" />
-  </span>
-)
-/** Thông báo có chèn hình: {xu:123} và {kc:1} được thay bằng số kèm hình. */
-function Rich({ text }: { text: string }) {
-  const parts = text.split(/(\{(?:xu|kc):[^}]+\})/)
-  return (
-    <>
-      {parts.map((p, i) => {
-        const m = p.match(/^\{(xu|kc):([^}]+)\}$/)
-        if (!m) return p
-        const n = Number(m[2])
-        return m[1] === 'xu' ? <Xu key={i} n={n} /> : <KimCuong key={i} n={n} />
-      })}
-    </>
-  )
-}
 
 /** Tiệm mì cay Nơ của Em Bé Nơ: người chơi là chủ tiệm. */
 export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {

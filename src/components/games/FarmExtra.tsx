@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { Xu } from './money'
 import {
   addItem, baitNow, BAIT_MAX, BAIT_MIN, FISH, fmtLeft, has, hasGold, ITEMS, needsText, newBigOrder, ORCHARD_LEVEL, POND_LEVEL, RECIPE, RECIPES,
   STATIONS, takeItems, tiersOf, TREE_SLOT_COST, TREES, TRUCK2_LEVEL, TRUCK_LEVEL,
@@ -103,7 +104,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
               </button>
               {cost !== undefined && (
                 <button className="secondary small-btn" disabled={farm.coins < cost} onClick={() => buySlot(st)}>
-                  Thêm ô ({cost.toLocaleString('vi-VN')} xu)
+                  Thêm ô (<Xu n={cost} />)
                 </button>
               )}
             </div>
@@ -133,7 +134,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
                       <b>{r.name}</b>
                       {r.event && <span className="ev-tag">sự kiện</span>}
                       <div className="muted small">
-                        {needsText(r.needs)} · {fmtLeft(r.minutes * 60_000)} · bán {r.sell.toLocaleString('vi-VN')} xu
+                        {needsText(r.needs)} · {fmtLeft(r.minutes * 60_000)} · bán <Xu n={r.sell} />
                       </div>
                     </div>
                     <button className="small-btn" disabled={locked || free < 0 || !enough} onClick={() => make(st, free, r.id)}>
@@ -158,7 +159,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
   const plant = (i: number) => {
     const t = TREES[pick]
     if (lv < t.level) return say(`Cây ${t.name} mở ở cấp ${t.level}`)
-    if (farm.coins < t.cost) return say(`Cần ${t.cost} xu để trồng cây ${t.name}`)
+    if (farm.coins < t.cost) return say(`Cần {xu:${t.cost}} để trồng cây ${t.name}`)
     update((f) => {
       const trees = [...f.trees]
       const n = Date.now()
@@ -207,7 +208,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
             <button key={t.kind} role="radio" aria-checked={pick === t.kind} disabled={locked} className={`seed ${pick === t.kind ? 'on' : ''}`} onClick={() => setPick(t.kind)}>
               <span className="si">{locked ? '🔒' : t.icon}</span>
               <span className="sn">Cây {t.name}</span>
-              <span className="sp">{locked ? `cấp ${t.level}` : `${t.cost} xu · ${t.yield} quả mỗi ${fmtLeft(t.cycle * 60_000)}`}</span>
+              <span className="sp">{locked ? `cấp ${t.level}` : <><Xu n={t.cost} /> · {t.yield} quả mỗi {fmtLeft(t.cycle * 60_000)}</>}</span>
             </button>
           )
         })}
@@ -218,7 +219,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
         </button>
         {slotCost !== undefined && (
           <button className="secondary small-btn" disabled={farm.coins < slotCost} onClick={buySlot}>
-            Thêm chỗ trồng ({slotCost.toLocaleString('vi-VN')} xu)
+            Thêm chỗ trồng (<Xu n={slotCost} />)
           </button>
         )}
       </div>
@@ -229,7 +230,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
               <button key={i} className="tree empty" onClick={() => plant(i)}>
                 <span className="tree-icon">🕳️</span>
                 <span className="pen-note">
-                  Trồng cây {TREES[pick].name} ({TREES[pick].cost} xu)
+                  Trồng cây {TREES[pick].name} (<Xu n={TREES[pick].cost} />)
                 </span>
               </button>
             )
@@ -458,7 +459,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
         xp: f.xp + tr.order.xp,
         stats: { ...f.stats, trips: f.stats.trips + 1, earned: f.stats.earned + tr.order.coins },
       }),
-      `Xe về! +${tr.order.coins.toLocaleString('vi-VN')} xu, +${tr.order.xp} KN`,
+      `Xe về! +{xu:${tr.order.coins}}, +${tr.order.xp} KN`,
     )
   }
   return (
@@ -482,7 +483,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
                 </span>
               </span>
               {back ? (
-                <span className="pen-note">Xe về rồi! Nhận {tr.order.coins.toLocaleString('vi-VN')} xu</span>
+                <span className="pen-note">Xe về rồi! Nhận <Xu n={tr.order.coins} /></span>
               ) : (
                 <span className="pen-note">
                   {ratio < 0.5 ? 'Đang chở hàng đi' : 'Đang trên đường về'} · còn {fmtLeft(tr.backAt - now)}
@@ -505,7 +506,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
             <WantList farm={farm} want={o.want} gold={o.gold} />
           </div>
           <div className="order-reward">
-            +{o.coins.toLocaleString('vi-VN')} xu · +{o.xp} KN · xe đi về {o.hours} giờ
+            <Xu n={o.coins} sign="+" /> · +{o.xp} KN · xe đi về {o.hours} giờ
           </div>
           <div className="order-btns">
             <button className="small-btn" disabled={!ok || free < 0} onClick={send}>
@@ -555,7 +556,7 @@ export function EventBanner({ farm, now, ev, update }: Ctx) {
                   <div className="muted small">Trang trí giữ mãi sau sự kiện</div>
                 </div>
                 <button className="small-btn" disabled={own || farm.coins < d.cost} onClick={() => buy(d.id)}>
-                  {own ? 'Đã có' : `${d.cost} xu`}
+                  {own ? 'Đã có' : <Xu n={d.cost} />}
                 </button>
               </div>
             )
