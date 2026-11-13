@@ -19,7 +19,14 @@ import { fetchExcerpts, saveExcerpts } from './data/excerptStore'
 import { topicCounts } from './data/cite'
 import type { Excerpt } from './types/excerpt'
 import { buildIndex } from './search/searchIndex'
-import { duplicateDraft } from './data/duplicate'
+import { duplicateDraft, editionDraft } from './data/duplicate'
+import { bindingLabel, type Binding } from './types/book'
+
+/** Nhãn loại bìa trên thẻ sách: chỉ hiện khi khác bìa mềm, hoặc khi cuốn có nhiều loại bìa. */
+const bindingTags = (b: Book): Binding[] => {
+  const all = [...new Set(b.holdings.flatMap((h) => (h.kind === 'print' && h.binding ? [h.binding] : [])))]
+  return all.length > 1 ? all : all.filter((x) => x !== 'paperback')
+}
 import { FORMAT_OPTIONS, formatOf, isEbookOnly, type FormatFilter } from './data/format'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ScrollTop } from './components/ScrollTop'
@@ -270,6 +277,9 @@ function BookRow({ b, cfg, onOpen, index = 0 }: { b: Book; cfg: StoreConfig; onO
       )}
       <div className="where">
         {print?.kind === 'print' && print.location && <span className="tag">Kệ {print.location}</span>}
+        {bindingTags(b).map((x) => (
+          <span key={x} className="tag binding">{bindingLabel(x as Binding)}</span>
+        ))}
         {ebookOnly ? <span className="tag ebook-only">Ebook only</span> : hasEbook && <span className="tag olive">Sách điện tử</span>}
         {b.status === 'lent' && <span className="tag warn">Đang cho mượn</span>}
         {b.status === 'wishlist' && <span className="tag gold">Muốn mua</span>}
@@ -292,6 +302,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<ScanMode | null>(initial.scanMode)
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
+  const [dupMode, setDupMode] = useState<'copy' | 'edition'>('copy')
   const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games'>(initial.page)
   const [reading, setReading] = useState<number | null>(initial.reading)
   const [notice, setNotice] = useState<{ title: string; text: string; queue?: string[] } | null>(null)
@@ -728,6 +739,17 @@ export default function App() {
                 const src = byId.get(openId)!
                 setPrefill(duplicateDraft(src))
                 setDupFrom(src)
+                setDupMode('copy')
+                setAdding(true)
+                setOpenId(null)
+                setEditing(false)
+                window.scrollTo(0, 0)
+              }}
+              onAddEdition={() => {
+                const src = byId.get(openId)!
+                setPrefill(editionDraft(src))
+                setDupFrom(src)
+                setDupMode('edition')
                 setAdding(true)
                 setOpenId(null)
                 setEditing(false)
@@ -823,12 +845,21 @@ export default function App() {
           />
         ) : adding ? (
           <BookForm
-            key={dupFrom ? `dup-${dupFrom.id}` : prefill ? `prefill-${prefill.isbn13}` : 'new'}
+            key={dupFrom ? `dup-${dupMode}-${dupFrom.id}` : prefill ? `prefill-${prefill.isbn13}` : 'new'}
             cfg={cfg}
             books={books}
             prefill={prefill ?? undefined}
             banner={
-              dupFrom ? (
+              dupFrom && dupMode === 'edition' ? (
+                <div className="dup-banner">
+                  <b>Thêm bản bìa khác của «{dupFrom.title}»</b>
+                  <span>
+                    Đã giữ nhan đề, tác giả, xuất bản, phân loại và vị trí kệ; loại bìa đã đặt sẵn, anh đổi lại nếu cần. Nhập ISBN,
+                    số trang và khổ sách của bản này. Hai bản sẽ hiện trong mục “Các bản khác của cuốn này”. Khi lưu, nếu app hỏi trùng sách, chọn
+                    “Vẫn lưu (ấn bản khác)”.
+                  </span>
+                </div>
+              ) : dupFrom ? (
                 <div className="dup-banner">
                   <b>Nhân bản từ «{dupFrom.title}»</b>
                   <span>

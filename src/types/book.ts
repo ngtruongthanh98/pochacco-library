@@ -14,11 +14,22 @@ export type Name =
   | { family: string; given?: string }
   | { literal: string }
 
+export type Binding = 'paperback' | 'hardcover' | 'jacket' | 'special'
+export const BINDINGS: { value: Binding; label: string }[] = [
+  { value: 'paperback', label: 'Bìa mềm' },
+  { value: 'hardcover', label: 'Bìa cứng' },
+  { value: 'jacket', label: 'Bìa cứng có áo' },
+  { value: 'special', label: 'Bản đặc biệt' },
+]
+export const bindingLabel = (b?: Binding) => BINDINGS.find((x) => x.value === b)?.label
+
 export type PrintHolding = {
   kind: 'print'
   location?: string
   copies?: number
   condition?: string
+  /** Loại bìa của bản giấy này (bỏ trống là chưa ghi). */
+  binding?: Binding
 }
 
 export type EbookHolding = {

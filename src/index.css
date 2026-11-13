@@ -1067,3 +1067,15 @@ picture { display: contents; }
 button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .farm-line .coins .ns-money img { width: 1.4em; height: 1.4em; }
 .farm-toast .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.7)); }
+
+/* Loại bìa, nhiều bản giấy, các bản khác */
+.tag.binding { background: #6b4a2e; }
+.holdings .tag.binding { margin-left: 4px; }
+.extra-prints { display: grid; gap: 10px; margin-top: 4px; }
+.extra-print { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--cream); border: 1.5px dashed var(--line); }
+.extra-print-head { display: flex; justify-content: space-between; align-items: baseline; }
+.extra-prints > .small-btn { justify-self: start; }
+.editions { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.edition-card { width: 100%; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 10px; border-radius: 12px; background: #fff8ec; border: 1.5px solid var(--gold); color: var(--ink); font-weight: 400; }
+.edition-card:hover { background: #fdf0dc; }
+.edition-card .cover-sm { width: 52px; height: 75px; }

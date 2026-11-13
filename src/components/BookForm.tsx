@@ -11,7 +11,7 @@ import { parseIsbn } from '../search/isbn'
 import { foldVi } from '../search/normalizeVi'
 import { driveViewUrl, guessFormat, parseDriveLink } from '../data/drive'
 import { lookupIsbn, searchByTitle, type Candidate } from '../data/lookup'
-import { nameToString, type Book, type EbookHolding, type ItemType } from '../types/book'
+import { BINDINGS, bindingLabel, nameToString, type Binding, type Book, type EbookHolding, type ItemType, type PrintHolding } from '../types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -51,12 +51,16 @@ const splitList = (text: string) =>
 
 const toInt = (s: string) => (/^\d+$/.test(s.trim()) ? Number(s.trim()) : undefined)
 
+/** Một bản giấy thêm (khác loại bìa hoặc để ở kệ khác). */
+type PrintDraft = { binding: string; location: string; copies: string; condition: string }
+const toDraft = (h: PrintHolding): PrintDraft => ({ binding: h.binding ?? '', location: h.location ?? '', copies: String(h.copies ?? 1), condition: h.condition ?? '' })
+
 type Fields = Record<
   | 'type' | 'title' | 'subtitle' | 'originalTitle' | 'authors' | 'translators' | 'editors'
   | 'publisher' | 'partner' | 'place' | 'year' | 'edition' | 'pages' | 'sizeCm' | 'language'
   | 'isbn' | 'containerTitle' | 'volume' | 'issue' | 'pageRange' | 'genre'
   | 'subjects' | 'tags' | 'series' | 'seriesNo'
-  | 'location' | 'copies' | 'condition' | 'status' | 'notes' | 'description',
+  | 'location' | 'copies' | 'condition' | 'binding' | 'status' | 'notes' | 'description',
   string
 >
 
@@ -65,7 +69,7 @@ const EMPTY: Fields = {
   publisher: '', partner: '', place: '', year: '', edition: '', pages: '', sizeCm: '', language: 'vi',
   isbn: '', containerTitle: '', volume: '', issue: '', pageRange: '', genre: '',
   subjects: '', tags: '', series: '', seriesNo: '',
-  location: '', copies: '1', condition: '', status: 'owned', notes: '', description: '',
+  location: '', copies: '1', condition: '', binding: '', status: 'owned', notes: '', description: '',
 }
 
 type Built = { book: Book } | { error: string }
@@ -93,6 +97,7 @@ const toFields = (b: Book): Fields => {
     location: p?.kind === 'print' ? s(p.location) : '',
     copies: p?.kind === 'print' ? s(p.copies ?? 1) : '1',
     condition: p?.kind === 'print' ? s(p.condition) : '',
+    binding: p?.kind === 'print' ? s(p.binding) : '',
     status: b.status, notes: s(b.notes), description: s(b.description),
   }
 }
@@ -103,6 +108,7 @@ const build = (
   original: Book | undefined,
   ebooks: EbookHolding[],
   hasPrint: boolean,
+  extraPrints: PrintDraft[] = [],
 ): Built => {
   if (!hasPrint && !ebooks.length && f.status !== 'wishlist')
     return { error: 'Sách cần có bản giấy hoặc ít nhất một bản điện tử.' }
@@ -113,6 +119,7 @@ const build = (
     return { error: 'Năm xuất bản không hợp lệ.' }
   for (const [k, label] of [['pages', 'Số trang'], ['edition', 'Lần tái bản'], ['copies', 'Số bản']] as const)
     if (f[k].trim() && !toInt(f[k])) return { error: `${label} phải là số nguyên dương.` }
+  for (const x of extraPrints) if (x.copies.trim() && !toInt(x.copies)) return { error: 'Số bản của bản giấy khác phải là số nguyên dương.' }
 
   let isbn13: string | undefined
   let isbn10: string | undefined
@@ -167,7 +174,15 @@ const build = (
               location: opt(f.location.trim()),
               copies: toInt(f.copies) ?? 1,
               condition: opt(f.condition.trim()),
+              binding: (f.binding || undefined) as Binding | undefined,
             },
+            ...extraPrints.map((x) => ({
+              kind: 'print' as const,
+              location: opt(x.location.trim()),
+              copies: toInt(x.copies) ?? 1,
+              condition: opt(x.condition.trim()),
+              binding: (x.binding || undefined) as Binding | undefined,
+            })),
           ]),
       ...ebooks,
     ],
@@ -182,10 +197,7 @@ const build = (
     // Giữ nguyên những gì biểu mẫu không quản lý (sách điện tử, cho mượn, bìa, ngày tạo...).
     const kept: Record<string, unknown> = { ...original }
     for (const k of MANAGED) delete kept[k]
-    // Bản giấy thứ hai trở đi (nếu có) giữ nguyên; bản giấy đầu và các bản điện tử do biểu mẫu quản lý.
-    const firstPrint = original.holdings.findIndex((x) => x.kind === 'print')
-    const otherPrints = original.holdings.filter((h, i) => h.kind === 'print' && i !== firstPrint)
-    const keepPrints = f.status !== 'wishlist' && hasPrint
+    // Mọi bản giấy và bản điện tử đều do biểu mẫu quản lý.
     const merged = {
       ...kept,
       ...book,
@@ -193,11 +205,7 @@ const build = (
       source: original.source,
       createdAt: original.createdAt,
       updatedAt: now,
-      holdings: [
-        ...book.holdings.filter((h) => h.kind === 'print'),
-        ...(keepPrints ? otherPrints : []),
-        ...ebooks,
-      ],
+      holdings: [...book.holdings.filter((h) => h.kind === 'print'), ...ebooks],
     }
     return { book: JSON.parse(JSON.stringify(merged)) as Book }
   }
@@ -256,6 +264,10 @@ export default function BookForm({
   const [ebooks, setEbooks] = useState<EbookHolding[]>(
     startHoldings.filter((h): h is EbookHolding => h.kind === 'ebook'),
   )
+  const [extraPrints, setExtraPrints] = useState<PrintDraft[]>(() =>
+    startHoldings.filter((h): h is PrintHolding => h.kind === 'print').slice(1).map(toDraft),
+  )
+  const setExtra = (i: number, k: keyof PrintDraft) => (v: string) => setExtraPrints((xs) => xs.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
   const [hasPrint, setHasPrint] = useState(
     startHoldings.length === 0 || startHoldings.some((h) => h.kind === 'print') || initial?.status === 'wishlist',
   )
@@ -390,7 +402,7 @@ export default function BookForm({
 
   const save = async (force: boolean) => {
     setError(null)
-    const r = build(f, cats, initial, ebooks, hasPrint)
+    const r = build(f, cats, initial, ebooks, hasPrint, extraPrints)
     if ('error' in r) return setError(r.error)
     if (!force) {
       const d = findDuplicates(r.book, books.filter((b) => b.id !== initial?.id))
@@ -777,7 +789,65 @@ export default function BookForm({
             Tình trạng
             <input placeholder="tốt, ố vàng, mất bìa..." value={f.condition} onChange={set('condition')} disabled={f.status === 'wishlist' || !hasPrint} />
           </label>
+          <label>
+            Loại bìa
+            <select value={f.binding} onChange={set('binding')} disabled={f.status === 'wishlist' || !hasPrint}>
+              <option value="">Chưa ghi</option>
+              {BINDINGS.map((b) => (
+                <option key={b.value} value={b.value}>{b.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
+        {hasPrint && f.status !== 'wishlist' && (
+          <div className="extra-prints">
+            {extraPrints.map((x, i) => (
+              <div key={i} className="extra-print">
+                <div className="extra-print-head">
+                  <b>Bản giấy thứ {i + 2}</b>
+                  <button type="button" className="link" onClick={() => setExtraPrints((xs) => xs.filter((_, j) => j !== i))}>
+                    Bỏ bản này
+                  </button>
+                </div>
+                <div className="row">
+                  <label>
+                    Loại bìa
+                    <select value={x.binding} onChange={(e) => setExtra(i, 'binding')(e.target.value)}>
+                      <option value="">Chưa ghi</option>
+                      {BINDINGS.map((b) => (
+                        <option key={b.value} value={b.value}>{b.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <SuggestInput label="Vị trí (tủ, kệ)" placeholder="T1-K2" value={x.location} onChange={setExtra(i, 'location')} options={opts.locations} />
+                </div>
+                <div className="row">
+                  <label>
+                    Số bản
+                    <input inputMode="numeric" value={x.copies} onChange={(e) => setExtra(i, 'copies')(e.target.value)} />
+                  </label>
+                  <label>
+                    Tình trạng
+                    <input placeholder="tốt, ố vàng, mất bìa..." value={x.condition} onChange={(e) => setExtra(i, 'condition')(e.target.value)} />
+                  </label>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="secondary small-btn"
+              onClick={() =>
+                setExtraPrints((xs) => [
+                  ...xs,
+                  { binding: f.binding === 'hardcover' || f.binding === 'jacket' ? 'paperback' : f.binding ? 'hardcover' : '', location: f.location, copies: '1', condition: '' },
+                ])
+              }
+            >
+              + Thêm bản giấy khác (bìa khác hoặc để kệ khác)
+            </button>
+            <p className="hint">Dùng khi các bản chung một ISBN. Nếu bản bìa khác có ISBN riêng, nên tạo cuốn riêng bằng nút “Thêm bản bìa khác” ở trang chi tiết.</p>
+          </div>
+        )}
         <label>
           Ghi chú
           <textarea rows={2} value={f.notes} onChange={set('notes')} />
@@ -875,6 +945,7 @@ export default function BookForm({
                   {d.year ? ` (${d.year})` : ''}
                   {d.publisher ? `, ${d.publisher}` : ''}
                   {loc?.kind === 'print' && loc.location ? `, kệ ${loc.location}` : ''}
+                  {loc?.kind === 'print' && loc.binding ? `, ${bindingLabel(loc.binding)?.toLowerCase()}` : ''}
                 </li>
               )
             })}

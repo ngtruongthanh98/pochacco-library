@@ -6,7 +6,8 @@ import { BookQuotes, type ExcerptActions } from './Quotes'
 import { driveViewUrl } from '../data/drive'
 import { deleteBook, type StoreConfig } from '../data/githubStore'
 import { relatedBooks } from '../search/related'
-import { nameToString, type Book, type EbookHolding, type Name } from '../types/book'
+import { otherEditions } from '../search/editions'
+import { bindingLabel, nameToString, type Book, type EbookHolding, type Name } from '../types/book'
 import Cover from './Cover'
 
 function Description({ text, onEdit }: { text?: string; onEdit: () => void }) {
@@ -96,6 +97,7 @@ export default function BookDetail({
   onBack,
   onEdit,
   onDuplicate,
+  onAddEdition,
   onDeleted,
   excerpts,
   allTopics,
@@ -112,6 +114,7 @@ export default function BookDetail({
   onBack: () => void
   onEdit: () => void
   onDuplicate: () => void
+  onAddEdition: () => void
   onDeleted: (b: Book) => void
   excerpts: Excerpt[]
   allTopics: string[]
@@ -125,7 +128,11 @@ export default function BookDetail({
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const related = useMemo(() => relatedBooks(book, books), [book, books])
+  const editions = useMemo(() => otherEditions(book, books), [book, books])
+  const related = useMemo(() => {
+    const ed = new Set(editions.map((b) => b.id))
+    return relatedBooks(book, books).filter((r) => !ed.has(r.book.id))
+  }, [book, books, editions])
 
   const prints = book.holdings.filter((h) => h.kind === 'print')
   const mainLoc = prints[0]?.kind === 'print' ? prints[0].location : undefined
@@ -190,6 +197,13 @@ export default function BookDetail({
             title="Tạo cuốn tương tự (ví dụ tập khác của bộ sách) từ thông tin của cuốn này"
           >
             Nhân bản
+          </button>
+          <button
+            className="secondary small-btn"
+            onClick={onAddEdition}
+            title="Tạo cuốn mới cho bản bìa khác (thường có ISBN riêng), giữ nguyên nhan đề và tác giả"
+          >
+            Thêm bản bìa khác
           </button>
           <button className="secondary small-btn" onClick={onEdit}>
             Sửa thông tin
@@ -290,7 +304,8 @@ export default function BookDetail({
             {book.holdings.map((h, i) =>
               h.kind === 'print' ? (
                 <li key={i}>
-                  <span className="tag">Bản giấy</span> {h.location ? `Kệ ${h.location}` : 'Chưa ghi vị trí'}
+                  <span className="tag">Bản giấy</span>
+                  {h.binding && <span className="tag binding">{bindingLabel(h.binding)}</span>} {h.location ? `Kệ ${h.location}` : 'Chưa ghi vị trí'}
                   {h.copies && h.copies > 1 ? `, ${h.copies} bản` : ''}
                   {h.condition ? `, ${h.condition}` : ''}
                 </li>
@@ -315,6 +330,35 @@ export default function BookDetail({
                 </li>
               ),
             )}
+          </ul>
+        </section>
+      )}
+
+      {editions.length > 0 && (
+        <section>
+          <h3>Các bản khác của cuốn này</h3>
+          <ul className="editions">
+            {editions.map((b) => {
+              const bindings = [...new Set(b.holdings.flatMap((h) => (h.kind === 'print' && h.binding ? [bindingLabel(h.binding)!] : [])))]
+              const ebook = b.holdings.some((h) => h.kind === 'ebook')
+              return (
+                <li key={b.id}>
+                  <button className="edition-card" onClick={() => onOpen(b)}>
+                    <Cover book={b} cfg={cfg} />
+                    <span className="related-body">
+                      <span className="related-title">
+                        {bindings.length ? bindings.join(', ') : b.holdings.some((h) => h.kind === 'print') ? 'Bản giấy' : ebook ? 'Sách điện tử' : 'Muốn mua'}
+                      </span>
+                      <span className="related-by">
+                        {[b.publisher, b.year, b.edition ? `tái bản lần ${b.edition}` : '', b.pages ? `${b.pages} trang` : '', b.isbn13 ? `ISBN ${b.isbn13}` : 'chưa có ISBN']
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}

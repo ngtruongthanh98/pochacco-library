@@ -1,4 +1,4 @@
-import type { Book, PrintHolding } from '../types/book'
+import type { Binding, Book, PrintHolding } from '../types/book'
 
 export const COPY_PREFIX = 'Copy of '
 
@@ -7,6 +7,24 @@ export const COPY_PREFIX = 'Copy of '
  * Giữ: loại, tác giả, dịch giả, chủ biên, xuất bản, ngôn ngữ, phân loại, bộ sách, mô tả, vị trí kệ.
  * Bỏ: ISBN, số trang, ảnh bìa, bản điện tử, ghi chú, cho mượn — những thứ riêng của từng tập.
  */
+/**
+ * Bản nháp cho một bản khác của cùng cuốn sách (ví dụ có bản bìa mềm rồi, thêm bản bìa cứng).
+ * Giữ nguyên nhan đề, tác giả, xuất bản, tập; đổi loại bìa; bỏ ISBN, số trang, khổ sách, ảnh bìa,
+ * bản điện tử và ghi chú vì bản khác thường có mã và thông số riêng.
+ */
+export function editionDraft(b: Book): Partial<Book> {
+  const print = b.holdings.find((h): h is PrintHolding => h.kind === 'print')
+  const other: Binding = print?.binding === 'hardcover' || print?.binding === 'jacket' ? 'paperback' : 'hardcover'
+  return {
+    ...duplicateDraft(b),
+    title: b.title,
+    seriesNo: b.seriesNo,
+    workKey: b.workKey,
+    sizeCm: undefined,
+    holdings: [{ kind: 'print', location: print?.location, copies: 1, binding: other }],
+  }
+}
+
 export function duplicateDraft(b: Book): Partial<Book> {
   const print = b.holdings.find((h): h is PrintHolding => h.kind === 'print')
   const title = b.title.startsWith(COPY_PREFIX) ? b.title : `${COPY_PREFIX}${b.title}`
@@ -35,6 +53,6 @@ export function duplicateDraft(b: Book): Partial<Book> {
     seriesNo: b.seriesNo !== undefined ? b.seriesNo + 1 : undefined,
     description: b.description,
     status: b.status === 'wishlist' ? 'wishlist' : 'owned',
-    holdings: print ? [{ kind: 'print', location: print.location, copies: 1, condition: print.condition }] : [],
+    holdings: print ? [{ kind: 'print', location: print.location, copies: 1, condition: print.condition, binding: print.binding }] : [],
   }
 }
