@@ -5,19 +5,60 @@ import { TET_DAYS, TRUNGTHU_DAYS } from './farm'
 export const nAsset = (n: string) => `${import.meta.env.BASE_URL}assets/noodle/${n}.webp`
 
 // ---- Topping ----
-export type TopId = 'trung' | 'xucxich' | 'caithia' | 'cavien' | 'nam' | 'dauhu' | 'ot' | 'kimchi' | 'tom' | 'thitbo'
-export type Topping = { id: TopId; name: string; unlock: number; price: number }
+export type TopId =
+  | 'trung' | 'xucxich' | 'caithia' | 'cavien' | 'nam' | 'dauhu' | 'ot' | 'kimchi' | 'tom' | 'thitbo'
+  | 'kimcham' | 'thanhcua' | 'thitnguoi' | 'naruto' | 'rongbien' | 'bap' | 'hanhla' | 'giado' | 'chanh' | 'trungluoc' | 'phomai' | 'phomaitan'
+  | 'banhgao' | 'udon' | 'migoi' | 'suicao' | 'vem' | 'bachtuoc' | 'mucvong' | 'sate' | 'otbot' | 'chachien' | 'caithao'
+export type TopGroup = 'thit' | 'haisan' | 'trung' | 'rau' | 'mi' | 'cay'
+export const TOP_GROUPS: { id: TopGroup; name: string }[] = [
+  { id: 'thit', name: 'Thịt và chả' },
+  { id: 'haisan', name: 'Hải sản' },
+  { id: 'trung', name: 'Trứng và phô mai' },
+  { id: 'rau', name: 'Rau, nấm, đậu' },
+  { id: 'mi', name: 'Mì và bánh' },
+  { id: 'cay', name: 'Gia vị cay' },
+]
+export type Topping = { id: TopId; name: string; group: TopGroup; unlock: number; price: number }
 export const TOPPINGS: Topping[] = [
-  { id: 'trung', name: 'Trứng ốp la', unlock: 0, price: 6 },
-  { id: 'xucxich', name: 'Xúc xích', unlock: 0, price: 6 },
-  { id: 'caithia', name: 'Cải thìa', unlock: 0, price: 4 },
-  { id: 'cavien', name: 'Chả cá viên', unlock: 0, price: 6 },
-  { id: 'nam', name: 'Nấm hương', unlock: 60, price: 7 },
-  { id: 'dauhu', name: 'Đậu hũ', unlock: 90, price: 6 },
-  { id: 'ot', name: 'Ớt tươi', unlock: 130, price: 4 },
-  { id: 'kimchi', name: 'Kim chi', unlock: 180, price: 8 },
-  { id: 'tom', name: 'Tôm', unlock: 260, price: 12 },
-  { id: 'thitbo', name: 'Thịt bò', unlock: 360, price: 14 },
+  // Thịt và chả
+  { id: 'xucxich', name: 'Xúc xích', group: 'thit', unlock: 0, price: 6 },
+  { id: 'cavien', name: 'Chả cá viên', group: 'thit', unlock: 0, price: 6 },
+  { id: 'thanhcua', name: 'Thanh cua', group: 'thit', unlock: 110, price: 7 },
+  { id: 'chachien', name: 'Chả cá chiên', group: 'thit', unlock: 120, price: 7 },
+  { id: 'thitnguoi', name: 'Thịt nguội', group: 'thit', unlock: 130, price: 8 },
+  { id: 'naruto', name: 'Chả cá Nhật', group: 'thit', unlock: 150, price: 8 },
+  { id: 'thitbo', name: 'Thịt bò', group: 'thit', unlock: 360, price: 14 },
+  // Hải sản
+  { id: 'tom', name: 'Tôm', group: 'haisan', unlock: 260, price: 12 },
+  { id: 'mucvong', name: 'Mực vòng', group: 'haisan', unlock: 300, price: 12 },
+  { id: 'vem', name: 'Vẹm xanh', group: 'haisan', unlock: 320, price: 13 },
+  { id: 'bachtuoc', name: 'Bạch tuộc', group: 'haisan', unlock: 420, price: 15 },
+  // Trứng và phô mai
+  { id: 'trung', name: 'Trứng ốp la', group: 'trung', unlock: 0, price: 6 },
+  { id: 'trungluoc', name: 'Trứng luộc', group: 'trung', unlock: 50, price: 6 },
+  { id: 'phomai', name: 'Phô mai lát', group: 'trung', unlock: 240, price: 9 },
+  { id: 'phomaitan', name: 'Phô mai tan chảy', group: 'trung', unlock: 280, price: 10 },
+  // Rau, nấm, đậu
+  { id: 'caithia', name: 'Cải thìa', group: 'rau', unlock: 0, price: 4 },
+  { id: 'hanhla', name: 'Hành lá', group: 'rau', unlock: 30, price: 2 },
+  { id: 'giado', name: 'Giá đỗ', group: 'rau', unlock: 40, price: 3 },
+  { id: 'chanh', name: 'Chanh', group: 'rau', unlock: 40, price: 2 },
+  { id: 'bap', name: 'Bắp ngọt', group: 'rau', unlock: 50, price: 4 },
+  { id: 'nam', name: 'Nấm hương', group: 'rau', unlock: 60, price: 7 },
+  { id: 'caithao', name: 'Cải thảo', group: 'rau', unlock: 70, price: 4 },
+  { id: 'rongbien', name: 'Rong biển', group: 'rau', unlock: 70, price: 5 },
+  { id: 'kimcham', name: 'Nấm kim châm', group: 'rau', unlock: 80, price: 6 },
+  { id: 'dauhu', name: 'Đậu hũ', group: 'rau', unlock: 90, price: 6 },
+  { id: 'kimchi', name: 'Kim chi', group: 'rau', unlock: 180, price: 8 },
+  // Mì và bánh
+  { id: 'banhgao', name: 'Bánh gạo', group: 'mi', unlock: 150, price: 8 },
+  { id: 'migoi', name: 'Thêm vắt mì', group: 'mi', unlock: 160, price: 7 },
+  { id: 'udon', name: 'Mì udon', group: 'mi', unlock: 200, price: 9 },
+  { id: 'suicao', name: 'Sủi cảo', group: 'mi', unlock: 220, price: 10 },
+  // Gia vị cay
+  { id: 'ot', name: 'Ớt tươi', group: 'cay', unlock: 130, price: 4 },
+  { id: 'otbot', name: 'Ớt bột', group: 'cay', unlock: 150, price: 3 },
+  { id: 'sate', name: 'Sa tế', group: 'cay', unlock: 200, price: 5 },
 ]
 export const TOP = Object.fromEntries(TOPPINGS.map((t) => [t.id, t])) as Record<TopId, Topping>
 export const SPICE_NAMES = ['Không cay', 'Cay nhẹ', 'Hơi cay', 'Cay vừa', 'Khá cay', 'Cay nhiều', 'Rất cay', 'Cay xé lưỡi']

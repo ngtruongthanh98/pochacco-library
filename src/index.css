@@ -1050,3 +1050,15 @@ picture { display: contents; }
   .ns-bubble { padding: 6px 4px; gap: 3px; }
 }
 .ns-regular small { font-weight: 500; font-size: 0.72rem; line-height: 1.25; }
+.ns-tray { display: grid; gap: 6px; }
+.ns-tray-group { display: grid; gap: 4px; }
+.ns-tray-label { font-size: 0.75rem; font-weight: 700; color: var(--olive); text-transform: uppercase; letter-spacing: .5px; }
+.ns-tray-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.ns-topgroup { display: grid; gap: 6px; margin-bottom: 10px; }
+.ns-tops { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.ns-topcard img { width: 56px; height: 56px; }
+@media (max-width: 640px) { .ns-top { width: 62px; font-size: 0.68rem; } .ns-top img { width: 32px; height: 32px; } }
+.ns-tray { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 18px; }
+.ns-tray-group { flex: 0 1 auto; }
+.ns-top { width: 76px; }
+.ns-top img { width: 40px; height: 40px; }

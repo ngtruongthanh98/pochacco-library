@@ -4,7 +4,7 @@ import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import {
   ALL_DECOR, BADGE_GOAL, OWNER, SHOP_NAME, custImg, DINE_IN, SAY_HAPPY, SAY_SAD, basePrice, bowlsOf, cookMsOf, CUST, DECOR, judge, MAX_SHOWN, NAMES, nAsset, newOrder, newShop, parseShop, patienceMs, SEASONS,
-  seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOPPINGS, UPGRADES,
+  seasonAt, seatsOf, SHIFT_SECONDS, shopRank, spawnGap, SPICE_NAMES, stovesOf, TOP, TOP_GROUPS, TOPPINGS, UPGRADES,
   type CustKind, type Mood, type Order, type SeasonId, type Shop, type TopId, type UpgradeId,
 } from './noodle'
 
@@ -542,14 +542,25 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
             })}
           </div>
           <div className="ns-tray" aria-label="Khay topping">
-            {TOPPINGS.filter((t) => shop.tops.includes(t.id)).map((t) => {
-              const st = r.stoves[r.sel]
-              const inPot = !!st?.tops.includes(t.id)
+            {TOP_GROUPS.map((g) => {
+              const list = TOPPINGS.filter((t) => t.group === g.id && shop.tops.includes(t.id))
+              if (!list.length) return null
               return (
-                <button key={t.id} className={`ns-top ${inPot ? 'in' : ''}`} onClick={() => toggleTop(t.id)} title={inPot ? `Vớt ${t.name} ra` : `Bỏ ${t.name} vào bếp ${r.sel + 1}`}>
-                  <img src={nAsset(t.id)} alt="" />
-                  <span>{t.name}</span>
-                </button>
+                <div key={g.id} className="ns-tray-group">
+                  <span className="ns-tray-label">{g.name}</span>
+                  <div className="ns-tray-items">
+                    {list.map((t) => {
+                      const st = r.stoves[r.sel]
+                      const inPot = !!st?.tops.includes(t.id)
+                      return (
+                        <button key={t.id} className={`ns-top ${inPot ? 'in' : ''}`} onClick={() => toggleTop(t.id)} title={inPot ? `Vớt ${t.name} ra` : `Bỏ ${t.name} vào bếp ${r.sel + 1}`}>
+                          <img src={nAsset(t.id)} alt="" />
+                          <span>{t.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -621,25 +632,32 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           </section>
 
           <section>
-            <h4>Thực đơn topping</h4>
-            <div className="ns-tops">
-              {TOPPINGS.map((t) => {
-                const own = shop.tops.includes(t.id)
-                return (
-                  <div key={t.id} className={`ns-topcard ${own ? 'own' : ''}`}>
-                    <img src={nAsset(t.id)} alt="" />
-                    <b>{t.name}</b>
-                    {own ? (
-                      <span className="muted small">+{t.price} xu/tô</span>
-                    ) : (
-                      <button className="small-btn" disabled={shop.coins < t.unlock} onClick={() => unlockTop(t.id)}>
-                        {t.unlock} xu
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <h4>
+              Thực đơn topping <span className="muted small">({shop.tops.length}/{TOPPINGS.length} món)</span>
+            </h4>
+            {TOP_GROUPS.map((g) => (
+              <div key={g.id} className="ns-topgroup">
+                <span className="ns-tray-label">{g.name}</span>
+                <div className="ns-tops">
+                  {TOPPINGS.filter((t) => t.group === g.id).map((t) => {
+                    const own = shop.tops.includes(t.id)
+                    return (
+                      <div key={t.id} className={`ns-topcard ${own ? 'own' : ''}`}>
+                        <img src={nAsset(t.id)} alt="" />
+                        <b>{t.name}</b>
+                        {own ? (
+                          <span className="muted small">+{t.price} xu/tô</span>
+                        ) : (
+                          <button className="small-btn" disabled={shop.coins < t.unlock} onClick={() => unlockTop(t.id)}>
+                            {t.unlock} xu
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </section>
 
           <section>
