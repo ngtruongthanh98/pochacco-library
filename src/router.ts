@@ -1,3 +1,4 @@
+import { isAddedFilter } from './search/added'
 // Định tuyến bằng phần # của địa chỉ web (chạy được trên GitHub Pages, không cần cấu hình máy chủ).
 //   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp, ?trang=… số trang
 //   #/thong-ke                  trang thống kê
@@ -28,6 +29,8 @@ export type Route = {
   fmt: FormatFilter
   /** Chủ đề đang xem ở trang Trích dẫn */
   topic: string | null
+  /** Lọc theo ngày nhập (xem search/added.ts) */
+  added: string | null
   /** Trang thứ mấy của danh sách (từ 1) */
   pg: number
   /** Trang Tài liệu tham khảo: null là trang tổng, 'tam' là danh sách tạm, còn lại là id danh mục */
@@ -49,6 +52,7 @@ export const EMPTY_ROUTE: Route = {
   sort: null,
   fmt: null,
   topic: null,
+  added: null,
   pg: 1,
   refList: null,
   person: null,
@@ -79,6 +83,7 @@ export function formatRoute(r: Route): string {
   else if (r.group >= 0) params.set('nhom', groupSlug(r.group))
   if (r.sort) params.set('xep', r.sort)
   if (r.fmt) params.set('ban', FORMAT_OPTIONS.find((o) => o.key === r.fmt)!.slug)
+  if (r.added) params.set('nhap', r.added)
   if (r.pg > 1) params.set('trang', String(r.pg))
   const qs = params.toString()
   return qs ? `#/?${qs}` : '#/'
@@ -110,6 +115,8 @@ export function parseRoute(hash: string): Route {
   const xep = params.get('xep')
   if (isSortKey(xep)) r.sort = xep
   r.fmt = FORMAT_OPTIONS.find((o) => o.slug === params.get('ban'))?.key ?? null
+  const nhap = params.get('nhap')
+  r.added = isAddedFilter(nhap) ? nhap : null
   const trang = Number(params.get('trang'))
   if (Number.isInteger(trang) && trang > 1) r.pg = trang
   const loai = params.get('loai')

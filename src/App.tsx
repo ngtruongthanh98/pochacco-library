@@ -41,6 +41,7 @@ import { FORMAT_OPTIONS, formatOf, isEbookOnly, type FormatFilter } from './data
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ScrollTop } from './components/ScrollTop'
 import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
+import { ADDED_PRESETS, addedLabel, addedMatcher, batches, dayKey, fmtDay } from './search/added'
 import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
 import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
@@ -382,6 +383,8 @@ export default function App() {
   const [sort, setSort] = useState<SortKey | null>(initial.sort)
   const [fmt, setFmt] = useState<FormatFilter>(initial.fmt)
   const [topic, setTopic] = useState<string | null>(initial.topic)
+  const [added, setAdded] = useState<string | null>(initial.added)
+  const [rangeOpen, setRangeOpen] = useState(false)
   const [excerpts, setExcerpts] = useState<Excerpt[]>([])
   const [exError, setExError] = useState<string | null>(null)
   const [readerCfg, setReaderCfg] = useState<ReaderConfig>({})
@@ -399,7 +402,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, added, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -429,6 +432,7 @@ export default function App() {
       setCat(r.cat)
       setSort(r.sort)
       setFmt(r.fmt)
+      setAdded(r.added)
       setTopic(r.topic)
       setRefView(r.refList)
       setPerson(r.person)
@@ -626,13 +630,16 @@ export default function App() {
   const groupCount = (g: number) => matched.filter((b) => inGroup(b, g)).length
   const catCount = (id: string) => matched.filter((b) => b.categories?.includes(id)).length
   const inCats = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
-  const fmtCount = (k: FormatFilter) => (k ? inCats.filter((b) => formatOf(b) === k).length : inCats.length)
-  const filtered = fmt ? inCats.filter((b) => formatOf(b) === fmt) : inCats
-  const filtering = searching || group >= 0 || fmt !== null
+  const addedOk = addedMatcher(added)
+  const inAdded = added ? inCats.filter(addedOk) : inCats
+  const addedCount = (f: string) => inCats.filter(addedMatcher(f)).length
+  const fmtCount = (k: FormatFilter) => (k ? inAdded.filter((b) => formatOf(b) === k).length : inAdded.length)
+  const filtered = fmt ? inAdded.filter((b) => formatOf(b) === fmt) : inAdded
+  const filtering = searching || group >= 0 || fmt !== null || added !== null
   // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
   const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
   const sorted = sortBooks(filtered, sortKey === 'phu-hop' && !searching ? 'moi' : sortKey)
-  const listKey = `${q}|${group}|${cat}|${fmt}|${sortKey}`
+  const listKey = `${q}|${group}|${cat}|${fmt}|${added}|${sortKey}`
   // Lần đầu (key rỗng) chấp nhận số trang từ địa chỉ web; sau đó chỉ giữ khi bộ lọc không đổi.
   const wantedPg = pgState.key === '' || pgState.key === listKey ? pgState.pg : 1
   const pages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize))
@@ -1330,11 +1337,82 @@ export default function App() {
                 })}
               </div>
             )}
+            {!loading && !error && books.length > 0 && (
+              <div className="added-filter" role="group" aria-label="Lọc theo ngày nhập">
+                <div className="af-chips">
+                <span className="af-label">Ngày nhập</span>
+                <button className={`fmt-pill ${!added ? 'active' : ''}`} aria-pressed={!added} onClick={() => { setAdded(null); setRangeOpen(false) }}>
+                  Mọi lúc
+                </button>
+                {ADDED_PRESETS.map((p) => {
+                  const n = addedCount(p.key)
+                  return (
+                    <button key={p.key} className={`fmt-pill ${added === p.key ? 'active' : ''}`} aria-pressed={added === p.key} disabled={!n && added !== p.key} onClick={() => { setAdded(p.key); setRangeOpen(false) }}>
+                      {p.label} <span className="n">{n.toLocaleString('vi-VN')}</span>
+                    </button>
+                  )
+                })}
+                <select
+                  className={`af-batch ${added && /^\d{4}-\d{2}-\d{2}$/.test(added) ? 'active' : ''}`}
+                  value={added && /^\d{4}-\d{2}-\d{2}$/.test(added) ? added : ''}
+                  onChange={(e) => { setAdded(e.target.value || null); setRangeOpen(false) }}
+                  aria-label="Chọn đợt nhập"
+                >
+                  <option value="">Đợt nhập…</option>
+                  {batches(inCats).map((x) => (
+                    <option key={x.day} value={x.day}>
+                      {fmtDay(x.day)} · {x.count} cuốn
+                    </option>
+                  ))}
+                </select>
+                <button className={`fmt-pill ${added?.includes('_') ? 'active' : ''}`} aria-expanded={rangeOpen} onClick={() => setRangeOpen(!rangeOpen)}>
+                  Khoảng ngày…
+                </button>
+                </div>
+                {rangeOpen && (
+                  <form
+                    className="af-range"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      const f = new FormData(e.currentTarget)
+                      const a = String(f.get('from') || '')
+                      const b = String(f.get('to') || '') || dayKey(new Date())
+                      if (a) setAdded(`${a}_${b}`)
+                      setRangeOpen(false)
+                    }}
+                  >
+                    <label>
+                      Từ <input type="date" name="from" required max={dayKey(new Date())} defaultValue={added?.includes('_') ? added.split('_')[0] : ''} />
+                    </label>
+                    <label>
+                      đến <input type="date" name="to" max={dayKey(new Date())} defaultValue={added?.includes('_') ? added.split('_')[1] : ''} />
+                    </label>
+                    <button type="submit" className="small-btn">Lọc</button>
+                  </form>
+                )}
+                {added && filtered.length > 0 && (
+                  <div className="af-bulk">
+                    <span className="muted small">{addedLabel(added)}: {filtered.length.toLocaleString('vi-VN')} cuốn.</span>
+                    <button
+                      className="small-btn secondary"
+                      onClick={() => {
+                        const ids = filtered.map((b) => b.id)
+                        if (targetList) patchList(targetList.id, { books: [...new Set([...targetList.books, ...ids])] })
+                        else setPicked((xs) => [...new Set([...xs, ...ids])])
+                        setSelecting(true)
+                      }}
+                    >
+                      Chọn cả {filtered.length.toLocaleString('vi-VN')} cuốn
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
-                title={searching ? 'Chưa có cuốn này trong thư viện' : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : 'Mục này chưa có sách'}
-                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
+                title={searching ? 'Chưa có cuốn này trong thư viện' : added ? `Không có sách nhập ${addedLabel(added).toLowerCase()}` : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : 'Mục này chưa có sách'}
+                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : added ? 'Chọn “Mọi lúc” để xem toàn bộ.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
             {!loading && !error && books.length > 0 && !(filtering && sorted.length === 0) && (

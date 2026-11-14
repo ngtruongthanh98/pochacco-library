@@ -1645,3 +1645,20 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
   .golf-menu button img { width: 32px; height: 32px; }
   .golf-worlds button { font-size: 0.66rem; }
 }
+
+/* Lọc theo ngày nhập */
+.added-filter { display: grid; gap: 6px; margin: 0 0 8px; }
+.af-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.af-label { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-right: 2px; }
+.af-chips .fmt-pill:disabled { opacity: 0.45; }
+.af-batch { width: auto; min-height: 34px; padding: 4px 28px 4px 10px; border-radius: 999px; font-size: 0.85rem; }
+.af-batch.active { border-color: var(--red); background-color: #fdebe7; font-weight: 600; }
+.af-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: var(--paper); border: 1.5px solid var(--line); }
+.af-range label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; }
+.af-range input { width: auto; }
+.af-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 600px) {
+  .af-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .af-chips::-webkit-scrollbar { display: none; }
+  .af-chips > * { flex: none; }
+}
