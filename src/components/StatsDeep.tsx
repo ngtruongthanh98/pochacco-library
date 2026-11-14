@@ -7,6 +7,7 @@ import { BarList, Columns, Tile, nf, pct } from './charts'
 
 const KIND: Record<Insight['kind'], string> = { focus: 'Trọng tâm', link: 'Liên kết', gap: 'Khoảng trống', fix: 'Cần chỉnh' }
 
+export type DeepPart = 'insights' | 'cats' | 'heat' | 'authors'
 type CatSort = 'count' | 'people' | 'year' | 'translated' | 'pages' | 'label'
 const span = (a?: number, b?: number) => (a ? (a === b ? `${a}` : `${a}–${b}`) : '')
 
@@ -89,12 +90,15 @@ export default function StatsDeep({
   onCategory,
   onPerson,
   onOpen,
+  parts = ['insights', 'cats', 'heat', 'authors'],
 }: {
   books: Book[]
   onCategory: (id: string) => void
   onPerson: (name: string) => void
   onOpen: (b: Book) => void
+  parts?: DeepPart[]
 }) {
+  const show = (p: DeepPart) => parts.includes(p)
   const d = useMemo(() => deepAnalysis(books), [books])
   const total = books.filter((b) => b.status !== 'wishlist').length
   const [catSort, setCatSort] = useState<CatSort>('count')
@@ -136,7 +140,7 @@ export default function StatsDeep({
 
   return (
     <>
-      {d.insights.length > 0 && (
+      {show('insights') && d.insights.length > 0 && (
         <section className="card">
           <h3>Insight từ thư viện</h3>
           <p className="muted small">Rút ra từ việc đối chiếu thể loại, tác giả, năm in và ngôn ngữ.</p>
@@ -151,7 +155,7 @@ export default function StatsDeep({
         </section>
       )}
 
-      <section className="card">
+      {show('cats') && <section className="card">
         <h3>Phân tích theo thể loại</h3>
         <p className="muted small">Bấm tên cột để sắp xếp, bấm một dòng để xem chân dung mảng sách đó.</p>
         <div className="table-scroll">
@@ -197,9 +201,9 @@ export default function StatsDeep({
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
 
-      {d.heat.rows.length > 0 && d.heat.cols.length > 1 && (
+      {show('heat') && d.heat.rows.length > 0 && d.heat.cols.length > 1 && (
         <section className="card">
           <h3>Thể loại qua các thời kỳ</h3>
           <p className="muted small">Số cuốn của mỗi nhóm theo thập niên xuất bản; ô càng đậm càng nhiều sách. Rê chuột lên ô để xem chi tiết.</p>
@@ -234,7 +238,7 @@ export default function StatsDeep({
         </section>
       )}
 
-      <section className="card">
+      {show('authors') && <section className="card">
         <h3>Phân tích theo tác giả</h3>
         <p className="muted small">Gồm cả dịch giả và người biên soạn. Bấm một người để xem trang thông tin, tiểu sử và toàn bộ sách liên quan.</p>
         <div className="author-filters">
@@ -287,7 +291,7 @@ export default function StatsDeep({
           </button>
         )}
         {!authors.length && <p className="muted small">Không có ai khớp.</p>}
-      </section>
+      </section>}
     </>
   )
 }

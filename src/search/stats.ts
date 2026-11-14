@@ -195,7 +195,69 @@ export const computeStats = (all: Book[]) => {
     )
   if (needsWork.length) insights.push(`${needsWork.length} cuốn còn thiếu thông tin; danh sách ở cuối trang giúp bổ sung dần.`)
 
+  // Tăng trưởng thư viện: số đầu sách cộng dồn theo ngày nhập (không tính sách muốn mua).
+  const dayCount = new Map<string, number>()
+  for (const b of books) {
+    const d = b.createdAt?.slice(0, 10)
+    if (d) dayCount.set(d, (dayCount.get(d) ?? 0) + 1)
+  }
+  let run = books.filter((b) => !b.createdAt).length
+  const growth = [...dayCount.keys()].sort().map((d) => ({ date: d, count: (run += dayCount.get(d)!), added: dayCount.get(d)! }))
+
+  // Hình thức: loại bìa của bản giấy, sách chỉ có bản điện tử.
+  const bindingOf = (b: Book) => {
+    const p = b.holdings.find((h) => h.kind === 'print')
+    if (!p || p.kind !== 'print') return 'ebook-only'
+    return p.binding ?? 'unknown'
+  }
+  const FORMAT_LABEL: Record<string, string> = {
+    paperback: 'Bìa mềm', hardcover: 'Bìa cứng', jacket: 'Bìa cứng có áo', special: 'Bản đặc biệt',
+    unknown: 'Bản giấy, chưa ghi bìa', 'ebook-only': 'Chỉ có bản điện tử',
+  }
+  const formats: Row[] = Object.keys(FORMAT_LABEL)
+    .map((k) => ({ key: k, label: FORMAT_LABEL[k], count: books.filter((b) => bindingOf(b) === k).length }))
+    .filter((r) => r.count)
+
+  // Hồ sơ nhà xuất bản: số cuốn, số trang, khoảng năm in, nhóm chính, tỷ lệ sách dịch.
+  const groupOfBook = (b: Book) =>
+    CATEGORY_GROUPS.filter((g) => b.categories?.some((c) => g.items.some((x) => x.id === c))).map((g) => g.label)
+  const pubProfiles = publishers.map((r) => {
+    const bs = books.filter((b) => b.publisher && foldVi(b.publisher) === r.key)
+    const ys = bs.map((b) => b.year).filter((y): y is number => !!y)
+    const gc = new Map<string, number>()
+    for (const b of bs) for (const g of groupOfBook(b)) gc.set(g, (gc.get(g) ?? 0) + 1)
+    const mainGroup = [...gc.entries()].sort((a, b) => b[1] - a[1])[0]
+    return {
+      key: r.key, label: r.label, count: r.count, pages: r.pages ?? 0,
+      minYear: ys.length ? Math.min(...ys) : undefined, maxYear: ys.length ? Math.max(...ys) : undefined,
+      mainGroup: mainGroup?.[0], mainShare: mainGroup ? mainGroup[1] / r.count : 0,
+      translated: bs.filter((b) => b.translators?.length || b.originalTitle).length,
+    }
+  })
+
+  // Độ đầy đủ theo nhóm: mỗi ô là tỷ lệ % sách của nhóm đã có trường đó.
+  const fieldsShown = FIELDS.filter((f) => f.key !== 'cover')
+  const completenessByGroup = {
+    cols: fieldsShown.map((f) => f.label),
+    rows: CATEGORY_GROUPS.map((g, i) => {
+      const bs = books.filter((b) => b.categories?.some((c) => g.items.some((x) => x.id === c)))
+      return { key: String(i), label: g.label, n: bs.length, cells: fieldsShown.map((f) => (bs.length ? bs.filter(f.has).length / bs.length : 0)) }
+    }).filter((r) => r.n),
+  }
+
+  // Cây thể loại cho biểu đồ ô vuông: nhóm, rồi danh mục trong nhóm.
+  const catTree = CATEGORY_GROUPS.map((g, i) => ({
+    key: String(i),
+    label: g.label,
+    count: groups[i].count,
+    children: g.items
+      .map((it) => ({ key: it.id, label: it.label, count: books.filter((b) => b.categories?.includes(it.id)).length }))
+      .filter((c) => c.count)
+      .sort((a, b) => b.count - a.count),
+  })).filter((g) => g.children.length)
+
   return {
+    growth, formats, pubProfiles, completenessByGroup, catTree,
     totals, groups, noCat, categories, categoryGroup, decades, languages, authors, translators, publishers,
     partners, series, shelves, pageBins, longest, months, status, completeness, needsWork, insights,
   }
