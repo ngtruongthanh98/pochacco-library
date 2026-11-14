@@ -1,0 +1,15 @@
+{
+  "name": "Pochacco Library",
+  "short_name": "Pochacco",
+  "description": "Thư viện sách cá nhân",
+  "lang": "vi",
+  "start_url": "/pochacco-library/",
+  "scope": "/pochacco-library/",
+  "display": "standalone",
+  "background_color": "#fef5e9",
+  "theme_color": "#bf2c27",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
