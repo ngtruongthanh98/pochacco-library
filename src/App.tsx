@@ -385,6 +385,17 @@ export default function App() {
   const [topic, setTopic] = useState<string | null>(initial.topic)
   const [added, setAdded] = useState<string | null>(initial.added)
   const [rangeOpen, setRangeOpen] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const [advOpen, setAdvOpen] = useState(() => localStorage.getItem('pochacco-library:adv-open') === '1')
+  const setAdvOpenSaved = (v: boolean) => {
+    setAdvOpen(v)
+    try {
+      localStorage.setItem('pochacco-library:adv-open', v ? '1' : '0')
+    } catch {
+      /* bỏ qua */
+    }
+  }
+  const advCount = (fmt ? 1 : 0) + (added ? 1 : 0)
   const [excerpts, setExcerpts] = useState<Excerpt[]>([])
   const [exError, setExError] = useState<string | null>(null)
   const [readerCfg, setReaderCfg] = useState<ReaderConfig>({})
@@ -1251,77 +1262,66 @@ export default function App() {
                 Chạm vào cuốn sách để chọn hoặc bỏ chọn. Có thể tìm kiếm, đổi danh mục rồi chọn tiếp; các cuốn đã chọn vẫn được giữ.
               </p>
             )}
-            <input
-              className="search"
-              autoFocus
-              placeholder="Tìm nhan đề, tác giả, dịch giả, NXB, ISBN... (gõ không dấu cũng được)"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <img className="divider" src={asset('sticker-divider.webp')} alt="" />
+            <div className="search-wrap">
+              <input
+                ref={searchRef}
+                className="search"
+                type="search"
+                enterKeyHint="search"
+                autoFocus
+                placeholder="Tìm nhan đề, tác giả, dịch giả, NXB, ISBN... (gõ không dấu cũng được)"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && q && setQ('')}
+              />
+              {q && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  aria-label="Xóa nội dung tìm kiếm"
+                  onClick={() => {
+                    setQ('')
+                    searchRef.current?.focus()
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                    <path d="M7 7l10 10M17 7L7 17" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {books.length > 0 && (
-              <nav className="filter">
-                <div className="tabs" role="tablist">
-                  <button
-                    role="tab"
-                    aria-selected={group < 0}
-                    className={group < 0 ? 'tab active' : 'tab'}
-                    onClick={() => { setGroup(-1); setCat(null) }}
-                  >
-                    Tất cả
-                    {matched.length > 0 && <span className="count">{matched.length}</span>}
+              <div className="adv">
+                <div className="adv-row">
+                  <button className={`adv-toggle${advOpen ? ' open' : ''}`} aria-expanded={advOpen} aria-controls="adv-panel" onClick={() => setAdvOpenSaved(!advOpen)}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M4 6h16M7 12h10M10 18h4" />
+                    </svg>
+                    Tìm kiếm nâng cao
+                    {advCount > 0 && <span className="adv-badge">{advCount}</span>}
+                    <span className="adv-chev" aria-hidden="true">▾</span>
                   </button>
-                  {CATEGORY_GROUPS.map((g, i) => {
-                    const n = groupCount(i)
-                    return (
-                      <button
-                        key={g.label}
-                        role="tab"
-                        aria-selected={group === i}
-                        className={`tab${group === i ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
-                        onClick={() => { setGroup(i); setCat(null) }}
-                      >
-                        {g.label}
-                        {n > 0 && <span className="count">{n}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-                {group >= 0 && (
-                  <div className="subtabs">
-                    <button className={cat === null ? 'subtab active' : 'subtab'} onClick={() => setCat(null)}>
-                      Cả nhóm
+                  {!advOpen && fmt && (
+                    <button className="adv-chip" onClick={() => setFmt(null)} aria-label={`Bỏ lọc ${FORMAT_OPTIONS.find((o) => o.key === fmt)?.label}`}>
+                      {FORMAT_OPTIONS.find((o) => o.key === fmt)?.label} ×
                     </button>
-                    {CATEGORY_GROUPS[group].items.map((c) => {
-                      const n = catCount(c.id)
-                      return (
-                        <button
-                          key={c.id}
-                          className={`subtab${cat === c.id ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
-                          onClick={() => setCat(c.id)}
-                        >
-                          {c.label}
-                          {n > 0 && <span className="count">{n}</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </nav>
-            )}
-            {loading && <State img="anim-read" title="Pochacco đang lật danh mục..." />}
-            {error && (
-              <State img="anim-sleepy" title="Chưa tải được danh mục" text={error} />
-            )}
-            {!loading && !error && books.length === 0 && (
-              <div className="empty">
-                <img src={asset('empty-shelf.webp')} alt="" />
-                <div className="state-title">Kệ sách còn trống</div>
-                <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
-              </div>
-            )}
-            {!loading && !error && books.length > 0 && (
-              <div className="fmt-filter" role="group" aria-label="Lọc theo dạng sách">
+                  )}
+                  {!advOpen && added && (
+                    <button className="adv-chip" onClick={() => setAdded(null)} aria-label="Bỏ lọc ngày nhập">
+                      Nhập: {addedLabel(added).toLowerCase()} ×
+                    </button>
+                  )}
+                  {!advOpen && advCount > 1 && (
+                    <button className="link adv-clear" onClick={() => { setFmt(null); setAdded(null) }}>
+                      Bỏ hết
+                    </button>
+                  )}
+                </div>
+                {advOpen && (
+                  <div className="adv-panel" id="adv-panel">
+                    <div className="adv-sec">
+                      <h4 id="adv-fmt">Dạng sách</h4>
+              <div className="fmt-filter" role="group" aria-labelledby="adv-fmt">
                 {[{ key: null, label: 'Mọi dạng' }, ...FORMAT_OPTIONS].map((o) => {
                   const n = fmtCount(o.key as FormatFilter)
                   return (
@@ -1336,11 +1336,11 @@ export default function App() {
                   )
                 })}
               </div>
-            )}
-            {!loading && !error && books.length > 0 && (
-              <div className="added-filter" role="group" aria-label="Lọc theo ngày nhập">
+                    </div>
+                    <div className="adv-sec">
+                      <h4 id="adv-added">Ngày nhập</h4>
+              <div className="added-filter" role="group" aria-labelledby="adv-added">
                 <div className="af-chips">
-                <span className="af-label">Ngày nhập</span>
                 <button className={`fmt-pill ${!added ? 'active' : ''}`} aria-pressed={!added} onClick={() => { setAdded(null); setRangeOpen(false) }}>
                   Mọi lúc
                 </button>
@@ -1406,6 +1406,77 @@ export default function App() {
                     </button>
                   </div>
                 )}
+              </div>
+                    </div>
+                    {advCount > 0 && (
+                      <button className="link adv-clear" onClick={() => { setFmt(null); setAdded(null); setRangeOpen(false) }}>
+                        Bỏ hết bộ lọc nâng cao
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <img className="divider" src={asset('sticker-divider.webp')} alt="" />
+            {books.length > 0 && (
+              <nav className="filter">
+                <div className="tabs" role="tablist">
+                  <button
+                    role="tab"
+                    aria-selected={group < 0}
+                    className={group < 0 ? 'tab active' : 'tab'}
+                    onClick={() => { setGroup(-1); setCat(null) }}
+                  >
+                    Tất cả
+                    {matched.length > 0 && <span className="count">{matched.length}</span>}
+                  </button>
+                  {CATEGORY_GROUPS.map((g, i) => {
+                    const n = groupCount(i)
+                    return (
+                      <button
+                        key={g.label}
+                        role="tab"
+                        aria-selected={group === i}
+                        className={`tab${group === i ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
+                        onClick={() => { setGroup(i); setCat(null) }}
+                      >
+                        {g.label}
+                        {n > 0 && <span className="count">{n}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+                {group >= 0 && (
+                  <div className="subtabs">
+                    <button className={cat === null ? 'subtab active' : 'subtab'} onClick={() => setCat(null)}>
+                      Cả nhóm
+                    </button>
+                    {CATEGORY_GROUPS[group].items.map((c) => {
+                      const n = catCount(c.id)
+                      return (
+                        <button
+                          key={c.id}
+                          className={`subtab${cat === c.id ? ' active' : ''}${n === 0 ? ' empty' : ''}`}
+                          onClick={() => setCat(c.id)}
+                        >
+                          {c.label}
+                          {n > 0 && <span className="count">{n}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </nav>
+            )}
+            {loading && <State img="anim-read" title="Pochacco đang lật danh mục..." />}
+            {error && (
+              <State img="anim-sleepy" title="Chưa tải được danh mục" text={error} />
+            )}
+            {!loading && !error && books.length === 0 && (
+              <div className="empty">
+                <img src={asset('empty-shelf.webp')} alt="" />
+                <div className="state-title">Kệ sách còn trống</div>
+                <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
               </div>
             )}
             {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
