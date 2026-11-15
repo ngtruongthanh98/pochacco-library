@@ -288,6 +288,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
 }
 
 // ================= Ao cá: trò canh thời điểm =================
+const BITE_SECS = 6
 type Bite = { fish: FishId; speed: number; center: number; good: number; perfect: number; start: number }
 export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
   const [phase, setPhase] = useState<'idle' | 'wait' | 'bite'>('idle')
@@ -311,7 +312,7 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
       const p = (el * b.speed) % 2
       posRef.current = p < 1 ? p : 2 - p
       if (markRef.current) markRef.current.style.left = `${posRef.current * 100}%`
-      if (el > 4) {
+      if (el > BITE_SECS) {
         biteRef.current = null
         setPhase('idle')
         setMsg('Cá giật mồi chạy mất rồi…')
@@ -339,10 +340,10 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
       const chep = Math.random() < (rain ? 0.35 : 0.25)
       biteRef.current = {
         fish: chep ? 'cachep' : 'ca',
-        speed: chep ? 1.5 : 0.95,
-        center: 0.25 + Math.random() * 0.5,
-        good: chep ? 0.09 : 0.13,
-        perfect: 0.035,
+        speed: chep ? 0.85 : 0.55,
+        center: 0.3 + Math.random() * 0.4,
+        good: chep ? 0.14 : 0.19,
+        perfect: 0.05,
         start: performance.now(),
       }
       setPhase('bite')
@@ -351,9 +352,8 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
 
   const strike = () => {
     if (phase === 'wait') {
-      window.clearTimeout(timer.current)
-      setPhase('idle')
-      setMsg('Giật sớm quá, cá chưa cắn câu!')
+      // Giật sớm không mất mồi: cứ chờ tiếp
+      setMsg('Chưa đâu, chờ phao chìm đã nhé!')
       return
     }
     const b = biteRef.current
@@ -399,7 +399,10 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
         <span className="muted small">{bait.n < BAIT_MAX ? `mồi mới sau ${fmtLeft(bait.nextIn)}` : `hồi 1 mồi mỗi ${BAIT_MIN} phút`}</span>
         {weather.id === 'mua' && <span className="muted small">🌧️ Trời mưa, cá cắn nhanh hơn</span>}
       </div>
-      <button className={`pond ${phase}`} onClick={() => (phase === 'idle' ? cast() : strike())} aria-label={phase === 'idle' ? 'Thả câu' : 'Giật cần'}>
+      <button
+        className={`pond ${phase}`}
+        onPointerDown={() => (phase === 'idle' ? cast() : strike())}
+        onClick={(e) => e.detail === 0 && (phase === 'idle' ? cast() : strike())} aria-label={phase === 'idle' ? 'Thả câu' : 'Giật cần'}>
         <span className="pond-fish f1">🐟</span>
         <span className="pond-fish f2">🐠</span>
         <span className="pond-fish f3">🐟</span>
@@ -413,14 +416,14 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
             <span className="zone perfect" style={{ left: `${(b.center - b.perfect) * 100}%`, width: `${b.perfect * 200}%` }} />
             <div className="needle" ref={markRef} />
           </div>
-          <button className="reel-btn" onClick={strike}>
+          <button className="reel-btn" onPointerDown={strike} onClick={(e) => e.detail === 0 && strike()}>
             Giật cần!
           </button>
         </div>
       )}
       {msg && <p className="pond-msg">{msg}</p>}
       <p className="muted small">
-        Thả câu, chờ phao chìm, rồi bấm Giật khi kim nằm trong vùng xanh. Trúng vùng vàng ở giữa được cá hạng vàng 🥇 và gấp đôi kinh nghiệm. Cá chép 🐠 hiếm và lanh hơn cá rô 🐟. Phím Space cũng dùng được.
+        Thả câu, chờ phao chìm, rồi bấm Giật khi kim nằm trong vùng xanh (có 6 giây, giật sớm không mất mồi). Trúng vùng vàng ở giữa được cá hạng vàng 🥇 và gấp đôi kinh nghiệm. Cá chép 🐠 hiếm và lanh hơn cá rô 🐟. Phím Space cũng dùng được.
       </p>
       <p className="muted small">Đã câu {farm.stats.fished} con.</p>
     </section>
