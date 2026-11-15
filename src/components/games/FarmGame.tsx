@@ -10,6 +10,7 @@ import {
 } from './farm'
 import { EventBanner, OrchardView, PondView, TruckView, WantList, WorkshopView, type Ctx } from './FarmExtra'
 
+import { Ico } from './FarmIco'
 const asset = (n: string) => `${import.meta.env.BASE_URL}assets/${n}`
 const LOCAL_KEY = 'pochacco-library:farm'
 const CLOUD_FILE = 'farm' // config/farm.json trong repo dữ liệu
@@ -461,7 +462,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   onClick={() => setSeed(c.id)}
                   title={locked ? `Mở ở cấp ${c.level}` : `${c.name}: hạt ${c.seed} xu, bán ${c.sell} xu, chín sau ${fmtLeft(c.minutes * 60_000)}`}
                 >
-                  <span className="si">{locked ? '🔒' : c.icon}</span>
+                  <span className="si">{locked ? '🔒' : <Ico id={c.id} e={c.icon} />}</span>
                   <span className="sn">{c.name}</span>
                   <span className="sp">{locked ? `cấp ${c.level}` : <><Xu n={c.seed} /> · {fmtLeft(c.minutes * 60_000)}</>}</span>
                 </button>
@@ -470,7 +471,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
           </div>
           <div className="farm-actions">
             <button className="secondary small-btn" onClick={plantAll}>
-              Gieo hết ô trống ({CROP[seed].icon})
+              Gieo hết ô trống (<Ico id={seed} e={CROP[seed].icon} />)
             </button>
             <button className="secondary small-btn" onClick={waterAll}>
               Tưới tất cả 💧
@@ -500,7 +501,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               if (!p)
                 return (
                   <button key={i} className="plot empty" onClick={() => clickPlot(i)} aria-label={`Ô ${i + 1}: trống, gieo ${CROP[seed].name}`}>
-                    <span className="hint-seed">+{CROP[seed].icon}</span>
+                    <span className="hint-seed">+<Ico id={seed} e={CROP[seed].icon} /></span>
                   </button>
                 )
               const c = CROP[p.crop]
@@ -514,7 +515,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   aria-label={`Ô ${i + 1}: ${c.name}, ${done ? 'đã chín' : `còn ${fmtLeft(p.readyAt - now)}`}`}
                 >
                   <span className="crop" style={{ fontSize: done ? undefined : `${0.9 + ratio * 0.9}em` }}>
-                    {done ? c.icon : ratio < 0.33 ? '🌱' : ratio < 0.75 ? '🌿' : c.icon}
+                    {done ? <Ico id={c.id} e={c.icon} /> : ratio < 0.33 ? '🌱' : ratio < 0.75 ? '🌿' : <Ico id={c.id} e={c.icon} />}
                   </span>
                   {!done && (
                     <span className="grow">
@@ -575,7 +576,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                   <div className="coop-title">
                     <b>{coopName}</b> <span className="muted small">({mine.length}/{a.max})</span>
                     <div className="muted small">
-                      Ăn {needsText(a.eats)}, sau {fmtLeft(a.minutes * 60_000)} cho {ITEMS[a.gives].icon} {ITEMS[a.gives].name}
+                      Ăn {needsText(a.eats)}, sau {fmtLeft(a.minutes * 60_000)} cho <Ico id={a.gives} e={ITEMS[a.gives].icon} /> {ITEMS[a.gives].name}
                     </div>
                   </div>
                   <div className="coop-actions">
@@ -599,7 +600,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                       <button key={i} className={`pen ${isReady ? 'ready' : an.readyAt ? 'busy' : 'hungry'}`} onClick={() => (isReady ? collect([i]) : !an.readyAt ? feed([i]) : say(`${a.name} còn ${fmtLeft(an.readyAt - now)}`))}>
                         <span className="pen-icon">{a.icon}</span>
                         {isReady ? (
-                          <span className="pen-out">{ITEMS[a.gives].icon}</span>
+                          <span className="pen-out"><Ico id={a.gives} e={ITEMS[a.gives].icon} /></span>
                         ) : an.readyAt ? (
                           <>
                             <span className="grow">
@@ -682,7 +683,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                 const t = tiersOf(farm, id)
                 return (
                 <li key={id}>
-                  <span className="ii">{ITEMS[id].icon}</span>
+                  <span className="ii"><Ico id={id} e={ITEMS[id].icon} /></span>
                   <span className="in">
                     {ITEMS[id].name} × {farm.inv[id]}
                     {(t.silver > 0 || t.gold > 0) && (

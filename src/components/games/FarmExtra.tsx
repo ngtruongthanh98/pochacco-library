@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { Ico } from './FarmIco'
 import { Xu } from './money'
 import {
   addItem, baitNow, BAIT_MAX, BAIT_MIN, FISH, fmtLeft, has, hasGold, ITEMS, needsText, newBigOrder, ORCHARD_LEVEL, POND_LEVEL, RECIPE, RECIPES,
@@ -30,7 +31,7 @@ export function WantList({ farm, want, gold }: { farm: Farm; want: Order['want']
         const ok = have >= (n ?? 0) && tiersOf(farm, id).gold >= g
         return (
           <span key={k} className={ok ? 'enough' : ''} title={`${ITEMS[id].name}${g ? `, trong đó ${g} hàng sao vàng` : ''}`}>
-            {ITEMS[id].icon} {Math.min(have, n ?? 0)}/{n}
+            <Ico id={id} e={ITEMS[id].icon} /> {Math.min(have, n ?? 0)}/{n}
             {g > 0 && <small className="gold-need"> 🥇{Math.min(g, tiersOf(farm, id).gold)}/{g}</small>}
           </span>
         )

@@ -1743,3 +1743,5 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .heat-cell.g3 { background: #b6b173; }
 .heat-cell.g4 { background: #87833f; color: #fff; }
 .heat-cell.g5 { background: #4e4b1f; color: #fff; }
+
+.farm-ico { width: 1.25em; height: 1.25em; object-fit: contain; vertical-align: -0.28em; pointer-events: none; }
