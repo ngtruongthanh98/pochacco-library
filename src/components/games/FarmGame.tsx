@@ -552,50 +552,79 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             </button>
           </div>
           {farm.animals.length === 0 && <p className="muted">Chuồng còn trống. Mua gà để có trứng, mua bò để có sữa, nguyên liệu cho xưởng và các đơn hàng giá cao.</p>}
-          <div className="pens">
-            {farm.animals.map((an, i) => {
-              const d = ANIMALS[an.kind]
-              const ready = an.readyAt && now >= an.readyAt
-              const ratio = an.readyAt && an.fedAt ? Math.min(1, (now - an.fedAt) / (an.readyAt - an.fedAt)) : 0
+          {Object.values(ANIMALS).map((a) => {
+            const locked = lvl.lv < a.level
+            if (locked) {
               return (
-                <button key={i} className={`pen ${ready ? 'ready' : an.readyAt ? 'busy' : 'hungry'}`} onClick={() => (ready ? collect([i]) : !an.readyAt ? feed([i]) : say(`${d.name} còn ${fmtLeft(an.readyAt - now)}`))}>
-                  <span className="pen-icon">{d.icon}</span>
-                  {ready ? (
-                    <span className="pen-out">{ITEMS[d.gives].icon}</span>
-                  ) : an.readyAt ? (
-                    <>
-                      <span className="grow">
-                        <span style={{ width: `${ratio * 100}%` }} />
-                      </span>
-                      <span className="pen-note">{fmtLeft(an.readyAt - now)}</span>
-                    </>
-                  ) : (
-                    <span className="pen-note">Đói: {needsText(d.eats)}</span>
-                  )}
-                </button>
+                <div key={a.kind} className="coop locked">
+                  <span className="coop-icon">{a.icon}</span>
+                  <b>{a.kind === 'ong' ? 'Trại ong' : `Chuồng ${a.name.toLowerCase()}`}</b>
+                  <span className="muted small">🔒 mở ở cấp {a.level}</span>
+                </div>
               )
-            })}
-          </div>
-          <div className="shop">
-            {Object.values(ANIMALS).map((a) => {
-              const count = farm.animals.filter((x) => x.kind === a.kind).length
-              const locked = lvl.lv < a.level
-              return (
-                <div key={a.kind} className="shop-item">
-                  <span className="si">{a.icon}</span>
-                  <div>
-                    <b>{a.name}</b> ({count}/{a.max})
+            }
+            const coopName = a.kind === 'ong' ? 'Trại ong' : `Chuồng ${a.name.toLowerCase()}`
+            const mine = farm.animals.map((an, i) => ({ an, i })).filter((x) => x.an.kind === a.kind)
+            const hungry = mine.filter((x) => !x.an.readyAt).map((x) => x.i)
+            const ready = mine.filter((x) => x.an.readyAt && now >= x.an.readyAt).map((x) => x.i)
+            const full = mine.length >= a.max
+            return (
+              <div key={a.kind} className={`coop coop-${a.kind}`}>
+                <div className="coop-head">
+                  <span className="coop-icon">{a.icon}</span>
+                  <div className="coop-title">
+                    <b>{coopName}</b> <span className="muted small">({mine.length}/{a.max})</span>
                     <div className="muted small">
                       Ăn {needsText(a.eats)}, sau {fmtLeft(a.minutes * 60_000)} cho {ITEMS[a.gives].icon} {ITEMS[a.gives].name}
                     </div>
                   </div>
-                  <button className="small-btn" disabled={locked || count >= a.max || farm.coins < a.cost} onClick={() => buyAnimal(a.kind)}>
-                    {locked ? `Cấp ${a.level}` : count >= a.max ? 'Đủ chuồng' : <>Mua <Xu n={a.cost} /></>}
-                  </button>
+                  <div className="coop-actions">
+                    {mine.length > 0 && (
+                      <>
+                        <button className="secondary small-btn" disabled={!hungry.length} onClick={() => feed(hungry)}>
+                          Cho ăn{hungry.length ? ` (${hungry.length})` : ''}
+                        </button>
+                        <button className="small-btn" disabled={!ready.length} onClick={() => collect(ready)}>
+                          Nhặt{ready.length ? ` (${ready.length})` : ''}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              )
-            })}
-          </div>
+                <div className="pens">
+                  {mine.map(({ an, i }) => {
+                    const isReady = an.readyAt && now >= an.readyAt
+                    const ratio = an.readyAt && an.fedAt ? Math.min(1, (now - an.fedAt) / (an.readyAt - an.fedAt)) : 0
+                    return (
+                      <button key={i} className={`pen ${isReady ? 'ready' : an.readyAt ? 'busy' : 'hungry'}`} onClick={() => (isReady ? collect([i]) : !an.readyAt ? feed([i]) : say(`${a.name} còn ${fmtLeft(an.readyAt - now)}`))}>
+                        <span className="pen-icon">{a.icon}</span>
+                        {isReady ? (
+                          <span className="pen-out">{ITEMS[a.gives].icon}</span>
+                        ) : an.readyAt ? (
+                          <>
+                            <span className="grow">
+                              <span style={{ width: `${ratio * 100}%` }} />
+                            </span>
+                            <span className="pen-note">{fmtLeft(an.readyAt - now)}</span>
+                          </>
+                        ) : (
+                          <span className="pen-note">Đói: {needsText(a.eats)}</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                  {!full && (
+                    <button className="pen empty" disabled={farm.coins < a.cost} onClick={() => buyAnimal(a.kind)}>
+                      <span className="pen-icon">➕</span>
+                      <span className="pen-note">
+                        Mua {a.name.toLowerCase()} <Xu n={a.cost} />
+                      </span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </section>
       )}
 

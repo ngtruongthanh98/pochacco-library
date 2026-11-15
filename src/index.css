@@ -773,6 +773,16 @@ picture { display: contents; }
 .farm-tab .badge { margin-left: 6px; display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-size: 0.75rem; }
 .farm-tab .lock { font-size: 0.78rem; }
 .field.rainy { background-image: repeating-linear-gradient(105deg, rgba(255,255,255,.18) 0 2px, transparent 2px 14px); }
+.barn { display: grid; gap: 14px; }
+.coop { border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px 12px; background: #f6ecd8; display: grid; gap: 10px; }
+.coop.locked { display: flex; gap: 10px; align-items: center; padding: 8px 12px; opacity: .6; background: #f1ece3; }
+.coop-ga { background: #f8edcf; } .coop-bo { background: #edf2df; } .coop-cuu { background: #f3eef6; } .coop-vit { background: #e5f1f3; } .coop-ong { background: #fbf0c9; }
+.coop-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.coop-icon { font-size: 1.8rem; line-height: 1; }
+.coop-title { flex: 1; min-width: 180px; }
+.coop-actions { display: flex; gap: 8px; }
+.pen.empty { background: transparent; border-style: dashed; }
+.pen.empty .pen-icon { font-size: 1.6rem; opacity: .6; }
 .pens, .ovens { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
 .pen, .oven { position: relative; display: grid; justify-items: center; gap: 4px; padding: 12px 8px 10px; border-radius: 14px; background: #f1e6c8; border: 2px solid #d8c08e; color: var(--ink); min-height: 112px; align-content: center; }
 .pen { background: repeating-linear-gradient(90deg, #ead6a7 0 10px, #e3cc98 10px 20px); }
