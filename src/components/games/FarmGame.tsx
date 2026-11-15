@@ -340,7 +340,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   const growing = farm.plots.filter((p) => p && now < p.readyAt).length
   const animalsReady = farm.animals.map((a, i) => (a.readyAt && now >= a.readyAt ? i : -1)).filter((i) => i >= 0)
   const animalsHungry = farm.animals.map((a, i) => (!a.readyAt ? i : -1)).filter((i) => i >= 0)
-  const allSlots = [...farm.slots, ...farm.mill, ...farm.loom]
+  const allSlots = [...farm.slots, ...farm.mill, ...farm.loom, ...farm.reel]
   const ovenReady = allSlots.filter((s) => s && now >= s.readyAt).length
   const treesReady = farm.trees.filter((t) => t && now >= t.readyAt).length
   const trucksBack = farm.trucks.filter((t) => t && now >= t.backAt).length
@@ -559,12 +559,12 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               return (
                 <div key={a.kind} className="coop locked">
                   <span className="coop-icon"><Ico id={a.kind} e={a.icon} /></span>
-                  <b>{a.kind === 'ong' ? 'Trại ong' : `Chuồng ${a.name.toLowerCase()}`}</b>
+                  <b>{a.house ?? `Chuồng ${a.name.toLowerCase()}`}</b>
                   <span className="muted small">🔒 mở ở cấp {a.level}</span>
                 </div>
               )
             }
-            const coopName = a.kind === 'ong' ? 'Trại ong' : `Chuồng ${a.name.toLowerCase()}`
+            const coopName = a.house ?? `Chuồng ${a.name.toLowerCase()}`
             const mine = farm.animals.map((an, i) => ({ an, i })).filter((x) => x.an.kind === a.kind)
             const hungry = mine.filter((x) => !x.an.readyAt).map((x) => x.i)
             const ready = mine.filter((x) => x.an.readyAt && now >= x.an.readyAt).map((x) => x.i)

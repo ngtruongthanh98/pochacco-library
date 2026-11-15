@@ -3,7 +3,7 @@ import { ConfirmDialog } from '../ConfirmDialog'
 import { Ico, Who } from './FarmIco'
 import { Xu } from './money'
 import {
-  addItem, baitNow, BAIT_MAX, BAIT_MIN, FISH, fmtLeft, has, hasGold, ITEMS, needsText, newBigOrder, ORCHARD_LEVEL, POND_LEVEL, RECIPE, RECIPES,
+  addItem, baitNow, CALOC_LEVEL, BAIT_MAX, BAIT_MIN, FISH, fmtLeft, has, hasGold, ITEMS, needsText, newBigOrder, ORCHARD_LEVEL, POND_LEVEL, RECIPE, RECIPES,
   STATIONS, takeItems, tiersOf, TREE_SLOT_COST, TREES, TRUCK2_LEVEL, TRUCK_LEVEL,
   type ActiveEvent, type Farm, type FishId, type GoodId, type ItemId, type Order, type Slot, type Station, type TreeKind, type Weather,
 } from './farm'
@@ -18,7 +18,7 @@ export type Ctx = {
   say: (m: string) => void
 }
 
-const SLOT_KEY: Record<Station, 'slots' | 'mill' | 'loom'> = { lo: 'slots', xay: 'mill', det: 'loom' }
+const SLOT_KEY: Record<Station, 'slots' | 'mill' | 'loom' | 'reel'> = { lo: 'slots', xay: 'mill', det: 'loom', uom: 'reel' }
 
 /** Danh sách món cần, kèm số đã có và yêu cầu sao vàng. */
 export function WantList({ farm, want, gold }: { farm: Farm; want: Order['want']; gold?: Order['gold'] }) {
@@ -40,7 +40,7 @@ export function WantList({ farm, want, gold }: { farm: Farm; want: Order['want']
   )
 }
 
-// ================= Xưởng: lò bánh, máy xay, khung dệt =================
+// ================= Xưởng: lò bánh, máy xay, khung dệt, guồng ươm tơ =================
 export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
   const stations = (Object.keys(STATIONS) as Station[])
   const make = (st: Station, slot: number, id: GoodId) => {
@@ -60,16 +60,18 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
     update((f) => {
       let store = { inv: f.inv, q: f.q }
       let x = 0
+      let aodai = 0
       const arr = f[key].map((s, i) => {
         if (!ready.includes(i) || !s) return s
         const r = RECIPE[s.recipe]
+        if (r.id === 'aodai') aodai++
         store = addItem(store, r.id, 1)
         x += r.xp
         return null
       })
       return {
         ...f, ...store, [key]: arr, xp: f.xp + x,
-        stats: { ...f.stats, crafted: f.stats.crafted + ready.length, woven: f.stats.woven + (st === 'det' ? ready.length : 0) },
+        stats: { ...f.stats, crafted: f.stats.crafted + ready.length, woven: f.stats.woven + (st === 'det' ? ready.length : 0), aodai: (f.stats.aodai ?? 0) + aodai },
       }
     }, `Xong ${ready.map((i) => RECIPE[farm[key][i]!.recipe].icon).join(' ')}`)
   }
@@ -337,12 +339,14 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
     const rain = weather.id === 'mua'
     const wait = (rain ? 700 : 1200) + Math.random() * (rain ? 1200 : 2200)
     timer.current = window.setTimeout(() => {
-      const chep = Math.random() < (rain ? 0.35 : 0.25)
+      const r = Math.random()
+      const loc = lv >= CALOC_LEVEL && r < (rain ? 0.15 : 0.1)
+      const chep = !loc && r < (rain ? 0.5 : 0.35)
       biteRef.current = {
-        fish: chep ? 'cachep' : 'ca',
-        speed: chep ? 0.85 : 0.55,
+        fish: loc ? 'caloc' : chep ? 'cachep' : 'ca',
+        speed: loc ? 1.05 : chep ? 0.85 : 0.55,
         center: 0.3 + Math.random() * 0.4,
-        good: chep ? 0.14 : 0.19,
+        good: loc ? 0.11 : chep ? 0.14 : 0.19,
         perfect: 0.05,
         start: performance.now(),
       }
@@ -405,7 +409,7 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
         onClick={(e) => e.detail === 0 && (phase === 'idle' ? cast() : strike())} aria-label={phase === 'idle' ? 'Thả câu' : 'Giật cần'}>
         <span className="pond-fish f1"><Ico id="ca" e="🐟" /></span>
         <span className="pond-fish f2"><Ico id="cachep" e="🐠" /></span>
-        <span className="pond-fish f3"><Ico id="ca" e="🐟" /></span>
+        <span className="pond-fish f3">{lv >= CALOC_LEVEL ? <Ico id="caloc" e="🐟" /> : <Ico id="ca" e="🐟" />}</span>
         {phase !== 'idle' && <span className={`bobber ${phase === 'bite' ? 'pull' : ''}`}><Ico id="phao" e="🔴" /></span>}
         <span className="pond-label">{phase === 'idle' ? 'Chạm để thả câu' : phase === 'wait' ? 'Chờ cá cắn câu…' : 'Cá cắn rồi! Giật đúng lúc!'}</span>
       </button>
@@ -423,7 +427,7 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
       )}
       {msg && <p className="pond-msg">{msg}</p>}
       <p className="muted small">
-        Thả câu, chờ phao chìm, rồi bấm Giật khi kim nằm trong vùng xanh (có 6 giây, giật sớm không mất mồi). Trúng vùng vàng ở giữa được cá hạng vàng 🥇 và gấp đôi kinh nghiệm. Cá chép 🐠 hiếm và lanh hơn cá rô 🐟. Phím Space cũng dùng được.
+        Thả câu, chờ phao chìm, rồi bấm Giật khi kim nằm trong vùng xanh (có 6 giây, giật sớm không mất mồi). Trúng vùng vàng ở giữa được cá hạng vàng 🥇 và gấp đôi kinh nghiệm. Cá chép 🐠 hiếm và lanh hơn cá rô 🐟; từ cấp {CALOC_LEVEL} có thêm cá lóc, hiếm nhất và lanh nhất. Phím Space cũng dùng được.
       </p>
       <p className="muted small">Đã câu {farm.stats.fished} con.</p>
     </section>

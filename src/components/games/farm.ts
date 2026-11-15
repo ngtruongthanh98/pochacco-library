@@ -4,19 +4,21 @@
 
 export type CropId =
   | 'lua' | 'carot' | 'bap' | 'cachua' | 'bingo' | 'duahau' | 'dau' | 'ot' | 'huongduong' | 'mia' | 'caphe' | 'nam' | 'sen'
-  | 'ladong' | 'dauxanh'
-export type ProductId = 'trung' | 'sua' | 'len' | 'trungvit' | 'matong'
-export type FruitId = 'xoai' | 'cam' | 'buoi'
-export type FishId = 'ca' | 'cachep'
+  | 'ladong' | 'dauxanh' | 'raumuong' | 'khoailang' | 'dauphong' | 'che' | 'dautam' | 'thom'
+export type ProductId = 'trung' | 'sua' | 'len' | 'trungvit' | 'matong' | 'trungcut' | 'suade' | 'kentam'
+export type FruitId = 'xoai' | 'cam' | 'buoi' | 'chuoi' | 'dua' | 'vai' | 'saurieng'
+export type FishId = 'ca' | 'cachep' | 'caloc'
 export type GoodId =
   | 'banhmi' | 'banhcarot' | 'sotcachua' | 'phomai' | 'banhbingo' | 'nuocep' | 'mutdau' | 'dauhuongduong'
   | 'botmi' | 'botbap' | 'duong' | 'goixoai' | 'banhbap' | 'nuoccam' | 'cafesua' | 'canuong' | 'cheboi' | 'canhchua'
   | 'banhbonglan' | 'launam' | 'trasen' | 'khanlen' | 'aolen' | 'gioqua' | 'banhchung' | 'banhtrungthu' | 'com'
+  | 'raumuongxao' | 'khoainuong' | 'trungcutnuong' | 'phomaide' | 'keodauphong' | 'chuoinuong' | 'keodua' | 'traxanh' | 'trasua'
+  | 'nuocthom' | 'chevai' | 'calocnuong' | 'kemsaurieng' | 'totam' | 'khanlua' | 'aodai'
 export type ItemId = CropId | ProductId | FruitId | FishId | GoodId
 export type EventId = 'tet' | 'trungthu' | 'muagat'
 
 export type Crop = { id: CropId; name: string; icon: string; level: number; seed: number; sell: number; minutes: number; xp: number; event?: EventId }
-export const CROPS: Crop[] = [
+const CROPS_RAW: Crop[] = [
   { id: 'lua', name: 'Lúa', icon: '🌾', level: 1, seed: 2, sell: 5, minutes: 1, xp: 1 },
   { id: 'carot', name: 'Cà rốt', icon: '🥕', level: 1, seed: 5, sell: 12, minutes: 3, xp: 2 },
   { id: 'bap', name: 'Bắp', icon: '🌽', level: 2, seed: 10, sell: 28, minutes: 10, xp: 4 },
@@ -30,23 +32,35 @@ export const CROPS: Crop[] = [
   { id: 'caphe', name: 'Cà phê', icon: '🫘', level: 11, seed: 160, sell: 820, minutes: 420, xp: 65 },
   { id: 'nam', name: 'Nấm', icon: '🍄', level: 13, seed: 200, sell: 1000, minutes: 480, xp: 80 },
   { id: 'sen', name: 'Hoa sen', icon: '🪷', level: 15, seed: 300, sell: 1600, minutes: 720, xp: 120 },
+  { id: 'raumuong', name: 'Rau muống', icon: '🥬', level: 3, seed: 8, sell: 22, minutes: 8, xp: 3 },
+  { id: 'khoailang', name: 'Khoai lang', icon: '🍠', level: 4, seed: 20, sell: 70, minutes: 30, xp: 8 },
+  { id: 'dauphong', name: 'Đậu phộng', icon: '🥜', level: 6, seed: 45, sell: 190, minutes: 100, xp: 18 },
+  { id: 'che', name: 'Búp chè', icon: '🌿', level: 12, seed: 140, sell: 700, minutes: 300, xp: 55 },
+  { id: 'dautam', name: 'Lá dâu tằm', icon: '🍃', level: 15, seed: 90, sell: 380, minutes: 150, xp: 35 },
+  { id: 'thom', name: 'Thơm', icon: '🍍', level: 16, seed: 260, sell: 1400, minutes: 600, xp: 100 },
   // Cây chỉ gieo được trong sự kiện
   { id: 'ladong', name: 'Lá dong', icon: '🍃', level: 1, seed: 4, sell: 10, minutes: 5, xp: 2, event: 'tet' },
   { id: 'dauxanh', name: 'Đậu xanh', icon: '🫛', level: 1, seed: 4, sell: 12, minutes: 8, xp: 2, event: 'trungthu' },
 ]
+/** Xếp theo cấp mở khóa; cây sự kiện ở cuối. */
+export const CROPS: Crop[] = [...CROPS_RAW].sort((a, b) => Number(!!a.event) - Number(!!b.event) || a.level - b.level)
 export const CROP = Object.fromEntries(CROPS.map((c) => [c.id, c])) as Record<CropId, Crop>
 /** Tám loại cây gốc, dùng cho thành tựu "Vườn đủ loại". */
 export const BASE_CROPS: CropId[] = ['lua', 'carot', 'bap', 'cachua', 'bingo', 'duahau', 'dau', 'huongduong']
 
 // ---- Chuồng trại ----
-export type AnimalKind = 'ga' | 'bo' | 'cuu' | 'vit' | 'ong'
-export type AnimalDef = { kind: AnimalKind; name: string; icon: string; level: number; cost: number; max: number; eats: Partial<Record<CropId, number>>; gives: ProductId; minutes: number; xp: number }
+export type AnimalKind = 'ga' | 'bo' | 'cuu' | 'vit' | 'ong' | 'cut' | 'de' | 'tam'
+/** house: tên chuồng riêng (mặc định "Chuồng <tên>"). */
+export type AnimalDef = { kind: AnimalKind; name: string; icon: string; house?: string; level: number; cost: number; max: number; eats: Partial<Record<CropId, number>>; gives: ProductId; minutes: number; xp: number }
 export const ANIMALS: Record<AnimalKind, AnimalDef> = {
   ga: { kind: 'ga', name: 'Gà mái', icon: '🐔', level: 2, cost: 60, max: 4, eats: { lua: 1 }, gives: 'trung', minutes: 20, xp: 3 },
   bo: { kind: 'bo', name: 'Bò sữa', icon: '🐄', level: 4, cost: 250, max: 3, eats: { bap: 2 }, gives: 'sua', minutes: 60, xp: 8 },
+  cut: { kind: 'cut', name: 'Chim cút', icon: '🐦', level: 5, cost: 150, max: 4, eats: { lua: 1 }, gives: 'trungcut', minutes: 25, xp: 4 },
   cuu: { kind: 'cuu', name: 'Cừu', icon: '🐑', level: 6, cost: 500, max: 3, eats: { bap: 1, carot: 2 }, gives: 'len', minutes: 90, xp: 14 },
   vit: { kind: 'vit', name: 'Vịt', icon: '🦆', level: 8, cost: 350, max: 4, eats: { lua: 2 }, gives: 'trungvit', minutes: 40, xp: 6 },
-  ong: { kind: 'ong', name: 'Tổ ong', icon: '🐝', level: 10, cost: 900, max: 3, eats: { huongduong: 1 }, gives: 'matong', minutes: 150, xp: 40 },
+  de: { kind: 'de', name: 'Dê', icon: '🐐', level: 9, cost: 600, max: 3, eats: { raumuong: 2 }, gives: 'suade', minutes: 80, xp: 14 },
+  ong: { kind: 'ong', name: 'Tổ ong', icon: '🐝', house: 'Trại ong', level: 10, cost: 900, max: 3, eats: { huongduong: 1 }, gives: 'matong', minutes: 150, xp: 40 },
+  tam: { kind: 'tam', name: 'Nong tằm', icon: '🐛', house: 'Nhà nuôi tằm', level: 15, cost: 1200, max: 3, eats: { dautam: 1 }, gives: 'kentam', minutes: 120, xp: 30 },
 }
 export type Animal = { kind: AnimalKind; readyAt: number | null; fedAt: number | null }
 
@@ -55,8 +69,12 @@ export type TreeKind = FruitId
 export type TreeDef = { kind: TreeKind; name: string; tree: string; icon: string; level: number; cost: number; first: number; cycle: number; yield: number; sell: number; xp: number }
 export const TREES: Record<TreeKind, TreeDef> = {
   xoai: { kind: 'xoai', name: 'Xoài', tree: '🌳', icon: '🥭', level: 9, cost: 500, first: 240, cycle: 180, yield: 3, sell: 150, xp: 12 },
+  chuoi: { kind: 'chuoi', name: 'Chuối', tree: '🌴', icon: '🍌', level: 10, cost: 600, first: 240, cycle: 200, yield: 4, sell: 130, xp: 12 },
   cam: { kind: 'cam', name: 'Cam', tree: '🌳', icon: '🍊', level: 11, cost: 700, first: 300, cycle: 240, yield: 4, sell: 170, xp: 14 },
   buoi: { kind: 'buoi', name: 'Bưởi', tree: '🌳', icon: '🍈', level: 12, cost: 1000, first: 360, cycle: 300, yield: 3, sell: 300, xp: 22 },
+  dua: { kind: 'dua', name: 'Dừa', tree: '🌴', icon: '🥥', level: 13, cost: 1200, first: 360, cycle: 300, yield: 3, sell: 320, xp: 22 },
+  vai: { kind: 'vai', name: 'Vải', tree: '🌳', icon: '🍒', level: 16, cost: 1800, first: 420, cycle: 360, yield: 5, sell: 300, xp: 26 },
+  saurieng: { kind: 'saurieng', name: 'Sầu riêng', tree: '🌳', icon: '🍈', level: 18, cost: 3000, first: 600, cycle: 480, yield: 2, sell: 1500, xp: 70 },
 }
 export type Tree = { kind: TreeKind; plantedAt: number; since: number; readyAt: number; picks: number }
 export const ORCHARD_LEVEL = 9
@@ -69,17 +87,21 @@ export const BAIT_MIN = 10 // phút hồi một mồi
 export const FISH: Record<FishId, { name: string; icon: string; sell: number; xp: number }> = {
   ca: { name: 'Cá rô', icon: '🐟', sell: 120, xp: 8 },
   cachep: { name: 'Cá chép', icon: '🐠', sell: 320, xp: 20 },
+  caloc: { name: 'Cá lóc', icon: '🐟', sell: 600, xp: 35 },
 }
+/** Cá lóc chỉ cắn câu từ cấp này. */
+export const CALOC_LEVEL = 14
 
 // ---- Xưởng: lò bánh, máy xay, khung dệt ----
-export type Station = 'lo' | 'xay' | 'det'
+export type Station = 'lo' | 'xay' | 'det' | 'uom'
 export const STATIONS: Record<Station, { name: string; icon: string; level: number; slotCost: number[] }> = {
   lo: { name: 'Lò bánh', icon: '🍞', level: 2, slotCost: [0, 0, 400, 1200] },
   xay: { name: 'Máy xay', icon: '⚙️', level: 10, slotCost: [0, 900, 2500] },
   det: { name: 'Khung dệt', icon: '🧵', level: 12, slotCost: [0, 1500, 4000] },
+  uom: { name: 'Guồng ươm tơ', icon: '🎡', level: 16, slotCost: [0, 2500, 6000] },
 }
 export type Recipe = { id: GoodId; name: string; icon: string; level: number; station: Station; needs: Partial<Record<ItemId, number>>; minutes: number; sell: number; xp: number; event?: EventId }
-export const RECIPES: Recipe[] = [
+const RECIPES_RAW: Recipe[] = [
   { id: 'banhmi', name: 'Bánh mì', icon: '🍞', level: 2, station: 'lo', needs: { lua: 3 }, minutes: 10, sell: 40, xp: 5 },
   { id: 'banhcarot', name: 'Bánh cà rốt', icon: '🧁', level: 3, station: 'lo', needs: { carot: 2, trung: 1 }, minutes: 20, sell: 95, xp: 9 },
   { id: 'sotcachua', name: 'Sốt cà chua', icon: '🥫', level: 4, station: 'lo', needs: { cachua: 3 }, minutes: 25, sell: 170, xp: 12 },
@@ -106,11 +128,30 @@ export const RECIPES: Recipe[] = [
   { id: 'khanlen', name: 'Khăn len', icon: '🧣', level: 12, station: 'det', needs: { len: 3 }, minutes: 60, sell: 680, xp: 34 },
   { id: 'aolen', name: 'Áo len', icon: '🧥', level: 13, station: 'det', needs: { len: 5 }, minutes: 120, sell: 1150, xp: 60 },
   { id: 'gioqua', name: 'Giỏ quà nông trại', icon: '🎁', level: 14, station: 'det', needs: { khanlen: 1, matong: 1, banhbonglan: 1 }, minutes: 90, sell: 3400, xp: 140 },
+  // Món mới
+  { id: 'raumuongxao', name: 'Rau muống xào tỏi', icon: '🥬', level: 3, station: 'lo', needs: { raumuong: 3 }, minutes: 15, sell: 90, xp: 8 },
+  { id: 'khoainuong', name: 'Khoai lang nướng', icon: '🍠', level: 4, station: 'lo', needs: { khoailang: 2 }, minutes: 20, sell: 180, xp: 12 },
+  { id: 'trungcutnuong', name: 'Trứng cút nướng', icon: '🍢', level: 6, station: 'lo', needs: { trungcut: 4 }, minutes: 20, sell: 230, xp: 14 },
+  { id: 'phomaide', name: 'Phô mai dê', icon: '🧀', level: 9, station: 'lo', needs: { suade: 3 }, minutes: 50, sell: 820, xp: 34 },
+  { id: 'keodauphong', name: 'Kẹo đậu phộng', icon: '🍬', level: 10, station: 'lo', needs: { dauphong: 3, duong: 1 }, minutes: 40, sell: 1100, xp: 42 },
+  { id: 'chuoinuong', name: 'Chuối nướng', icon: '🍌', level: 10, station: 'lo', needs: { chuoi: 3 }, minutes: 25, sell: 520, xp: 22 },
+  { id: 'traxanh', name: 'Trà xanh', icon: '🍵', level: 12, station: 'lo', needs: { che: 2 }, minutes: 30, sell: 1600, xp: 50 },
+  { id: 'keodua', name: 'Kẹo dừa', icon: '🍬', level: 13, station: 'lo', needs: { dua: 2, duong: 1 }, minutes: 50, sell: 1300, xp: 50 },
+  { id: 'trasua', name: 'Trà sữa trân châu', icon: '🧋', level: 13, station: 'lo', needs: { che: 1, sua: 2, duong: 1 }, minutes: 40, sell: 1500, xp: 58 },
+  { id: 'calocnuong', name: 'Cá lóc nướng trui', icon: '🐟', level: 14, station: 'lo', needs: { caloc: 1, raumuong: 2, ot: 1 }, minutes: 45, sell: 1100, xp: 45 },
+  { id: 'nuocthom', name: 'Nước ép thơm', icon: '🍹', level: 16, station: 'lo', needs: { thom: 2 }, minutes: 30, sell: 3100, xp: 90 },
+  { id: 'chevai', name: 'Chè vải', icon: '🍧', level: 16, station: 'lo', needs: { vai: 3, duong: 1 }, minutes: 45, sell: 1500, xp: 55 },
+  { id: 'kemsaurieng', name: 'Kem sầu riêng', icon: '🍨', level: 18, station: 'lo', needs: { saurieng: 1, sua: 2, duong: 1 }, minutes: 60, sell: 2600, xp: 90 },
+  // Guồng ươm tơ và đồ lụa
+  { id: 'totam', name: 'Tơ tằm', icon: '🧵', level: 16, station: 'uom', needs: { kentam: 3 }, minutes: 60, sell: 2200, xp: 70 },
+  { id: 'khanlua', name: 'Khăn lụa', icon: '🧣', level: 17, station: 'det', needs: { totam: 2 }, minutes: 90, sell: 5000, xp: 150 },
+  { id: 'aodai', name: 'Áo dài lụa', icon: '👘', level: 19, station: 'det', needs: { totam: 3, khanlua: 1 }, minutes: 180, sell: 12500, xp: 380 },
   // Món sự kiện
   { id: 'banhchung', name: 'Bánh chưng', icon: '🟩', level: 1, station: 'lo', needs: { lua: 4, ladong: 2 }, minutes: 60, sell: 120, xp: 12, event: 'tet' },
   { id: 'banhtrungthu', name: 'Bánh trung thu', icon: '🥮', level: 2, station: 'lo', needs: { lua: 2, dauxanh: 2, trung: 1 }, minutes: 40, sell: 150, xp: 14, event: 'trungthu' },
   { id: 'com', name: 'Cốm mới', icon: '🍚', level: 1, station: 'lo', needs: { lua: 6 }, minutes: 20, sell: 75, xp: 8, event: 'muagat' },
 ]
+export const RECIPES: Recipe[] = [...RECIPES_RAW].sort((a, b) => Number(!!a.event) - Number(!!b.event) || a.level - b.level)
 export const RECIPE = Object.fromEntries(RECIPES.map((r) => [r.id, r])) as Record<GoodId, Recipe>
 export type Slot = { recipe: GoodId; readyAt: number } | null
 /** Giữ tên cũ cho lò bánh. */
@@ -190,6 +231,9 @@ const PRODUCT: Record<ProductId, { name: string; icon: string; sell: number }> =
   len: { name: 'Len', icon: '🧶', sell: 160 },
   trungvit: { name: 'Trứng vịt', icon: '🪺', sell: 70 },
   matong: { name: 'Mật ong', icon: '🍯', sell: 820 },
+  trungcut: { name: 'Trứng cút', icon: '🥚', sell: 45 },
+  suade: { name: 'Sữa dê', icon: '🥛', sell: 200 },
+  kentam: { name: 'Kén tằm', icon: '🪺', sell: 650 },
 }
 export const ITEMS: Record<ItemId, ItemDef> = {
   ...(Object.fromEntries(CROPS.map((c) => [c.id, { id: c.id, name: c.name, icon: c.icon, sell: c.sell, level: c.level, event: c.event, tiered: true }])) as Record<CropId, ItemDef>),
@@ -226,6 +270,7 @@ export type Farm = {
   slots: Slot[] // lò bánh
   mill: Slot[]
   loom: Slot[]
+  reel: Slot[] // guồng ươm tơ
   trees: (Tree | null)[]
   fert: number
   useFert: boolean
@@ -236,12 +281,14 @@ export type Farm = {
   daily: { last: string; streak: number }
   achievements: string[]
   planted: CropId[]
-  stats: { harvested: number; delivered: number; earned: number; crafted: number; collected: number; fruits: number; fished: number; trips: number; gold: number; woven: number }
+  stats: { harvested: number; delivered: number; earned: number; crafted: number; collected: number; fruits: number; fished: number; trips: number; gold: number; woven: number; aodai?: number }
   savedAt: number
 }
 
 export const EXPAND: Record<4 | 5, { level: number; cost: number }> = { 4: { level: 3, cost: 300 }, 5: { level: 6, cost: 1500 } }
 
+/** Cấp cao nhất còn nội dung mở khóa. */
+export const MAX_LEVEL = 20
 /** Kinh nghiệm cần để lên từ cấp n lên n+1. */
 export const xpFor = (lv: number) => Math.round(10 * Math.pow(lv, 1.6))
 export function levelOf(xp: number) {
@@ -260,6 +307,8 @@ export const FEATURES: { level: number; text: string }[] = [
   { level: POND_LEVEL, text: '🎣 Ao cá' },
   { level: STATIONS.det.level, text: '🧵 Khung dệt' },
   { level: TRUCK2_LEVEL, text: '🚚 Xe thứ hai' },
+  { level: CALOC_LEVEL, text: '🐟 Cá lóc ở ao' },
+  { level: STATIONS.uom.level, text: '🎡 Guồng ươm tơ' },
 ]
 export function unlocksBetween(lo: number, hi: number) {
   const inRange = (l: number) => l > lo && l <= hi
@@ -273,7 +322,7 @@ export function unlocksBetween(lo: number, hi: number) {
 }
 /** Mốc mở khóa kế tiếp, để người chơi luôn có mục tiêu gần. */
 export function nextUnlock(lv: number) {
-  for (let l = lv + 1; l <= 15; l++) {
+  for (let l = lv + 1; l <= MAX_LEVEL; l++) {
     const u = unlocksBetween(l - 1, l)
     if (u.length) return { level: l, items: u }
   }
@@ -431,12 +480,14 @@ const ACH_RAW: Omit<Achievement, 'test'>[] = [
   { id: 'first-fruit', name: 'Trái ngọt đầu mùa', icon: '🥭', desc: 'Hái quả lần đầu', reward: 60, progress: count((f) => f.stats.fruits, 1, 'lần', ORCHARD_LEVEL) },
   { id: 'trips-10', name: 'Bác tài chăm chỉ', icon: '🛻', desc: 'Hoàn thành 10 chuyến xe', reward: 300, progress: count((f) => f.stats.trips, 10, 'chuyến', TRUCK_LEVEL) },
   { id: 'fish-20', name: 'Cần thủ', icon: '🎣', desc: 'Câu được 20 con cá', reward: 250, progress: count((f) => f.stats.fished, 20, 'con', POND_LEVEL) },
+  { id: 'silk-first', name: 'Áo dài đầu tiên', icon: '👘', desc: 'Dệt xong một chiếc áo dài lụa', reward: 1500, progress: count((f) => f.stats.aodai ?? 0, 1, 'chiếc', 19) },
   { id: 'loom-first', name: 'Thợ dệt', icon: '🧣', desc: 'Dệt xong món đầu tiên', reward: 100, progress: count((f) => f.stats.woven, 1, 'món', STATIONS.det.level) },
   {
     id: 'decor-3', name: 'Nông trại rộn ràng', icon: '🎊', desc: 'Có 3 món trang trí sự kiện', reward: 200,
     progress: (f) => ({ cur: Math.min(f.decor.length, 3), max: 3, unit: 'món', hint: f.decor.length < 3 ? 'Đổi ở cửa hàng trong các dịp sự kiện' : undefined }),
   },
   { id: 'level-15', name: 'Đại điền chủ', icon: '👑', desc: 'Đạt cấp 15', reward: 1500, progress: levelGoal(15) },
+  { id: 'level-20', name: 'Lão nông tri điền', icon: '🏵️', desc: 'Đạt cấp 20', reward: 4000, progress: levelGoal(20) },
 ]
 export const ACHIEVEMENTS: Achievement[] = ACH_RAW.map((a) => ({ ...a, test: (f: Farm) => { const p = a.progress(f); return p.cur >= p.max } }))
 
@@ -459,6 +510,7 @@ export function newFarm(): Farm {
     slots: [null, null],
     mill: [null],
     loom: [null],
+    reel: [null],
     trees: [null, null],
     fert: 0,
     useFert: true,
@@ -511,6 +563,7 @@ export function parseFarm(raw: unknown): Farm | null {
     slots: slotsOk(f.slots, 2),
     mill: slotsOk(f.mill, 1),
     loom: slotsOk(f.loom, 1),
+    reel: slotsOk(f.reel, 1),
     trees: Array.isArray(f.trees) && f.trees.length >= 2 ? f.trees.map((t) => (t && t.kind in TREES ? t : null)) : [null, null],
     fert: typeof f.fert === 'number' ? f.fert : 0,
     useFert: f.useFert ?? true,
