@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ConfirmDialog } from '../ConfirmDialog'
-import { Ico } from './FarmIco'
+import { Ico, Who } from './FarmIco'
 import { Xu } from './money'
 import {
   addItem, baitNow, BAIT_MAX, BAIT_MIN, FISH, fmtLeft, has, hasGold, ITEMS, needsText, newBigOrder, ORCHARD_LEVEL, POND_LEVEL, RECIPE, RECIPES,
@@ -87,7 +87,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
         if (lv < def.level)
           return (
             <p key={st} className="station-locked muted">
-              🔒 {def.icon} {def.name} mở ở cấp {def.level}
+              🔒 <Ico id={st} e={def.icon} /> {def.name} mở ở cấp {def.level}
             </p>
           )
         const slots: Slot[] = farm[SLOT_KEY[st]]
@@ -98,7 +98,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
           <div key={st} className="station">
             <div className="station-head">
               <h4>
-                {def.icon} {def.name}
+                <Ico id={st} e={def.icon} /> {def.name}
               </h4>
               <button className="small-btn" disabled={!ready.length} onClick={() => takeOut(st, ready)}>
                 Lấy hết{ready.length ? ` (${ready.length})` : ''}
@@ -113,7 +113,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
               {slots.map((s, i) =>
                 s ? (
                   <button key={i} className={`oven st-${st} ${now >= s.readyAt ? 'ready' : 'busy'}`} onClick={() => (now >= s.readyAt ? takeOut(st, [i]) : say(`${RECIPE[s.recipe].name} còn ${fmtLeft(s.readyAt - now)}`))}>
-                    <span className="oven-icon">{RECIPE[s.recipe].icon}</span>
+                    <span className="oven-icon"><Ico id={s.recipe} e={RECIPE[s.recipe].icon} /></span>
                     <span className="pen-note">{now >= s.readyAt ? 'Xong! Chạm để lấy' : fmtLeft(s.readyAt - now)}</span>
                   </button>
                 ) : (
@@ -130,7 +130,7 @@ export function WorkshopView({ farm, now, lv, ev, update, say }: Ctx) {
                 const enough = has(farm.inv, r.needs)
                 return (
                   <div key={r.id} className={`recipe ${locked ? 'locked' : ''} ${r.event ? 'event' : ''}`}>
-                    <span className="si">{locked ? '🔒' : r.icon}</span>
+                    <span className="si">{locked ? '🔒' : <Ico id={r.id} e={r.icon} />}</span>
                     <div>
                       <b>{r.name}</b>
                       {r.event && <span className="ev-tag">sự kiện</span>}
@@ -207,7 +207,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
           const locked = lv < t.level
           return (
             <button key={t.kind} role="radio" aria-checked={pick === t.kind} disabled={locked} className={`seed ${pick === t.kind ? 'on' : ''}`} onClick={() => setPick(t.kind)}>
-              <span className="si">{locked ? '🔒' : t.icon}</span>
+              <span className="si">{locked ? '🔒' : <Ico id={t.kind} e={t.icon} />}</span>
               <span className="sn">Cây {t.name}</span>
               <span className="sp">{locked ? `cấp ${t.level}` : <><Xu n={t.cost} /> · {t.yield} quả mỗi {fmtLeft(t.cycle * 60_000)}</>}</span>
             </button>
@@ -395,7 +395,7 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
     <section className="pond-wrap">
       <div className="pond-info">
         <span>
-          🪱 Mồi: <b>{bait.n}</b>/{BAIT_MAX}
+          <Ico id="moi" e="🪱" /> Mồi: <b>{bait.n}</b>/{BAIT_MAX}
         </span>
         <span className="muted small">{bait.n < BAIT_MAX ? `mồi mới sau ${fmtLeft(bait.nextIn)}` : `hồi 1 mồi mỗi ${BAIT_MIN} phút`}</span>
         {weather.id === 'mua' && <span className="muted small">🌧️ Trời mưa, cá cắn nhanh hơn</span>}
@@ -404,10 +404,10 @@ export function PondView({ farm, now, lv, weather, update, say }: Ctx) {
         className={`pond ${phase}`}
         onPointerDown={() => (phase === 'idle' ? cast() : strike())}
         onClick={(e) => e.detail === 0 && (phase === 'idle' ? cast() : strike())} aria-label={phase === 'idle' ? 'Thả câu' : 'Giật cần'}>
-        <span className="pond-fish f1">🐟</span>
-        <span className="pond-fish f2">🐠</span>
-        <span className="pond-fish f3">🐟</span>
-        {phase !== 'idle' && <span className={`bobber ${phase === 'bite' ? 'pull' : ''}`}>🔴</span>}
+        <span className="pond-fish f1"><Ico id="ca" e="🐟" /></span>
+        <span className="pond-fish f2"><Ico id="cachep" e="🐠" /></span>
+        <span className="pond-fish f3"><Ico id="ca" e="🐟" /></span>
+        {phase !== 'idle' && <span className={`bobber ${phase === 'bite' ? 'pull' : ''}`}><Ico id="phao" e="🔴" /></span>}
         <span className="pond-label">{phase === 'idle' ? 'Chạm để thả câu' : phase === 'wait' ? 'Chờ cá cắn câu…' : 'Cá cắn rồi! Giật đúng lúc!'}</span>
       </button>
       {phase === 'bite' && b && (
@@ -473,7 +473,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
           if (!tr)
             return (
               <div key={i} className="truck idle">
-                <span className="truck-icon">🚚</span>
+                <span className="truck-icon"><Ico id="xe" e="🚚" /></span>
                 <span className="pen-note">Xe {i + 1} đang đợi hàng</span>
               </div>
             )
@@ -483,7 +483,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
             <button key={i} className={`truck ${back ? 'ready' : 'away'}`} onClick={() => cash(i)} disabled={!back}>
               <span className="truck-road">
                 <span className="truck-icon" style={{ left: `${(ratio < 0.5 ? ratio * 2 : 2 - ratio * 2) * 80}%` }}>
-                  {ratio < 0.5 ? '🚚' : '🛻'}
+                  {ratio < 0.5 ? <Ico id="xe" e="🚚" /> : <Ico id="xe2" e="🛻" />}
                 </span>
               </span>
               {back ? (
@@ -505,7 +505,7 @@ export function TruckView({ farm, now, lv, update }: Ctx) {
       </div>
       {o && (
         <div className={`order big ${ok ? 'ready' : ''}`}>
-          <div className="order-who">📦 {o.who}</div>
+          <div className="order-who"><Who name={o.who} /> {o.who}</div>
           <div className="order-want">
             <WantList farm={farm} want={o.want} gold={o.gold} />
           </div>
@@ -554,7 +554,7 @@ export function EventBanner({ farm, now, ev, update }: Ctx) {
             const own = farm.decor.includes(d.id)
             return (
               <div key={d.id} className="shop-item">
-                <span className="si">{d.icon}</span>
+                <span className="si"><Ico id={d.id} e={d.icon} /></span>
                 <div>
                   <b>{d.name}</b>
                   <div className="muted small">Trang trí giữ mãi sau sự kiện</div>

@@ -10,7 +10,7 @@ import {
 } from './farm'
 import { EventBanner, OrchardView, PondView, TruckView, WantList, WorkshopView, type Ctx } from './FarmExtra'
 
-import { Ico } from './FarmIco'
+import { Ico, Who } from './FarmIco'
 const asset = (n: string) => `${import.meta.env.BASE_URL}assets/${n}`
 const LOCAL_KEY = 'pochacco-library:farm'
 const CLOUD_FILE = 'farm' // config/farm.json trong repo dữ liệu
@@ -382,11 +382,11 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             <span className="lv">Cấp {lvl.lv}</span>
             {farm.decor.length > 0 && (
               <span className="decor-strip" title={ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => d.name).join(', ')}>
-                {ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => d.icon).join('')}
+                {ALL_DECOR.filter((d) => farm.decor.includes(d.id)).map((d) => <Ico key={d.id} id={d.id} e={d.icon} />)}
               </span>
             )}
             <span className="weather" title={weather.note}>
-              {weather.icon} {weather.name}
+              <Ico id={`w-${weather.id}`} e={weather.icon} /> {weather.name}
             </span>
           </div>
           <div className="xpbar" title={`${lvl.into}/${lvl.need} kinh nghiệm`}>
@@ -474,7 +474,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               Gieo hết ô trống (<Ico id={seed} e={CROP[seed].icon} />)
             </button>
             <button className="secondary small-btn" onClick={waterAll}>
-              Tưới tất cả 💧
+              Tưới tất cả <Ico id="tuoi" e="💧" />
             </button>
             <button className="small-btn" disabled={!ripe.length} onClick={() => harvest(ripe)}>
               Thu hoạch tất cả{ripe.length ? ` (${ripe.length})` : ''}
@@ -483,7 +483,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
           {lvl.lv >= FERT_LEVEL ? (
             <div className="fert-bar">
               <span>
-                🧪 Phân bón: <b>{farm.fert}</b> túi
+                <Ico id="phanbon" e="🧪" /> Phân bón: <b>{farm.fert}</b> túi
               </span>
               <label className="fert-toggle">
                 <input type="checkbox" checked={farm.useFert} onChange={(e) => update((f) => ({ ...f, useFert: e.target.checked }))} /> Bón khi gieo
@@ -501,7 +501,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
               if (!p)
                 return (
                   <button key={i} className="plot empty" onClick={() => clickPlot(i)} aria-label={`Ô ${i + 1}: trống, gieo ${CROP[seed].name}`}>
-                    <span className="hint-seed">+<Ico id={seed} e={CROP[seed].icon} /></span>
+                    <span className="hint-seed">+{CROP[seed].icon}</span>
                   </button>
                 )
               const c = CROP[p.crop]
@@ -523,8 +523,8 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                     </span>
                   )}
                   {!done && <span className="left">{fmtLeft(p.readyAt - now)}</span>}
-                  {!done && !p.watered && <span className="need-water" title="Chạm để tưới">💧</span>}
-                  {p.fert && <span className="fert-mark" title="Đã bón phân">🧪</span>}
+                  {!done && !p.watered && <span className="need-water" title="Chạm để tưới"><Ico id="tuoi" e="💧" /></span>}
+                  {p.fert && <span className="fert-mark" title="Đã bón phân"><Ico id="phanbon" e="🧪" /></span>}
                 </button>
               )
             })}
@@ -558,7 +558,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             if (locked) {
               return (
                 <div key={a.kind} className="coop locked">
-                  <span className="coop-icon">{a.icon}</span>
+                  <span className="coop-icon"><Ico id={a.kind} e={a.icon} /></span>
                   <b>{a.kind === 'ong' ? 'Trại ong' : `Chuồng ${a.name.toLowerCase()}`}</b>
                   <span className="muted small">🔒 mở ở cấp {a.level}</span>
                 </div>
@@ -572,7 +572,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             return (
               <div key={a.kind} className={`coop coop-${a.kind}`}>
                 <div className="coop-head">
-                  <span className="coop-icon">{a.icon}</span>
+                  <span className="coop-icon"><Ico id={a.kind} e={a.icon} /></span>
                   <div className="coop-title">
                     <b>{coopName}</b> <span className="muted small">({mine.length}/{a.max})</span>
                     <div className="muted small">
@@ -598,7 +598,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                     const ratio = an.readyAt && an.fedAt ? Math.min(1, (now - an.fedAt) / (an.readyAt - an.fedAt)) : 0
                     return (
                       <button key={i} className={`pen ${isReady ? 'ready' : an.readyAt ? 'busy' : 'hungry'}`} onClick={() => (isReady ? collect([i]) : !an.readyAt ? feed([i]) : say(`${a.name} còn ${fmtLeft(an.readyAt - now)}`))}>
-                        <span className="pen-icon">{a.icon}</span>
+                        <span className="pen-icon"><Ico id={a.kind} e={a.icon} /></span>
                         {isReady ? (
                           <span className="pen-out"><Ico id={a.gives} e={ITEMS[a.gives].icon} /></span>
                         ) : an.readyAt ? (
@@ -650,6 +650,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
             return (
               <div key={o.id} className={`order ${ok ? 'ready' : ''}`}>
                 <div className="order-who">
+                  <Who name={o.who} />
                   {o.who}
                   {o.event && <span className="ev-tag">sự kiện</span>}
                   {o.gold && <span className="gold-tag">cần hàng 🥇</span>}
@@ -688,8 +689,8 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
                     {ITEMS[id].name} × {farm.inv[id]}
                     {(t.silver > 0 || t.gold > 0) && (
                       <small className="tiers">
-                        {t.silver > 0 && ` ${TIER_ICON[1]}${t.silver}`}
-                        {t.gold > 0 && ` ${TIER_ICON[2]}${t.gold}`}
+                        {t.silver > 0 && <> <Ico id="bac" e={TIER_ICON[1]} />{t.silver}</>}
+                        {t.gold > 0 && <> <Ico id="vang" e={TIER_ICON[2]} />{t.gold}</>}
                       </small>
                     )}
                   </span>
@@ -763,7 +764,7 @@ function GoalsView({ farm }: { farm: Farm }) {
           <div className="gs-near">
             <span className="muted small">Sắp đạt</span>
             <b>
-              {near.a.icon} {near.a.name}
+              <Ico id={`a-${near.a.id}`} e={near.a.icon} /> {near.a.name}
             </b>
             <span className="small">
               {near.p.cur.toLocaleString('vi-VN')}/{near.p.max.toLocaleString('vi-VN')} {near.p.unit} ({Math.round(near.frac * 100)}%)
@@ -787,7 +788,7 @@ function GoalsView({ farm }: { farm: Farm }) {
       <div className="ach-grid">
         {shown.map(({ a, done, p, frac }) => (
           <div key={a.id} className={`ach ${done ? 'done' : ''} ${p.locked && !done ? 'locked' : ''}`}>
-            <span className="ai">{p.locked && !done ? '🔒' : a.icon}</span>
+            <span className="ai">{p.locked && !done ? '🔒' : <Ico id={`a-${a.id}`} e={a.icon} />}</span>
             <b>{a.name}</b>
             <span className="muted small">{a.desc}</span>
             <div className="gbar" role="progressbar" aria-label={`Tiến độ ${a.name}`} aria-valuemin={0} aria-valuemax={p.max} aria-valuenow={done ? p.max : p.cur}>
