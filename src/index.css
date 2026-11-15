@@ -841,6 +841,8 @@ picture { display: contents; }
 .tree-main { display: grid; justify-items: center; gap: 4px; background: none; color: var(--ink); padding: 0; width: 100%; position: relative; }
 .tree-icon { font-size: 3rem; line-height: 1; filter: drop-shadow(0 2px 1px rgba(0,0,0,.2)); }
 .tree.ready .tree-icon { animation: bob 1.4s ease-in-out infinite; }
+.tree-icon .farm-ico { width: 1.6em; height: 1.6em; }
+.tree-icon.resting .farm-ico { filter: saturate(.55) brightness(1.05); }
 .tree-fruits { position: absolute; top: 18px; font-size: 1.1rem; letter-spacing: 6px; }
 .tree .grow { width: 80%; height: 5px; border-radius: 9px; background: rgba(0,0,0,.15); overflow: hidden; }
 .tree .grow span { display: block; height: 100%; background: #8fae3e; }

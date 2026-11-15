@@ -242,8 +242,7 @@ export function OrchardView({ farm, now, lv, update, say }: Ctx) {
           return (
             <div key={i} className={`tree ${done ? 'ready' : ''}`}>
               <button className="tree-main" onClick={() => (done ? harvest([i]) : say(`Cây ${d.name} còn ${fmtLeft(t.readyAt - now)} nữa ra quả`))}>
-                <span className="tree-icon">{young && ratio < 0.5 ? '🌱' : young ? '🌿' : d.tree}</span>
-                {done && <span className="tree-fruits">{d.icon.repeat(Math.min(3, d.yield))}</span>}
+                <span className={`tree-icon${!young && !done ? ' resting' : ''}`}>{young && ratio < 0.5 ? '🌱' : young ? '🌿' : <Ico id={`cay-${t.kind}`} e={d.tree} />}</span>
                 <b>Cây {d.name}</b>
                 {done ? (
                   <span className="pen-note">Chín rồi! Chạm để hái</span>

@@ -3,6 +3,8 @@ const ART = new Set(
   [
     // cây trồng
     'lua carot bap cachua bingo duahau dau ot huongduong mia caphe nam sen ladong dauxanh',
+    // cây ăn quả và quả
+    'xoai cam buoi cay-xoai cay-cam cay-buoi',
     // vật nuôi, sản phẩm, cá, ao
     'ga trung bo sua cuu len vit trungvit ong matong ca cachep moi phao',
     // xưởng và món
