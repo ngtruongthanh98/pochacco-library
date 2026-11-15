@@ -1603,6 +1603,12 @@ button .ns-money img { filter: drop-shadow(0 0 1px rgba(255,255,255,.6)); }
 .golf-tour div { display: grid; gap: 1px; font-size: 0.9rem; }
 .golf-tour small { color: var(--muted); font-size: 0.76rem; }
 .golf-tour button { min-height: 40px; }
+.golf-heroes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 8px 0; }
+.golf-heroes button { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; text-align: left; padding: 6px 10px; min-height: 64px; background: #fff; color: var(--ink); border: 2px solid #ecdcbf; border-radius: 14px; font-weight: 500; }
+.golf-heroes button.on { border-color: #6aa84f; background: #eef6e2; }
+.golf-heroes img { width: 52px; height: 60px; object-fit: contain; }
+.golf-heroes span { display: grid; gap: 1px; }
+.golf-heroes small { color: var(--muted); font-size: 0.76rem; }
 .golf-caddies { display: grid; gap: 6px; }
 .golf-caddies button { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; text-align: left; padding: 6px 10px; min-height: 48px; background: #fff; color: var(--ink); border: 2px solid #ecdcbf; border-radius: 12px; font-weight: 500; }
 .golf-caddies button:first-child { grid-template-columns: 1fr; }

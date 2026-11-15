@@ -595,16 +595,36 @@ export type GolfSave = {
   /** Bạn bè đã thắng giải: có thể làm caddie */
   caddies: string[]
   caddie: string | null
+  /** Nhân vật chính người chơi chọn */
+  hero: string
   daily: { date: string; tasks: { id: string; prog: number; done: boolean }[]; bonus: boolean; gift: string; streak: number }
   tour: TourState | null
   tourWins: Record<string, number>
   savedAt: number
 }
 export type TourState = { world: string; idx: number; hearts: number; mine: number[]; rivals: { id: string; scores: number[] }[] }
+/** Nhân vật chính: mỗi người một bộ tư thế */
+export type Hero = { name: string; desc: string; menu: string; ready: string; aim: string; swing: string[]; roll: string; sunk: string; water: string; win: string; result: string }
+export const HEROES: Record<string, Hero> = {
+  pochacco: {
+    name: 'Pochacco',
+    desc: 'Mũ lưỡi trai xanh, áo len kẻ ô',
+    menu: 'idle', ready: 'ready', aim: 'aiming',
+    swing: ['address_ball', 'backswing', 'swing', 'follow_through'],
+    roll: 'follow_through', sunk: 'cheer', water: 'worried', win: 'victory_trophy', result: 'victory_trophy',
+  },
+  ribbon: {
+    name: 'Pochacco Nơ Xanh',
+    desc: 'Nơ xanh lá, áo len lông xù',
+    menu: 'ribbon_idle', ready: 'ribbon_idle', aim: 'ribbon_address',
+    swing: ['ribbon_address', 'ribbon_backswing', 'ribbon_hit', 'ribbon_follow'],
+    roll: 'ribbon_follow', sunk: 'ribbon_cheer', water: 'ribbon_surprise', win: 'ribbon_trophy', result: 'ribbon_hug_ball',
+  },
+}
 export const DEFAULT_EQUIP = { ball: 'plain_ball', club: 'iron_club', tee: 'mint_tee', bag: 'mint_golf_bag' }
 export const newGolf = (): GolfSave => ({
   v: 1, coins: 0, gems: 0, xp: 0, best: {}, stars: {}, holeInOnes: 0, played: 0, ball: 'plain_ball',
-  owned: Object.values(DEFAULT_EQUIP), equip: { ...DEFAULT_EQUIP }, caddies: [], caddie: null,
+  owned: Object.values(DEFAULT_EQUIP), equip: { ...DEFAULT_EQUIP }, caddies: [], caddie: null, hero: 'pochacco',
   daily: { date: '', tasks: [], bonus: false, gift: '', streak: 0 }, tour: null, tourWins: {}, savedAt: 0,
 })
 export function parseGolf(raw: unknown): GolfSave | null {
@@ -626,6 +646,7 @@ export function parseGolf(raw: unknown): GolfSave | null {
     equip: { ...DEFAULT_EQUIP, ...(s.equip && typeof s.equip === 'object' ? s.equip : {}) },
     caddies: Array.isArray(s.caddies) ? s.caddies : [],
     caddie: typeof s.caddie === 'string' ? s.caddie : null,
+    hero: typeof s.hero === 'string' && s.hero in HEROES ? s.hero : 'pochacco',
     daily: s.daily && typeof s.daily === 'object' && Array.isArray(s.daily.tasks) ? s.daily : { date: '', tasks: [], bonus: false, gift: '', streak: 0 },
     tour: s.tour && typeof s.tour === 'object' && Array.isArray(s.tour.mine) ? s.tour : null,
     tourWins: s.tourWins && typeof s.tourWins === 'object' ? s.tourWins : {},

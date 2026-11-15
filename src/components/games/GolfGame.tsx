@@ -5,6 +5,7 @@ import {
   ALL_HOLES, BALL_R, COLS, HOLE_R, OBSTACLE, ROWS, SURFACE, VMAX, WORLDS,
   coinsFor, gAsset, levelOf, millClosed, moving, newGolf, parseCourse, parseGolf, resultName, simulate, starsFor, step, unlocked, worldOpen,
   type Ball, type Course, type GolfSave, type Mods,
+  HEROES,
 } from './golf'
 import {
   FRIEND, GIFT, KIND_LABEL, SHOP, TASKS, TOUR_RIVALS, TASK_BONUS_GEMS, TASK_REWARD, TOUR_WIN, caddieMods, dailyFor, newTour, todayKey, tourTotal,
@@ -14,7 +15,8 @@ import {
 const LOCAL_KEY = 'pochacco-library:golf'
 const CLOUD_FILE = 'golf'
 const CLOUD_DELAY = 20_000
-const SWING_FRAMES = Array.from({ length: 12 }, (_, i) => `swing_${String(i + 1).padStart(2, '0')}`)
+/** Thời lượng một cú vung (ms), chia đều cho các tư thế vung của nhân vật */
+const SWING_MS = 12 * 45
 const FRAME_MS = 45
 const IMPACT_FRAME = 6
 const HINT_AFTER = 4
@@ -184,7 +186,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
   useEffect(() => {
     const names = [
       ...new Set(Object.values(SURFACE).map((s) => s.tile)), 'hole_plain', 'cloud_effect', 'blue_fast_ball', 'golden_fast_ball', 'aiming_ball', 'wood_bridge',
-      save.equip.ball, save.equip.tee, ...Object.keys(OBSTACLE), ...ALL_HOLES.map((h) => h.flag), ...SWING_FRAMES, 'ready', 'address_ball', 'follow_through', 'victory_trophy',
+      save.equip.ball, save.equip.tee, ...Object.keys(OBSTACLE), ...ALL_HOLES.map((h) => h.flag), ...Object.values(HEROES).flatMap((h) => [h.ready, h.aim, ...h.swing, h.roll, h.sunk, h.water, h.win]),
     ]
     for (const n of names) img(n)
   }, [save.equip.ball, save.equip.tee])
@@ -452,14 +454,17 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
     return () => clearInterval(id)
   }, [inPlay])
   const p = play.current
-  let pose = 'ready'
+  const hero = HEROES[save.hero] ?? HEROES.pochacco
+  let pose = hero.ready
   if (p) {
-    if (p.phase === 'swing' || (p.phase === 'roll' && performance.now() - p.swingAt < SWING_FRAMES.length * FRAME_MS)) {
-      const f = Math.min(SWING_FRAMES.length - 1, Math.floor((performance.now() - p.swingAt) / FRAME_MS))
-      pose = SWING_FRAMES[f]
-    } else if (p.phase === 'roll') pose = 'follow_through'
-    else if (p.phase === 'sunk' || result) pose = 'victory_trophy'
-    else if (p.drag) pose = 'address_ball'
+    const since = performance.now() - p.swingAt
+    if (p.phase === 'swing' || (p.phase === 'roll' && since < SWING_MS)) {
+      const f = Math.min(hero.swing.length - 1, Math.floor((since / SWING_MS) * hero.swing.length))
+      pose = hero.swing[f]
+    } else if (p.phase === 'roll') pose = hero.roll
+    else if (p.phase === 'water') pose = hero.water
+    else if (p.phase === 'sunk' || result) pose = result?.best ? hero.win : hero.sunk
+    else if (p.drag) pose = hero.aim
   }
 
   // ---------- Cửa hàng, quà ----------
@@ -550,6 +555,17 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
             <img src={gAsset('trophy_button')} alt="" />
             <span>Kỷ lục</span>
           </button>
+        </div>
+        <div className="golf-heroes" role="radiogroup" aria-label="Chọn nhân vật">
+          {Object.entries(HEROES).map(([id, h]) => (
+            <button key={id} role="radio" aria-checked={save.hero === id} className={save.hero === id ? 'on' : ''} onClick={() => update((s) => ({ ...s, hero: id }))}>
+              <img src={gAsset(h.menu)} alt="" />
+              <span>
+                <b>{h.name}</b>
+                <small>{h.desc}</small>
+              </span>
+            </button>
+          ))}
         </div>
         {toast && <div className="golf-toast">{toast}</div>}
 
@@ -789,7 +805,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
           Cách chơi: chạm vào sân rồi <b>kéo ngược</b> lại như kéo ná, kéo càng xa càng mạnh, thả tay để đánh. Bóng nảy vào tường được. Cát, cỏ hoa, lá thu, tuyết làm bóng chậm; băng
           trơn; suối cạn cuốn bóng đi; rơi xuống nước bị phạt 1 gậy.
         </p>
-        {tourEnd && <TourEndDialog end={tourEnd} onClose={() => setTourEnd(null)} />}
+        {tourEnd && <TourEndDialog end={tourEnd} heroId={save.hero} onClose={() => setTourEnd(null)} />}
       </div>
     )
   }
@@ -835,7 +851,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
         />
         {result && (
           <div className="golf-result" role="dialog" aria-label="Kết quả lỗ">
-            <img src={gAsset('victory_trophy')} alt="" />
+            <img src={gAsset(hero.result)} alt="" />
             <h3>{result.name}</h3>
             <p>
               {result.strokes} gậy · par {result.par}
@@ -885,7 +901,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
         )}
       </div>
       <div className="golf-bottom">
-        <img className="golf-poch" src={gAsset(pose)} alt="Pochacco" />
+        <img className="golf-poch" src={gAsset(pose)} alt={hero.name} />
         <div className="golf-bottom-mid">
           <div className="golf-power" aria-label={`Lực ${Math.round(power * 100)}%`}>
             <span style={{ width: `${power * 100}%` }} />
@@ -904,12 +920,12 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
 }
 
 
-function TourEndDialog({ end, onClose }: { end: { world: string; mine: number[]; rivals: { id: string; scores: number[] }[]; result: 'win' | 'lose'; firstWin: boolean }; onClose: () => void }) {
+function TourEndDialog({ end, onClose, heroId }: { heroId: string; end: { world: string; mine: number[]; rivals: { id: string; scores: number[] }[]; result: 'win' | 'lose'; firstWin: boolean }; onClose: () => void }) {
   const w = WORLDS.find((x) => x.id === end.world)!
   const n = end.mine.length
   const par = w.holes.slice(0, n).reduce((a, h) => a + h.par, 0)
   const rows = [
-    { id: 'you', name: 'Pochacco (bạn)', img: 'victory_trophy', total: tourTotal(end.mine) },
+    { id: 'you', name: `${(HEROES[heroId] ?? HEROES.pochacco).name} (bạn)`, img: (HEROES[heroId] ?? HEROES.pochacco).win, total: tourTotal(end.mine) },
     ...end.rivals.map((r) => ({ id: r.id, name: FRIEND[r.id].name, img: r.id, total: tourTotal(r.scores, n) })),
   ].sort((a, b) => a.total - b.total || (a.id === 'you' ? -1 : 1))
   return (
