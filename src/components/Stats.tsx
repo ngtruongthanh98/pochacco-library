@@ -3,6 +3,7 @@ import { computeStats, type Row } from '../search/stats'
 import { nameToString, type Book } from '../types/book'
 import StatsDeep from './StatsDeep'
 import Spending from './Spending'
+import Intake from './Intake'
 import { BarList, Columns, DataTable, Donut, Growth, HeatGrid, OTHER, SERIES, StackBar, Tile, Treemap, foldOther, nf, pct } from './charts'
 import type { Stats as StatsData } from '../search/stats'
 
@@ -142,6 +143,7 @@ const TABS = [
   { id: 'topics', label: 'Thể loại' },
   { id: 'people', label: 'Tác giả & NXB' },
   { id: 'time', label: 'Thời gian' },
+  { id: 'intake', label: 'Nhập sách' },
   { id: 'shelf', label: 'Kệ & hình thức' },
   { id: 'money', label: 'Chi tiêu' },
   { id: 'data', label: 'Chất lượng dữ liệu' },
@@ -159,8 +161,10 @@ export default function Stats({
   onCategory,
   onOpen,
   onPerson,
+  onAdded,
 }: {
   books: Book[]
+  onAdded: (filter: string) => void
   onPerson: (name: string) => void
   onSearch: (q: string) => void
   onGroup: (i: number) => void
@@ -435,6 +439,8 @@ export default function Stats({
           </section>
         </>
       )}
+
+      {tab === 'intake' && <Intake books={books} onOpen={onOpen} onCategory={onCategory} onPerson={onPerson} onSearch={onSearch} onAdded={onAdded} />}
 
       {tab === 'money' && <Spending books={books} onOpen={onOpen} onSearch={onSearch} />}
 
