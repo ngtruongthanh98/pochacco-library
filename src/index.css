@@ -1089,3 +1089,8 @@ picture { display: contents; }
 .session-books li { margin: 2px 0; }
 .cluster { margin: 8px 0; }
 .cluster b { font-weight: 600; }
+
+/* Phạm vi thống kê */
+.scope-bar { display: grid; gap: 8px; margin: 4px 0 12px; }
+.scope-mix { display: flex; gap: 2px; height: 10px; border-radius: 999px; overflow: hidden; }
+.scope-seg { min-width: 2px; }

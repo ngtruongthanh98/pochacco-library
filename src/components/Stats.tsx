@@ -6,6 +6,7 @@ import Spending from './Spending'
 import Intake from './Intake'
 import { BarList, Columns, DataTable, Donut, Growth, HeatGrid, OTHER, SERIES, StackBar, Tile, Treemap, foldOther, nf, pct } from './charts'
 import type { Stats as StatsData } from '../search/stats'
+import { formatOf } from '../data/format'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -150,12 +151,25 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number]['id']
 const TAB_KEY = 'pochacco.statsTab'
+const SCOPE_KEY = 'pochacco.statsScope'
+/** Phạm vi thống kê: cả thư viện, chỉ những cuốn có bản giấy, hoặc chỉ những cuốn có bản điện tử */
+const SCOPES = [
+  { id: 'print', label: 'Sách giấy', hint: 'Những cuốn có bản giấy trên kệ, kể cả cuốn có thêm bản điện tử.' },
+  { id: 'all', label: 'Cả thư viện', hint: 'Gộp sách giấy và sách chỉ có bản điện tử.' },
+  { id: 'ebook', label: 'Sách điện tử', hint: 'Những cuốn có bản điện tử, kể cả cuốn có thêm bản giấy.' },
+] as const
+type Scope = (typeof SCOPES)[number]['id']
+const inScope = (sc: Scope) => (b: Book) => {
+  if (sc === 'all' || b.status === 'wishlist') return true
+  const f = formatOf(b)
+  return sc === 'print' ? f === 'print' || f === 'both' : f === 'ebook' || f === 'both'
+}
 const FORMAT_COLORS: Record<string, string> = {
   paperback: SERIES[0], hardcover: SERIES[1], jacket: SERIES[6], special: SERIES[4], unknown: OTHER, 'ebook-only': SERIES[2],
 }
 
 export default function Stats({
-  books,
+  books: allBooks,
   onSearch,
   onGroup,
   onCategory,
@@ -171,6 +185,29 @@ export default function Stats({
   onCategory: (id: string) => void
   onOpen: (b: Book) => void
 }) {
+  const [scope, setScopeState] = useState<Scope>(() => {
+    try {
+      const v = sessionStorage.getItem(SCOPE_KEY)
+      return (SCOPES.some((x) => x.id === v) ? v : 'print') as Scope
+    } catch {
+      return 'print'
+    }
+  })
+  const setScope = (v: Scope) => {
+    setScopeState(v)
+    try { sessionStorage.setItem(SCOPE_KEY, v) } catch { /* bỏ qua */ }
+  }
+  const mix = useMemo(() => {
+    const m = { print: 0, both: 0, ebook: 0, copies: 0 }
+    for (const b of allBooks) {
+      if (b.status === 'wishlist') continue
+      const f = formatOf(b)
+      if (f === 'print' || f === 'both' || f === 'ebook') m[f]++
+      for (const h of b.holdings) if (h.kind === 'print') m.copies += h.copies ?? 1
+    }
+    return m
+  }, [allBooks])
+  const books = useMemo(() => (scope === 'all' ? allBooks : allBooks.filter(inScope(scope))), [allBooks, scope])
   const s = useMemo(() => computeStats(books), [books])
   const t = s.totals
   const [showAllMissing, setShowAllMissing] = useState(false)
@@ -216,13 +253,36 @@ export default function Stats({
   return (
     <div className="stats">
       <section className="card stats-head">
-        <h2>Thống kê thư viện</h2>
+        <h2>Thống kê {scope === 'print' ? 'sách giấy' : scope === 'ebook' ? 'sách điện tử' : 'thư viện'}</h2>
+        <div className="scope-bar">
+          <nav className="subtabs" aria-label="Phạm vi thống kê">
+            {SCOPES.map((x) => (
+              <button key={x.id} className={`subtab${scope === x.id ? ' active' : ''}`} aria-pressed={scope === x.id} onClick={() => setScope(x.id)} title={x.hint}>
+                {x.label}
+                <span className="count">{nf(x.id === 'print' ? mix.print + mix.both : x.id === 'ebook' ? mix.ebook + mix.both : mix.print + mix.both + mix.ebook)}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="scope-mix" role="img" aria-label={`${mix.print} cuốn chỉ có bản giấy, ${mix.both} cuốn có cả hai, ${mix.ebook} cuốn chỉ có bản điện tử`}>
+            {([['print', 'Chỉ bản giấy', SERIES[0]], ['both', 'Có cả hai', SERIES[2]], ['ebook', 'Chỉ bản điện tử', SERIES[3]]] as const).map(([k, label, c]) => (
+              <div key={k} className="scope-seg" style={{ flexGrow: mix[k] || 0.0001, background: c }} title={`${label}: ${nf(mix[k])} cuốn`} />
+            ))}
+          </div>
+          <p className="muted small">
+            {nf(mix.print)} cuốn chỉ có bản giấy, {nf(mix.both)} cuốn có cả bản giấy và bản điện tử, {nf(mix.ebook)} cuốn chỉ có bản điện tử; tổng {nf(mix.copies)} bản giấy trên kệ.{' '}
+            {SCOPES.find((x) => x.id === scope)!.hint} Mọi số liệu bên dưới tính theo phạm vi này.
+          </p>
+        </div>
         <div className="tiles">
-          <Tile label="Đầu sách" value={nf(t.titles)} sub={`${nf(t.copies)} bản giấy`} />
+          <Tile label="Đầu sách" value={nf(t.titles)} sub={scope === 'ebook' ? `${nf(mix.ebook)} cuốn chỉ có bản điện tử` : `${nf(t.copies)} bản giấy${t.copies > t.titles ? `, ${nf(t.copies - t.titles)} bản trùng` : ''}`} />
           <Tile label="Tổng số trang" value={nf(t.pages)} sub={t.medianPages ? `trung vị ${t.medianPages} trang/cuốn` : undefined} />
           <Tile label="Tác giả, dịch giả" value={nf(t.people)} sub={`${nf(t.publishers)} nhà xuất bản`} />
           <Tile label="Sách dịch" value={pct(t.translated, t.titles)} sub={`${t.translated} cuốn`} ring={t.titles ? t.translated / t.titles : 0} />
-          <Tile label="Có bản điện tử" value={nf(t.ebooks)} sub={pct(t.ebooks, t.titles)} ring={t.titles ? t.ebooks / t.titles : 0} />
+          {scope === 'ebook' ? (
+            <Tile label="Có cả bản giấy" value={nf(mix.both)} sub={pct(mix.both, t.titles)} ring={t.titles ? mix.both / t.titles : 0} />
+          ) : (
+            <Tile label={scope === 'print' ? 'Có thêm bản điện tử' : 'Có bản điện tử'} value={nf(t.ebooks)} sub={pct(t.ebooks, t.titles)} ring={t.titles ? t.ebooks / t.titles : 0} />
+          )}
           <Tile label="Đủ thông tin" value={pct(t.complete, t.titles)} sub={`${t.titles - t.complete} cuốn cần bổ sung`} ring={t.titles ? t.complete / t.titles : 0} />
         </div>
         <nav className="subtabs stats-tabs" aria-label="Mục thống kê">
