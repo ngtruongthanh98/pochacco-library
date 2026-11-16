@@ -34,3 +34,11 @@ Theo tài liệu "Kế hoạch và thiết kế hệ thống Thư viện sách c
 ## Hình ảnh
 
 Bộ hình minh họa Pochacco trong `public/assets/` và biểu tượng ứng dụng do chủ repo cung cấp, chỉ dùng cho mục đích cá nhân, phi thương mại. Pochacco là nhân vật thuộc bản quyền của Sanrio.
+
+## Trò chơi
+
+Giao diện trò chơi nằm ở repo riêng `pochacco-library-game`, nhúng vào đây bằng git submodule tại thư mục `game/`. Tiến trình chơi lưu ở repo `pochacco-library-game-data`.
+
+- Clone kèm trò chơi: `git clone --recurse-submodules …`, hoặc sau khi clone chạy `git submodule update --init`.
+- Lấy bản trò chơi mới nhất: `git submodule update --remote game` rồi commit.
+- Workflow triển khai cần secret `GAME_REPO_TOKEN`: một token chỉ đọc của repo `pochacco-library-game` (vì repo đó để private).

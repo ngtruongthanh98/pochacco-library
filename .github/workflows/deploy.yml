@@ -20,6 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Trò chơi nằm ở repo private pochacco-library-game, nhúng qua submodule tại game/.
+      # Cần secret GAME_REPO_TOKEN: token chỉ đọc (Contents: Read-only) của repo đó.
+      - name: Tải mã trò chơi (submodule game/)
+        env:
+          GAME_REPO_TOKEN: ${{ secrets.GAME_REPO_TOKEN }}
+        run: |
+          if [ -z "$GAME_REPO_TOKEN" ]; then
+            echo "::error::Thiếu secret GAME_REPO_TOKEN (token đọc repo pochacco-library-game). Thêm ở Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          git -c url."https://x-access-token:${GAME_REPO_TOKEN}@github.com/".insteadOf="https://github.com/" submodule update --init --depth 1 game
       - uses: actions/setup-node@v4
         with:
           node-version: 22

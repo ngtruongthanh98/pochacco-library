@@ -14,7 +14,8 @@ import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTax
 import { buildAccountFile, isValidUsername, login, LoginError } from './auth/accounts'
 import { clearConfig, fetchCatalog, fetchTaxonomy, loadConfig, saveConfig, type StoreConfig } from './data/githubStore'
 import { Settings } from './components/Settings'
-const GamesPage = lazy(() => import('./components/games/GamesPage'))
+// Trò chơi: gói riêng ở repo pochacco-library-game, nhúng qua git submodule tại game/
+const GamesPage = lazy(() => import('../game/src/GamesPage'))
 import { ReaderSettings } from './components/ReaderSettings'
 import { readConfigFile, type ReaderConfig } from './data/configStore'
 import { QuotesPage, type ExcerptActions } from './components/Quotes'
@@ -900,6 +901,7 @@ export default function App() {
             <GamesPage
               cfg={cfg}
               books={books}
+              categoryLabel={categoryLabel}
               onOpenBook={(b) => {
                 setPage('library')
                 setOpenId(b.id)
