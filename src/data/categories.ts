@@ -112,7 +112,11 @@ export const CATEGORY_GROUPS: CategoryGroup[] = clone(DEFAULT_GROUPS)
 export const CATEGORY_LABEL: Record<string, string> = {}
 const rebuildLabels = () => {
   for (const k of Object.keys(CATEGORY_LABEL)) delete CATEGORY_LABEL[k]
-  for (const g of CATEGORY_GROUPS) for (const c of g.items) CATEGORY_LABEL[c.id] = c.label
+  // Tên nhóm cũng có nhãn, phòng khi một cuốn được gắn mã nhóm thay vì mã mục
+  for (const g of CATEGORY_GROUPS) {
+    CATEGORY_LABEL[g.id] = g.label
+    for (const c of g.items) CATEGORY_LABEL[c.id] = c.label
+  }
 }
 rebuildLabels()
 
