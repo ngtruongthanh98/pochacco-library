@@ -456,7 +456,7 @@ export function BarList({
 }
 
 /** Biểu đồ cột dọc cho chuỗi có thứ tự (thời gian, khoảng số trang); rê chuột hiện giá trị. */
-export function Columns({ rows, unit = 'cuốn' }: { rows: Row[]; unit?: string }) {
+export function Columns({ rows, unit = 'cuốn', active, onPick }: { rows: Row[]; unit?: string; active?: string; onPick?: (r: Row) => void }) {
   const max = Math.max(1, ...rows.map((r) => r.count))
   const ticks = [max, Math.round(max / 2)].filter((v, i, a) => v > 0 && a.indexOf(v) === i)
   return (
@@ -470,7 +470,16 @@ export function Columns({ rows, unit = 'cuốn' }: { rows: Row[]; unit?: string 
       </div>
       <div className="col-bars" style={{ gridTemplateColumns: `repeat(${rows.length}, 1fr)` }}>
         {rows.map((r) => (
-          <div key={r.key} className="col" title={`${r.label}: ${nf(r.count)} ${unit}`}>
+          <div
+            key={r.key}
+            className={`col${onPick ? ' pickable' : ''}${active === r.key ? ' active' : ''}`}
+            title={`${r.label}: ${nf(r.count)} ${unit}`}
+            role={onPick ? 'button' : undefined}
+            tabIndex={onPick ? 0 : undefined}
+            aria-pressed={onPick ? active === r.key : undefined}
+            onClick={onPick ? () => onPick(r) : undefined}
+            onKeyDown={onPick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(r) } } : undefined}
+          >
             <div className="col-area">
               <div className="col-fill" style={{ height: r.count ? `max(${(r.count / max) * 100}%, 3px)` : 0 }}>
                 <span className="col-tip">{nf(r.count)}</span>

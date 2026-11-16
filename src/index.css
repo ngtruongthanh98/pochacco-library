@@ -1066,3 +1066,26 @@ picture { display: contents; }
 .sp-pos { color: var(--muted); font-size: 0.8rem; text-align: right; font-variant-numeric: tabular-nums; }
 .sp-title { background: none; border: 0; padding: 0; color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
 .sp-title:hover { color: var(--red); text-decoration: underline; background: none; }
+
+/* Nhịp nhập sách */
+.col.pickable { cursor: pointer; }
+.col.active .col-fill { background: var(--red-dark); }
+.col.active .col-label { color: var(--ink); font-weight: 700; }
+.col.active .col-tip { opacity: 1; }
+.intake-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.intake-nav { display: flex; gap: 6px; align-items: center; }
+.intake-nav .muted { min-width: 0; }
+.delta.up { color: #2f6b1f; } .delta.down { color: #8f1f1b; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.chip-btn { font-size: 0.8rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+.chip-btn:hover { border-color: var(--red); color: var(--red-dark); background: transparent; }
+.link-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.link-table td, .link-table th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+.link-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.session { border-top: 1px solid var(--line); padding: 10px 0; }
+.session:first-child { border-top: 0; }
+.session-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.session-books { margin: 8px 0 0; padding-left: 18px; }
+.session-books li { margin: 2px 0; }
+.cluster { margin: 8px 0; }
+.cluster b { font-weight: 600; }

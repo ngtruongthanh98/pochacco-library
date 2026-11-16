@@ -992,6 +992,9 @@ export default function App() {
                 setPage('library'); setOpenId(b.id); window.scrollTo(0, 0)
               }}
               onPerson={openPerson}
+              onAdded={(f) => {
+                setPage('library'); setQ(''); setGroup(-1); setCat(null); setAdded(f); window.scrollTo(0, 0)
+              }}
             />
           )
         ) : openId && byId.get(openId) && editing ? (
