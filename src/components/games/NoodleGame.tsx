@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { readConfigFile, writeConfigFile } from '../../data/configStore'
+import { readGameFile, writeGameFile } from '../../data/gameStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { KimCuong, Rich, Xu } from './money'
@@ -10,7 +10,7 @@ import {
 } from './noodle'
 
 const LOCAL_KEY = 'pochacco-library:micay'
-const CLOUD_FILE = 'micay' // config/micay.json trong repo dữ liệu
+const CLOUD_FILE = 'micay' // saves/micay.json trong repo dữ liệu game
 const CLOUD_DELAY = 20_000
 
 type Cust = { id: number; kind: CustKind; name: string; order: Order; arrive: number; patience: number; stove: number | null; seed: number; leaving?: { at: number; mood: 'happy' | 'angry'; say: string } }
@@ -74,7 +74,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
   // ---------- Lưu tiến trình ----------
   useEffect(() => {
     let cancelled = false
-    readConfigFile<unknown>(cfg, CLOUD_FILE)
+    readGameFile<unknown>(cfg, CLOUD_FILE)
       .then((r) => {
         if (cancelled) return
         shaRef.current = r?.sha ?? null
@@ -85,7 +85,7 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
           localStorage.setItem(LOCAL_KEY, JSON.stringify(remote))
         } else if (local && (!remote || local.savedAt > remote.savedAt)) dirtyRef.current = true
       })
-      .catch(() => undefined)
+      .catch((e) => (e as Error)?.message?.startsWith('Token') && flash((e as Error).message))
       .finally(() => !cancelled && setLoaded(true))
     return () => {
       cancelled = true
@@ -98,11 +98,11 @@ export default function NoodleGame({ cfg }: { cfg: StoreConfig }) {
     const data = shopRef.current
     const message = `Tiệm mì cay: ngày ${data.day}, ${data.coins} xu`
     try {
-      shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, data, shaRef.current, message)
+      shaRef.current = await writeGameFile(cfg, CLOUD_FILE, data, shaRef.current, message)
     } catch {
       try {
-        const r = await readConfigFile<unknown>(cfg, CLOUD_FILE)
-        shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, shopRef.current, r?.sha ?? null, message)
+        const r = await readGameFile<unknown>(cfg, CLOUD_FILE)
+        shaRef.current = await writeGameFile(cfg, CLOUD_FILE, shopRef.current, r?.sha ?? null, message)
       } catch {
         dirtyRef.current = true
       }

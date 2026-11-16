@@ -5,6 +5,8 @@ export type StoreConfig = {
   repo: string
   token: string
   branch?: string
+  /** Repo lưu tiến trình game; mặc định <repo bỏ -data>-game-data. */
+  gameRepo?: string
 }
 
 export const API = 'https://api.github.com'

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { readConfigFile, writeConfigFile } from '../../data/configStore'
+import { readGameFile, writeGameFile } from '../../data/gameStore'
 import type { StoreConfig } from '../../data/githubStore'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { Rich, Xu } from './money'
@@ -13,7 +13,7 @@ import { EventBanner, OrchardView, PondView, TruckView, WantList, WorkshopView, 
 import { Ico, Who } from './FarmIco'
 const asset = (n: string) => `${import.meta.env.BASE_URL}assets/${n}`
 const LOCAL_KEY = 'pochacco-library:farm'
-const CLOUD_FILE = 'farm' // config/farm.json trong repo dữ liệu
+const CLOUD_FILE = 'farm' // saves/farm.json trong repo dữ liệu game
 const CLOUD_DELAY = 45_000
 
 type Sync = { state: 'idle' | 'saving' | 'saved' | 'error' | 'offline'; at?: number; msg?: string }
@@ -28,7 +28,7 @@ const loadLocal = (): Farm | null => {
 
 /**
  * Nông trại Pochacco: gieo hạt, tưới, thu hoạch, bán ở chợ, giao đơn hàng, lên cấp, mở rộng ruộng.
- * Tiến trình lưu ngay vào trình duyệt, và đồng bộ lên repo dữ liệu (config/farm.json) để chơi tiếp ở máy khác.
+ * Tiến trình lưu ngay vào trình duyệt, và đồng bộ lên repo dữ liệu game (saves/farm.json) để chơi tiếp ở máy khác.
  */
 export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   const [farm, setFarm] = useState<Farm>(() => loadLocal() ?? newFarm())
@@ -53,7 +53,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
   // Nạp bản trên repo; bản nào lưu sau thì dùng bản đó
   useEffect(() => {
     let cancelled = false
-    readConfigFile<unknown>(cfg, CLOUD_FILE)
+    readGameFile<unknown>(cfg, CLOUD_FILE)
       .then((r) => {
         if (cancelled) return
         shaRef.current = r?.sha ?? null
@@ -68,7 +68,7 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
           setSync({ state: 'idle' })
         } else setSync({ state: 'saved', at: remote?.savedAt })
       })
-      .catch(() => !cancelled && setSync({ state: 'offline', msg: 'Chưa kết nối được kho dữ liệu, tiến trình vẫn lưu trên máy này' }))
+      .catch((e) => !cancelled && setSync({ state: 'offline', msg: (e as Error)?.message?.startsWith('Token') ? (e as Error).message : 'Chưa kết nối được kho dữ liệu game, tiến trình vẫn lưu trên máy này' }))
       .finally(() => !cancelled && setLoaded(true))
     return () => {
       cancelled = true
@@ -81,14 +81,14 @@ export default function FarmGame({ cfg }: { cfg: StoreConfig }) {
     setSync({ state: 'saving' })
     const data = farmRef.current
     try {
-      shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, data, shaRef.current, `Nông trại: cấp ${levelOf(data.xp).lv}, ${data.coins} xu`)
+      shaRef.current = await writeGameFile(cfg, CLOUD_FILE, data, shaRef.current, `Nông trại: cấp ${levelOf(data.xp).lv}, ${data.coins} xu`)
       setSync({ state: 'saved', at: Date.now() })
     } catch (e) {
       // sha cũ (lưu từ máy khác): đọc sha mới rồi thử lại một lần
       try {
-        const r = await readConfigFile<unknown>(cfg, CLOUD_FILE)
+        const r = await readGameFile<unknown>(cfg, CLOUD_FILE)
         shaRef.current = r?.sha ?? null
-        shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, farmRef.current, shaRef.current, `Nông trại: cấp ${levelOf(data.xp).lv}, ${data.coins} xu`)
+        shaRef.current = await writeGameFile(cfg, CLOUD_FILE, farmRef.current, shaRef.current, `Nông trại: cấp ${levelOf(data.xp).lv}, ${data.coins} xu`)
         setSync({ state: 'saved', at: Date.now() })
       } catch {
         dirtyRef.current = true

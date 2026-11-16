@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { readConfigFile, writeConfigFile } from '../../data/configStore'
+import { readGameFile, writeGameFile } from '../../data/gameStore'
 import type { StoreConfig } from '../../data/githubStore'
 import {
   ALL_HOLES, BALL_R, COLS, HOLE_R, OBSTACLE, ROWS, SURFACE, VMAX, WORLDS,
@@ -118,7 +118,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
   // ---------- Lưu tiến trình ----------
   useEffect(() => {
     let cancelled = false
-    readConfigFile<unknown>(cfg, CLOUD_FILE)
+    readGameFile<unknown>(cfg, CLOUD_FILE)
       .then((r) => {
         if (cancelled) return
         shaRef.current = r?.sha ?? null
@@ -129,7 +129,7 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
           localStorage.setItem(LOCAL_KEY, JSON.stringify(remote))
         } else if (local && (!remote || local.savedAt > remote.savedAt)) dirtyRef.current = true
       })
-      .catch(() => undefined)
+      .catch((e) => (e as Error)?.message?.startsWith('Token') && flash((e as Error).message))
       .finally(() => !cancelled && setLoaded(true))
     return () => {
       cancelled = true
@@ -141,11 +141,11 @@ export default function GolfGame({ cfg }: { cfg: StoreConfig }) {
     const data = saveRef.current
     const msg = `Golf: ${Object.keys(data.best).length} lỗ, ${data.coins} xu`
     try {
-      shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, data, shaRef.current, msg)
+      shaRef.current = await writeGameFile(cfg, CLOUD_FILE, data, shaRef.current, msg)
     } catch {
       try {
-        const r = await readConfigFile<unknown>(cfg, CLOUD_FILE)
-        shaRef.current = await writeConfigFile(cfg, CLOUD_FILE, saveRef.current, r?.sha ?? null, msg)
+        const r = await readGameFile<unknown>(cfg, CLOUD_FILE)
+        shaRef.current = await writeGameFile(cfg, CLOUD_FILE, saveRef.current, r?.sha ?? null, msg)
       } catch {
         dirtyRef.current = true
       }
