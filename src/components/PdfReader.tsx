@@ -137,6 +137,28 @@ export default function PdfReader({
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [range, setRange] = useState<[number, number]>([1, 3])
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Màn hình hẹp: cuộn xuống thì thu thanh công cụ, cuộn lên (hoặc bấm nút trang) thì hiện lại.
+  const [chromeHidden, setChromeHidden] = useState(false)
+  const chromeHiddenRef = useRef(false)
+  const lastTop = useRef(0)
+  const onScrollChrome = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const top = el.scrollTop
+    const dy = top - lastTop.current
+    if (Math.abs(dy) < 12) return
+    lastTop.current = top
+    if (!window.matchMedia('(max-width: 900px), (pointer: coarse)').matches) return
+    if (top < 40) setChromeHidden(false)
+    else if (dy > 0) setChromeHidden(true)
+    else if (dy < -40) setChromeHidden(false)
+  }, [])
+  useEffect(() => {
+    chromeHiddenRef.current = chromeHidden
+    const r = scrollRef.current?.closest('.reader')
+    r?.classList.toggle('chrome-hidden', chromeHidden)
+    return () => r?.classList.remove('chrome-hidden')
+  }, [chromeHidden])
   const pendingJump = useRef<number | null>(page)
 
   // --- Mở tài liệu ---
@@ -186,7 +208,8 @@ export default function PdfReader({
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }))
+    // Khi thanh công cụ đang ẩn, giữ nguyên chiều cao cũ để chế độ "vừa trang" không nhảy cỡ.
+    const ro = new ResizeObserver(() => setSize((s) => ({ w: el.clientWidth, h: chromeHiddenRef.current ? s.h : el.clientHeight })))
     ro.observe(el)
     setSize({ w: el.clientWidth, h: el.clientHeight })
     return () => ro.disconnect()
@@ -378,7 +401,20 @@ export default function PdfReader({
           </button>
         )}
       </div>
-      <div className="pdf-scroll" ref={scrollRef} onScroll={updateFromScroll} tabIndex={-1}>
+      {chromeHidden && doc && (
+        <button className="pdf-peek" onClick={() => setChromeHidden(false)} aria-label="Hiện thanh công cụ">
+          Trang {page}/{n} ☰
+        </button>
+      )}
+      <div
+        className="pdf-scroll"
+        ref={scrollRef}
+        onScroll={() => {
+          updateFromScroll()
+          onScrollChrome()
+        }}
+        tabIndex={-1}
+      >
         {!doc && (
           <div className="reader-loading">
             Đang mở sách…

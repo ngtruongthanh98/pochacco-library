@@ -1107,3 +1107,8 @@ picture { display: contents; }
 .audio-group-title { font-weight: 650; font-size: 0.85rem; margin-bottom: 4px; }
 .audio-tracks { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-btn.active { border-color: var(--red); color: var(--red-dark); font-weight: 650; }
+
+/* Trình đọc PDF: thu gọn thanh công cụ khi cuộn trên màn hình hẹp */
+.reader.chrome-hidden .reader-bar, .reader.chrome-hidden .pdf-tools { display: none; }
+.pdf-peek { position: absolute; top: 10px; right: 10px; z-index: 5; padding: 6px 14px; border-radius: 999px; background: rgba(42, 29, 23, 0.82); color: var(--cream); font-size: 0.85rem; font-weight: 650; box-shadow: 0 3px 12px rgba(0,0,0,.35); backdrop-filter: blur(4px); }
+.pdf-peek:hover { background: rgba(42, 29, 23, 0.95); }
