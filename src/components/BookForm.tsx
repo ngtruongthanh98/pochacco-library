@@ -223,7 +223,7 @@ const build = (
     // Giữ nguyên những gì biểu mẫu không quản lý (sách điện tử, cho mượn, bìa, ngày tạo...).
     const kept: Record<string, unknown> = { ...original }
     for (const k of MANAGED) delete kept[k]
-    // Mọi bản giấy và bản điện tử đều do biểu mẫu quản lý.
+    // Bản giấy và bản điện tử do biểu mẫu quản lý; tệp nghe giữ nguyên.
     const merged = {
       ...kept,
       ...book,
@@ -231,7 +231,7 @@ const build = (
       source: original.source,
       createdAt: original.createdAt,
       updatedAt: now,
-      holdings: [...book.holdings.filter((h) => h.kind === 'print'), ...ebooks],
+      holdings: [...book.holdings.filter((h) => h.kind === 'print'), ...ebooks, ...original.holdings.filter((h) => h.kind === 'audio')],
     }
     return { book: JSON.parse(JSON.stringify(merged)) as Book }
   }
