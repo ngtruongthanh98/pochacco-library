@@ -162,45 +162,59 @@ export default function PdfReader({
   const pendingJump = useRef<number | null>(page)
 
   // --- Mở tài liệu ---
+  // attempt tăng khi bấm "Thử lại"; mỗi lần mở dùng một tham số chống bộ nhớ đệm riêng,
+  // vì trình duyệt (nhất là Safari trên iPhone) đôi khi trả lại các đoạn tải dở từ lần trước, làm PDF.js báo "Invalid PDF structure".
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let cancelled = false
-    let task: ReturnType<typeof getDocument> | null = null
+    const t: { task: ReturnType<typeof getDocument> | null } = { task: null }
     ;(async () => {
-      // Thử đọc vài byte đầu để báo lỗi quyền truy cập rõ ràng thay vì lỗi chung của PDF.js.
-      try {
-        const probe = await fetch(url, { headers: { Range: 'bytes=0-1023' } })
-        if (!probe.ok) {
-          if (!cancelled) setError(await driveErrorText(probe))
-          return
-        }
-        await probe.arrayBuffer()
-      } catch {
-        if (!cancelled) setError('Không kết nối được tới Google Drive. Kiểm tra mạng rồi thử lại.')
-        return
+      const open = async (bust: boolean) => {
+        const u = bust ? `${url}${url.includes('?') ? '&' : '?'}nocache=${Date.now()}` : url
+        // Thử đọc vài byte đầu để báo lỗi quyền truy cập rõ ràng thay vì lỗi chung của PDF.js.
+        const probe = await fetch(u, { headers: { Range: 'bytes=0-1023' }, cache: 'no-store' })
+        if (!probe.ok) throw Object.assign(new Error(await driveErrorText(probe)), { drive: true })
+        const head = new Uint8Array(await probe.arrayBuffer())
+        if (!/%PDF-/.test(String.fromCharCode(...head.slice(0, 1024))))
+          throw Object.assign(new Error('Google Drive không trả về nội dung PDF (có thể tệp vượt hạn mức tải hoặc cần xác nhận quét virus).'), { drive: true })
+        if (cancelled) return null
+        const task = getDocument({ url: u, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true })
+        t.task = task
+        task.onProgress = (pr: { loaded: number; total: number }) => !cancelled && setProgress(pr)
+        return task.promise
       }
-      if (cancelled) return
-      task = getDocument({ url, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true })
-      task.onProgress = (p: { loaded: number; total: number }) => !cancelled && setProgress(p)
+      let d: PDFDocumentProxy | null
       try {
-        const d = await task.promise
+        try {
+          d = await open(attempt > 0)
+        } catch (e) {
+          if ((e as { drive?: boolean }).drive || cancelled) throw e
+          // Lỗi cấu trúc PDF: thử lại một lần với địa chỉ mới, bỏ qua bộ nhớ đệm.
+          void t.task?.destroy()
+          d = await open(true)
+        }
+        if (!d || cancelled) return void d?.loadingTask.destroy()
         const first = (await d.getPage(1)).getViewport({ scale: 1 })
         if (cancelled) return void d.loadingTask.destroy()
         setBase({ w: first.width, h: first.height })
         setDoc(d)
+        const total = d.numPages
         setPage((p) => {
-          const t = Math.min(p, d.numPages)
+          const t = Math.min(p, total)
           pendingJump.current = t
           return t
         })
       } catch (e) {
-        if (!cancelled) setError(`Không mở được tệp PDF: ${(e as Error).message}`)
+        if (cancelled) return
+        const msg = (e as Error).message
+        setError((e as { drive?: boolean }).drive ? msg : /fetch|network|load failed/i.test(msg) ? 'Không kết nối được tới Google Drive. Kiểm tra mạng rồi thử lại.' : `Không mở được tệp PDF: ${msg}`)
       }
     })()
     return () => {
       cancelled = true
-      void task?.destroy()
+      void t.task?.destroy()
     }
-  }, [url])
+  }, [url, attempt])
 
   useEffect(() => () => void doc?.loadingTask.destroy(), [doc])
 
@@ -326,7 +340,17 @@ export default function PdfReader({
     return (
       <div className="pdf-error">
         <p>{error}</p>
-        <button onClick={onFallback}>Xem bằng trình xem Google Drive</button>
+        <button
+          onClick={() => {
+            setError(null)
+            setDoc(null)
+            setProgress(null)
+            setAttempt((a) => a + 1)
+          }}
+        >
+          Thử lại
+        </button>
+        <button className="secondary" onClick={onFallback}>Xem bằng trình xem Google Drive</button>
       </div>
     )
 
