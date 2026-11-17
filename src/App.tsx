@@ -1022,6 +1022,7 @@ export default function App() {
           <>
                         <BookDetail
               key={openId}
+              driveApiKey={readerCfg.driveApiKey}
               cfg={cfg}
               book={byId.get(openId)!}
               excerpts={excerpts}

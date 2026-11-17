@@ -48,7 +48,26 @@ export type EbookHolding = {
   sameEditionAsPrint?: boolean
 }
 
-export type Holding = PrintHolding | EbookHolding
+/** Một bài nghe kèm sách (giáo trình ngoại ngữ...). */
+export type AudioTrack = {
+  title: string
+  /** Nhóm hiển thị, ví dụ "Unidad 1" */
+  group?: string
+  fileId?: string
+  url?: string
+}
+
+/** Tệp nghe đi kèm sách: một thư mục Drive và (nếu có) danh sách bài nghe đã ghi sẵn để phát ngay trong ứng dụng. */
+export type AudioHolding = {
+  kind: 'audio'
+  storage: 'gdrive' | 'url'
+  label?: string
+  folderId?: string
+  url?: string
+  tracks?: AudioTrack[]
+}
+
+export type Holding = PrintHolding | EbookHolding | AudioHolding
 
 export type Book = {
   id: string

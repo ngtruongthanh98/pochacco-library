@@ -10,6 +10,7 @@ import { otherEditions } from '../search/editions'
 import { fmtVnd } from '../data/money'
 import { bindingLabel, nameToString, type Book, type EbookHolding, type Name } from '../types/book'
 import Cover from './Cover'
+import AudioPanel from './AudioPanel'
 
 function Description({ text, onEdit }: { text?: string; onEdit: () => void }) {
   const [open, setOpen] = useState(false)
@@ -114,7 +115,9 @@ export default function BookDetail({
   onPerson,
   onCategory,
   onRead,
+  driveApiKey,
 }: {
+  driveApiKey?: string
   cfg: StoreConfig
   book: Book
   books: Book[]
@@ -346,7 +349,11 @@ export default function BookDetail({
           <h3>Bản lưu giữ</h3>
           <ul className="holdings">
             {book.holdings.map((h, i) =>
-              h.kind === 'print' ? (
+              h.kind === 'audio' ? (
+                <li key={i}>
+                  <AudioPanel holding={h} driveApiKey={driveApiKey} />
+                </li>
+              ) : h.kind === 'print' ? (
                 <li key={i}>
                   <span className="tag">Bản giấy</span>
                   {h.binding && <span className="tag binding">{bindingLabel(h.binding)}</span>} {h.location ? `Kệ ${h.location}` : 'Chưa ghi vị trí'}
