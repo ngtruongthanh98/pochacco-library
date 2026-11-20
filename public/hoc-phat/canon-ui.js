@@ -229,7 +229,7 @@ function renderCanonReaderPage(target, page, moveToText=false) {
   for (const [key,root,translation,kind] of segments.slice(start,end)) {
     const segment=readerElement('div','canon-segment');
     const row=readerElement('div',parallel?'canon-parallel':'');
-    const mainText=readerElement(kind||'p','',mode==='vi'?translation:root);
+    const mainText=readerElement(kind||'p','',mode==='vi'?translation.normalize('NFC'):root);
     mainText.lang=mode==='vi'?'vi':'pi';
     row.append(mainText);
     if (parallel) {
