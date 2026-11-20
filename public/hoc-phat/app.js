@@ -17,7 +17,6 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 const normalize = value => value.toLowerCase().normalize('NFD').replace(/\p{M}/gu,'').replace(/[đð]/g,'d');
 const newRecordId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)),
   byte => byte.toString(16).padStart(2,'0')).join('');
-const clone = value => structuredClone(value);
 const seed = {
   complete: false, citations: [], terms: [], notes: [], draft: '',
   researchSources: [], researchJournal: [],
@@ -31,10 +30,9 @@ const seed = {
     {id:'yuk_ZpMNe3U',title:'Paṭṭhāna: Conditional Relations',group:'talk',topic:'Vi diệu pháp',lang:'Tiếng Anh',thumbnail:true},
   ],
 };
-let state = clone(seed);
-try { state = {...state,...JSON.parse(localStorage.getItem('pochacco-library:hoc-phat:v1') || '{}')}; } catch {}
+let state = loadStudyState(seed);
 function save() {
-  try { localStorage.setItem('pochacco-library:hoc-phat:v1',JSON.stringify(state)); return true; }
+  try { localStorage.setItem(studyStorageKey,JSON.stringify(state)); return true; }
   catch { return false; }
 }
 const nav = [
@@ -67,7 +65,7 @@ const researchTabs = [
   {id:'outline',label:'Dàn ý'}, {id:'sources',label:'Nguồn'}, {id:'citations',label:'Trích dẫn'}, {id:'draft',label:'Bản thảo'},
 ];
 const sourceURL = 'https://www.abhidhamma.com/tab_Patthana_24_en.pdf';
-const view = {reader:'compare', research:'outline', group:'all', topic:'all', query:'', outline:'term'};
+const view = {reader:'compare', group:'all', topic:'all', query:''};
 const main = document.querySelector('main');
 const pageContent = document.querySelector('#page-content');
 const dialog = document.querySelector('dialog');
@@ -89,8 +87,13 @@ function route() {
     return {path:researchBase,...researchRoute(path,query)};
   }
   const p = nav.some(n => n.hash === path) ? path : '#/';
-  const course = new URLSearchParams(query).get('lo-trinh');
-  return {path:p,course:Object.hasOwn(courses,course) ? course : 'tam-tang'};
+  const params = new URLSearchParams(query);
+  if (p === '#/doc') return {path:p,id:params.get('bai') || params.get('lo-trinh')};
+  if (p === '#/de-tai') {
+    const tab = params.get('muc');
+    return {path:p,id:params.get('de-tai'),studyTab:researchTabs.some(item=>item.id===tab)?tab:'outline'};
+  }
+  return {path:p};
 }
 function btn(label,action,kind='secondary',glyph='') {
   return '<button type="button" class="btn '+kind+'" data-action="'+action+'">'+(glyph?icon(glyph):'')+label+'</button>';
@@ -102,12 +105,14 @@ function art() {
   return '<img class="hero-art" src="manuscript.webp" alt="Minh họa bản lá buông trên nền vải màu vàng đất" width="600" height="445">';
 }
 function home() {
+  const last = readingById(state.lastReading) || readingById('tam-tang');
+  const done = Boolean(state.progress[last.id]);
   return '<div class="page-head"><h1>Hôm nay</h1><p>Đọc tiếp một bài, nghe giảng hoặc quay lại đề tài đang viết.</p></div>'+
-    '<div class="intro-grid"><section class="hero"><div class="hero-copy"><div class="kicker">LUẬN TẠNG · VI DIỆU PHÁP</div><h2>Bộ Vị Trí<br>và 24 duyên</h2><p>Đọc đối chiếu Pāli, tiếng Việt và tiếng Anh.</p><a class="btn light" href="#/doc">'+icon('book')+(state.complete?'Đọc lại bài':'Tiếp tục đọc')+'</a></div>'+art()+'</section>'+
-    '<section class="card queue"><h2>Đang học</h2><div class="meta">'+(state.complete?'1 trên 1 bài mẫu đã hoàn thành':'0 trên 1 bài mẫu đã hoàn thành')+'</div><div class="progress" role="progressbar" aria-label="Tiến độ bài mẫu" aria-valuenow="'+Number(state.complete)+'" aria-valuemax="1"><span style="width:'+(state.complete?100:0)+'%"></span></div><a href="#/doc">'+icon('book')+'<span><strong>Bộ Vị Trí và 24 duyên</strong><small>'+ (state.complete?'Đã học':'Bài đọc đang mở')+'</small></span></a><a href="#/doc">'+icon('mark')+'<span><strong>Từ vựng đã lưu</strong><small>'+state.terms.length+' thuật ngữ</small></span></a></section></div>'+
+    '<div class="intro-grid"><section class="hero"><div class="hero-copy"><div class="kicker">LUẬN TẠNG · VI DIỆU PHÁP</div><h2>Bộ Vị Trí<br>và 24 duyên</h2><p>Đọc đối chiếu Pāli, tiếng Việt và tiếng Anh.</p><a class="btn light" href="'+readingHref(last.id)+'">'+icon('book')+(done?'Đọc lại bài':'Tiếp tục đọc')+'</a></div>'+art()+'</section>'+
+    '<section class="card queue"><h2>Đang học</h2><div class="meta">'+(done?'Đã hoàn thành bài gần nhất':'Đang đọc bài gần nhất')+'</div><div class="progress" role="progressbar" aria-label="Tiến độ bài gần nhất" aria-valuenow="'+Number(done)+'" aria-valuemax="1"><span style="width:'+(done?100:0)+'%"></span></div><a href="'+readingHref(last.id)+'">'+icon('book')+'<span><strong>'+esc(last.title)+'</strong><small>'+ (done?'Đã học':'Bài đọc đang mở')+'</small></span></a><a href="#/doc">'+icon('mark')+'<span><strong>Từ vựng đã lưu</strong><small>'+state.terms.length+' thuật ngữ</small></span></a></section></div>'+
     '<section><div class="section-head"><h2>Lộ trình học</h2><img class="section-sticker" src="../assets/sticker-divider.webp" width="244" height="75" alt=""></div><div class="path-grid">'+paths.map(p=>'<a class="card path" href="'+(p.href || '#/doc?lo-trinh='+p.course)+'"><span class="icon-tile">'+icon(p.icon)+'</span><h3>'+p.title+'</h3><p>'+p.desc+'</p></a>').join('')+'</div></section>'+
     researchCardList()+
-    '<section><div class="section-head"><h2>Video và đề tài</h2></div><div class="lower-grid"><a class="card row-link" href="#/video"><span class="icon-tile">'+icon('video')+'</span><div><h3>Kho video</h3><p>Nghe kinh điển và thuyết pháp</p></div></a><a class="card row-link" href="#/de-tai"><span class="icon-tile">'+icon('file')+'</span><div><h3>Trưởng lão Tịnh Sự và Bộ Vị Trí</h3><p>Mở dàn ý và tư liệu của đề tài mẫu</p></div></a></div></section>';
+    '<section><div class="section-head"><h2>Video và đề tài</h2></div><div class="lower-grid"><a class="card row-link" href="#/video"><span class="icon-tile">'+icon('video')+'</span><div><h3>Kho video</h3><p>Nghe kinh điển và thuyết pháp</p></div></a><a class="card row-link" href="#/de-tai"><span class="icon-tile">'+icon('file')+'</span><div><h3>Đề tài nghiên cứu</h3><p>Mở dàn ý, nguồn và bản thảo</p></div></a></div></section>';
 }
 function termBlocks() {
   return terms.map(t => {
@@ -116,63 +121,19 @@ function termBlocks() {
     return '<div class="passage">'+fields.map(([label,value])=>'<div class="kicker">'+label+'</div><p>'+value+'</p>').join('')+'</div>';
   }).join('');
 }
-function reader(course) {
-  const item = courses[course];
-  const meditation = course === 'thien';
-  return '<div class="page-head"><div class="kicker">'+item.meta+'</div><h1>'+item.title+'</h1><p>'+item.lead+'</p></div>'+
-    '<div class="reader-grid"><article class="panel"><div class="article-section"><h2>'+ (meditation?'Ghi chú thực hành':'Thuật ngữ đối chiếu')+'</h2><p class="meta">'+item.note+'</p>'+
-    (meditation?'':'<div class="reader-tabs" aria-label="Ngôn ngữ" style="margin-top:12px">'+tabs(readerTabs,view.reader,'reader-tab')+'</div><div class="parallel">'+termBlocks()+'</div><p class="meta" style="margin-top:13px">Bảng thuật ngữ mẫu · <a href="'+sourceURL+'" target="_blank" rel="noopener"><u>Mở nguồn đối chiếu Pāli–Anh</u></a></p>')+
-    '</div><div class="buttons article-actions">'+(meditation?'':btn('Lưu trích dẫn','cite','', 'mark'))+btn('Ghi chú','note','secondary','plus')+
-    (course!=='tam-tang'?'':btn(state.complete?'Đã hoàn thành':'Đánh dấu đã học','complete','secondary','check'))+'</div></article>'+
-    '<aside class="panel side-panel"><h2>Sổ tay bài học</h2>'+(meditation?'':'<button class="text-button" data-action="term">Hetu-paccaya · Nhân duyên</button><p class="meta">'+state.terms.length+' thuật ngữ đã lưu</p>')+
-    '<h3>Ghi chú của bạn</h3>'+(state.notes.filter(n=>n.course===course).map(n=>'<p class="note">'+esc(n.text)+'</p>').join('')||'<p class="meta">Chưa có ghi chú cho bài này.</p>')+
-    '<h3>Tư liệu liên quan</h3><a href="#/video">Video về Vi diệu pháp</a><a href="#/de-tai">Đề tài về Trưởng lão Tịnh Sự</a></aside></div>';
-}
-function videoCard(v) {
-  return '<article class="video-card panel" style="padding:0"><button class="video-cover" data-action="play" data-value="'+esc(v.id)+'" aria-label="Phát '+esc(v.title)+'">'+
-    (v.thumbnail?'<img src="https://i.ytimg.com/vi/'+esc(v.id)+'/hqdefault.jpg" alt="" loading="lazy">':'')+'<span class="play-circle">'+icon('play')+'</span></button>'+
-    '<div class="video-info"><span class="status">'+esc(v.topic)+'</span><h3>'+esc(v.title)+'</h3><p class="meta">'+(v.group==='chant'?'Nghe kinh điển':'Nghe thuyết pháp')+' · '+esc(v.lang)+'</p>'+
-    (v.speaker?'<p class="meta">'+esc(v.speaker)+'</p>':'')+'</div></article>';
-}
-function filteredVideos() {
-  const videos = state.videos.filter(v => (view.group==='all'||v.group===view.group) && (view.topic==='all'||v.topic===view.topic) &&
-     normalize(v.title+' '+v.topic+' '+v.lang+' '+(v.speaker||'')).includes(normalize(view.query.trim())));
-  return videos.length ? videos.map(videoCard).join('') : '<p class="empty">Không có video phù hợp với bộ lọc.</p>';
-}
-function videoPage() {
-  const topics = [...new Set(state.videos.map(v=>v.topic))];
-  return '<div class="page-head head-split"><div><h1>Video</h1><p>Nghe kinh điển và xem bài thuyết pháp theo chủ đề.</p></div>'+btn('Thêm video','add-video','', 'plus')+'</div>'+
-    '<div class="tabs" aria-label="Nhóm video">'+tabs([{id:'all',label:'Tất cả'},{id:'chant',label:'Nghe kinh điển'},{id:'talk',label:'Nghe thuyết pháp'}],view.group,'video-tab')+'</div>'+
-    '<div class="filters"><input id="video-search" type="search" placeholder="Tìm tiêu đề, người giảng…" aria-label="Tìm video" value="'+esc(view.query)+'"><select id="topic" aria-label="Chủ đề"><option value="all">Mọi chủ đề</option>'+topics.map(t=>'<option'+(view.topic===t?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select></div><div class="video-grid" id="video-grid">'+filteredVideos()+'</div>';
-}
-function citationRows(citations) {
-  return citations.map(c=>'<div class="source-item"><strong>'+esc(c.text)+'</strong><p class="meta">Bộ Vị Trí · Bảng thuật ngữ mẫu</p><a class="meta" href="'+sourceURL+'" target="_blank" rel="noopener">Nguồn đối chiếu Pāli–Anh</a></div>').join('') || '<p class="empty">Chưa có trích dẫn. Bạn có thể lưu một đoạn từ màn hình Đọc bài.</p>';
-}
-function research() {
-  const selected = state.outline.find(o=>o.id===view.outline) || state.outline[0];
-  let content;
-  if (view.research === 'sources') {
-    content = '<h2>Nguồn đang đọc</h2><div class="source-list" style="margin-top:12px"><div class="source-item"><h3>Paṭṭhāna · The 24 Conditions</h3><p class="meta">Bảng thuật ngữ Pāli–Anh · PDF</p><a href="'+sourceURL+'" target="_blank" rel="noopener">Mở tài liệu</a></div></div>';
-  } else if (view.research === 'citations') {
-    content = '<h2>Trích dẫn đã lưu</h2><div class="source-list" style="margin-top:12px">'+citationRows(state.citations)+'</div>';
-  } else if (view.research === 'draft') {
-    content = '<label for="draft"><h2>Bản thảo</h2></label><p class="meta" style="margin:6px 0">Bản nháp mẫu lưu trên trình duyệt này.</p><textarea class="draft" id="draft" placeholder="Viết đoạn đầu tiên…">'+esc(state.draft)+'</textarea><p class="meta" id="draft-status" aria-live="polite"></p>';
-  } else {
-    content = '<div class="head-split" style="margin-bottom:12px"><h2>Dàn ý</h2>'+btn('Thêm mục','add-outline','secondary','plus')+'</div><div class="stack">'+state.outline.map(o=>'<div class="outline-row'+(selected.id===o.id?' active':'')+'"><div><button data-action="outline" data-value="'+esc(o.id)+'" aria-pressed="'+(selected.id===o.id)+'">'+esc(o.title)+'</button><small>'+esc(o.detail)+'</small></div><span class="meta">'+state.citations.filter(c=>c.outline===o.id).length+' trích dẫn</span></div>').join('')+'</div>';
-  }
-  return '<div class="page-head"><div class="kicker">NGHIÊN CỨU PHẬT GIÁO NAM TÔNG</div><h1>Trưởng lão Tịnh Sự và Bộ Vị Trí</h1><p>Công trình phiên dịch và việc giới thiệu lý thuyết 24 duyên.</p></div>'+
-   '<div class="research-grid"><section class="panel"><div class="tabs" aria-label="Các phần của đề tài">'+tabs(researchTabs,view.research,'research-tab')+'</div>'+content+'</section>'+
-   '<aside class="panel side-panel"><span class="status warn">Đang chuẩn bị tư liệu</span><h3>Câu hỏi nghiên cứu</h3><p>Bản dịch Bộ Vị Trí trình bày các thuật ngữ về duyên như thế nào trong tiếng Việt?</p><h3>Tư liệu gắn với luận điểm</h3><p class="meta">'+esc(selected.title)+'</p><div class="source-list" style="margin-top:8px">'+citationRows(state.citations.filter(c=>c.outline===selected.id))+'</div><div style="margin-top:10px">'+btn('Gắn trích dẫn','attach','secondary','plus')+'</div></aside></div>';
-}
 function render({focus=false}={}) {
   cancelCanonReading();
   const current = route();
-  const {path,course,area,section} = current;
+  const {path,id,studyTab,area,section} = current;
+  if (path === '#/doc' && readingById(id) && state.lastReading !== id) {
+    state.lastReading = id;
+    save();
+  }
   document.querySelector('#section-nav').innerHTML = nav.map(n =>
     '<a class="nav-link tab" href="'+n.hash+'"'+(path===n.hash?' aria-current="page"':'')+'>'+icon(n.icon)+'<span>'+n.label+'</span></a>'
   ).join('');
   document.title = (current.catalog ? 'Thư mục Theravāda' : section?.title || area?.title || nav.find(n=>n.hash===path).label)+' · Học Phật | Pochacco Library';
-  pageContent.innerHTML = path==='#/doc'?reader(course):path==='#/video'?videoPage():path==='#/de-tai'?research():current.catalog?commentaryPage(current):path===researchBase?workspaceResearch(current):home();
+  pageContent.innerHTML = path==='#/doc'?studyReadingPage(id):path==='#/video'?videoPage():path==='#/de-tai'?studyProjectPage(id,studyTab):current.catalog?commentaryPage(current):path===researchBase?workspaceResearch(current):home();
   if(current.tab==='van-ban') renderCanonWorkspace(current);
   if(focus){main.focus({preventScroll:true});if(current.tab==='van-ban')main.scrollIntoView();else window.scrollTo(0,0);}
 }
@@ -182,23 +143,6 @@ function modal(title,body) {
 }
 function form(body,label,id) {
   return '<form class="form" id="'+id+'">'+body+'<div class="form-error" role="alert"></div><div><button class="btn" type="submit">'+label+'</button></div></form>';
-}
-function youtubeId(value) {
-  try {
-    const u = new URL(value);
-    if (!['https:','http:'].includes(u.protocol)) return '';
-    const parts = u.pathname.split('/').filter(Boolean);
-    let id;
-    if (u.hostname === 'youtu.be') id = parts[0];
-    else if (['www.youtube.com','youtube.com','m.youtube.com','www.youtube-nocookie.com'].includes(u.hostname))
-      id = parts[0] === 'watch' ? u.searchParams.get('v') : ['embed','shorts','live'].includes(parts[0]) ? parts[1] : '';
-    return /^[\w-]{11}$/.test(id || '') ? id : '';
-  } catch { return ''; }
-}
-function player(id) {
-  const v = state.videos.find(item=>item.id===id);
-  if (!v) return;
-  modal(esc(v.title),'<iframe class="video-frame" title="'+esc(v.title)+'" src="https://www.youtube-nocookie.com/embed/'+v.id+'" allow="encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe><a class="btn secondary" href="https://www.youtube.com/watch?v='+v.id+'" target="_blank" rel="noopener">Mở trên YouTube</a>');
 }
 function selectTerm() {
   modal('Hetu-paccaya','<div class="stack" style="margin-top:12px"><p><strong>Tiếng Việt</strong> · Nhân duyên</p><p><strong>English</strong> · Root condition</p><div>'+btn(state.terms.includes('Hetu-paccaya')?'Bỏ khỏi danh sách ôn':'Lưu để ôn','save-term','', 'mark')+'</div></div>');
@@ -213,12 +157,47 @@ document.querySelector('.skip').addEventListener('click', event => {
   main.focus({preventScroll:true});
   main.scrollIntoView();
 });
-window.addEventListener('hashchange',()=>render({focus:true}));
+window.addEventListener('storage',event=>{
+  if (event.key !== studyStorageKey || !event.newValue) return;
+  state = loadStudyState(seed);
+  studyUndo = null;
+  if (document.activeElement?.id === 'study-draft') {
+    const project = activeProject();
+    const status = document.querySelector('#study-draft-status');
+    if (project) document.activeElement.value = project.draft;
+    status.textContent = 'Dữ liệu đã cập nhật từ một thẻ khác.';
+    return;
+  }
+  render();
+});
+window.addEventListener('hashchange',()=>{
+  if (dialog.open) dialog.close();
+  render({focus:true});
+});
+document.addEventListener('keydown',event=>{
+  if (event.key !== 'Escape' || dialog.open) return;
+  const menu = document.querySelector('.study-menu[open]');
+  if (!menu) return;
+  menu.open = false;
+  menu.querySelector('summary').focus();
+});
 document.addEventListener('click', event => {
+  for (const menu of document.querySelectorAll('.study-menu[open]')) {
+    if (!menu.contains(event.target)) menu.open = false;
+  }
   const button = event.target.closest('[data-action]');
   if(!button) return;
   const {action,value} = button.dataset;
-  if(action==='close') dialog.close();
+  if (action === 'close') dialog.close();
+  if (action.startsWith('study-')) {
+    const menu = button.closest('details.study-menu');
+    if (menu) {
+      menu.open = false;
+      menu.querySelector('summary').focus();
+    }
+    studyClick(action.slice(6),value,button);
+    return;
+  }
   if(action==='canon-retry') renderCanonWorkspace(route());
   if(action==='canon-reading') loadCanonReading(value);
   if(action==='canon-size') sizeCanonReader(Number(value));
@@ -229,9 +208,6 @@ document.addEventListener('click', event => {
   if(action==='research-source'||action==='research-journal') openResearchForm(action,value);
   if(action==='reader-tab'){view.reader=value;updateSelection(button,value,'.parallel',termBlocks());}
   if(action==='video-tab'){view.group=value;updateSelection(button,value,'#video-grid',filteredVideos());}
-  if(action==='research-tab'){view.research=value;render();main.querySelector('[data-value="'+value+'"]')?.focus();}
-  if(action==='outline'){view.outline=value;render();main.querySelector('[data-value="'+value+'"]')?.focus();}
-  if(action==='play') player(value);
   if(action==='term') selectTerm();
   if(action==='save-term'){
     const exists=state.terms.includes('Hetu-paccaya');
@@ -240,27 +216,18 @@ document.addEventListener('click', event => {
     dialog.close();
     render();
   }
-  if(action==='complete'){state.complete=!state.complete;persist(state.complete?'Đã đánh dấu hoàn thành.':'Đã bỏ đánh dấu.');render();}
-  if(action==='cite'){
-    modal('Lưu trích dẫn',form('<label>Thuật ngữ<select name="term"><option value="0">Hetu-paccaya · Nhân duyên</option><option value="1">Ārammaṇa-paccaya · Cảnh duyên</option></select></label>','Lưu','cite-form'));
-  }
-  if(action==='attach'){
-    modal('Gắn vào luận điểm',state.citations.length?form('<label>Trích dẫn<select name="citation">'+state.citations.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.text)+'</option>').join('')+'</select></label><label>Luận điểm<select name="outline">'+state.outline.map(o=>'<option value="'+esc(o.id)+'"'+(o.id===view.outline?' selected':'')+'>'+esc(o.title)+'</option>').join('')+'</select></label>','Gắn','attach-form'):'<p class="empty">Bạn cần lưu một trích dẫn từ màn hình Đọc bài.</p><a class="btn" href="#/doc" data-action="close">Đến bài đọc</a>');
-  }
-  if(action==='note') modal('Ghi chú bài học',form('<label>Nội dung<textarea name="note" rows="5" required maxlength="2000"></textarea></label>','Lưu ghi chú','note-form'));
-  if(action==='add-outline') modal('Thêm mục dàn ý',form('<label>Tên mục<input name="title" required maxlength="100"></label><label>Mô tả<textarea name="detail" rows="3" maxlength="400"></textarea></label>','Thêm mục','outline-form'));
-  if(action==='add-video') modal('Thêm video YouTube',form('<label>Đường dẫn YouTube<input name="url" required type="url" placeholder="https://www.youtube.com/watch?v=…"></label><label>Tiêu đề<input name="title" required maxlength="130"></label><label>Người giảng<input name="speaker" maxlength="100"></label><label>Nhóm<select name="group"><option value="chant">Nghe kinh điển</option><option value="talk">Nghe thuyết pháp</option></select></label><label>Chủ đề<input name="topic" required maxlength="60" placeholder="Ví dụ: Thiền quán"></label><label>Ngôn ngữ<select name="lang"><option>Tiếng Việt</option><option>Pāli</option><option>Tiếng Anh</option><option>Khác</option></select></label>','Thêm video','video-form'));
 });
 document.addEventListener('input', event=>{
   if(event.target.form?.id==='canon-filters' && event.target.name==='q') updateCanonFilters(event.target.form);
   if(event.target.form?.id==='commentary-filters' && event.target.name==='q') updateCommentaryFilters(event.target.form);
   if(event.target.id==='video-search'){view.query=event.target.value;document.querySelector('#video-grid').innerHTML=filteredVideos();}
-  if(event.target.id==='draft'){state.draft=event.target.value;document.querySelector('#draft-status').textContent=save()?'Đã lưu trên trình duyệt.':'Chỉ lưu trong lượt xem này.';}
+  studyInput(event.target);
 });
 document.addEventListener('change',event=>{
   if(event.target.form?.id==='canon-filters' && event.target.tagName==='SELECT') updateCanonFilters(event.target.form);
   if(event.target.form?.id==='commentary-filters' && event.target.tagName==='SELECT') updateCommentaryFilters(event.target.form);
   if(event.target.id==='topic'){view.topic=event.target.value;document.querySelector('#video-grid').innerHTML=filteredVideos();}
+  studyChange(event.target);
 });
 document.addEventListener('submit',event=>{
   if(['commentary-filters','canon-filters'].includes(event.target.id)){event.preventDefault();return;}
@@ -274,36 +241,10 @@ document.addEventListener('submit',event=>{
   if (formElement.id==='research-source-form' || formElement.id==='research-journal-form') {
     message=saveResearchForm(formElement,field,error);
     if(!message) return;
-  } else if(formElement.id==='video-form'){
-    const id=youtubeId(field('url'));
-    if(!id){error('Hãy nhập đường dẫn video YouTube hợp lệ.');return;}
-    if(state.videos.some(v=>v.id===id)){error('Video này đã có trong danh sách.');return;}
-    if(!field('title')||!field('topic')){error('Hãy nhập tiêu đề và chủ đề.');return;}
-    state.videos.push({id,title:field('title'),speaker:field('speaker'),topic:field('topic'),group:field('group'),lang:field('lang'),thumbnail:false});
-    view.group='all';view.topic='all';view.query='';
-    message='Đã thêm video.';
-  } else if(formElement.id==='note-form'){
-    if(!field('note')){error('Hãy nhập nội dung ghi chú.');return;}
-    state.notes.push({course:route().course,text:field('note')});
-    message='Đã lưu ghi chú.';
-  } else if(formElement.id==='outline-form'){
-    if(!field('title')){error('Hãy nhập tên mục.');return;}
-    view.outline=newRecordId();
-    state.outline.push({id:view.outline,title:field('title'),detail:field('detail')});
-    message='Đã thêm mục dàn ý.';
-  } else if(formElement.id==='cite-form'){
-    const term=terms[Number(field('term'))];
-    const id=term.pali;
-    if(state.citations.some(c=>c.id===id)){error('Thuật ngữ này đã nằm trong Trích dẫn của đề tài.');return;}
-    state.citations.push({id,text:term.pali+' · '+term.vi+' · '+term.en,outline:null});
-    message='Đã lưu vào Trích dẫn của đề tài.';
-  } else if(formElement.id==='attach-form'){
-    const citation=state.citations.find(c=>c.id===field('citation'));
-    if(!citation) return;
-    citation.outline=field('outline');
-    view.outline=citation.outline;
-    message='Đã gắn trích dẫn vào luận điểm.';
-  } else return;
+  } else {
+    studySubmit(formElement,field,error);
+    return;
+  }
   persist(message);
   dialog.close();
   render();

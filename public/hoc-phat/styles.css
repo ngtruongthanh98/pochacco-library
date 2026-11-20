@@ -152,3 +152,64 @@ main{padding:18px 14px 55px}.intro-grid,.reader-grid,.research-grid{grid-templat
 .canon-sheet .canon-segment [lang="vi"] {
   font-family: "Noto Serif", var(--serif);
 }
+
+.study-record { display:flex; justify-content:space-between; align-items:start; gap:12px }
+.study-record-copy { min-width:0; overflow-wrap:anywhere }
+.study-record-copy h2 { margin:3px 0 }
+.study-record-actions,.study-video-head { display:flex; align-items:center; justify-content:space-between; gap:6px }
+.study-clamp { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden }
+.study-resume { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin-bottom:16px }
+.study-text { white-space:pre-wrap; overflow-wrap:anywhere }
+.study-note { display:flex; gap:8px; align-items:start }
+.study-note .note { flex:1; margin:0 }
+.study-menu { position:relative; flex:none }
+.study-menu summary,.canon-quote {
+  display:grid; place-items:center; width:42px; height:42px; border-radius:8px;
+  background:var(--soft); color:var(--red-dark); font-size:20px; cursor:pointer; list-style:none;
+}
+.study-menu summary::-webkit-details-marker { display:none }
+.study-menu summary:focus-visible { outline:3px solid #947834; outline-offset:2px }
+.study-menu-items {
+  position:absolute; z-index:4; right:0; top:calc(100% + 4px); min-width:164px; padding:5px;
+  border:1px solid var(--line); background:var(--white); border-radius:9px; box-shadow:0 4px 12px #28161122;
+}
+.study-menu-items .btn { width:100%; justify-content:start; text-align:left; background:transparent; border:0; white-space:nowrap }
+.study-menu-items .btn:hover,.study-menu-items .btn:focus-visible { background:var(--soft) }
+.study-work-panel > .head-split,.study-work-panel > h2 { margin-bottom:12px }
+.study-work-panel .head-split > :first-child { min-width:0; overflow-wrap:anywhere }
+.study-citation-assignment { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px }
+.study-citation-assignment select { min-width:0; max-width:min(100%, 24rem) }
+.video-grid .video-card { padding:0; overflow:visible }
+.video-grid .video-cover { border-radius:12px 12px 0 0; overflow:hidden }
+.video-grid .video-info h2 { font-size:1.05rem; margin:4px 0; overflow-wrap:anywhere }
+.study-video-head .status { overflow-wrap:anywhere }
+.study-video-preview:not(:empty) { display:flex; align-items:center; gap:12px; color:var(--muted) }
+.study-video-preview img { width:112px; aspect-ratio:16 / 9; object-fit:cover; border-radius:8px }
+.study-form-actions { justify-content:flex-end; margin-top:8px }
+.study-form input,.study-form textarea,.study-backup input { width:100% }
+.study-form select { width:100% }
+.study-backup label { display:grid; gap:6px }
+.study-backup input { min-width:0 }
+.toast .btn { min-height:34px; margin-inline-start:7px }
+.canon-sheet .canon-segment { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; column-gap:6px }
+.canon-sheet .canon-segment > small { grid-column:1 / -1 }
+.canon-quote { width:44px; height:44px; border:0; background:transparent; color:var(--muted) }
+.canon-quote:hover,.canon-quote:focus-visible { background:var(--soft); color:var(--red-dark) }
+@media(max-width:600px) {
+  .study-record { align-items:stretch }
+  .study-record-actions { flex-direction:column-reverse; align-items:end; justify-content:space-between }
+  .study-menu summary { width:44px; height:44px }
+  .video-grid { grid-template-columns:1fr }
+  dialog:has(.study-form) {
+    width:100%; max-width:none; height:100dvh; max-height:none; margin:0; border:0; border-radius:0;
+    padding:14px 16px env(safe-area-inset-bottom,0px);
+  }
+  #dialog-content:has(.study-form) { min-height:100%; display:flex; flex-direction:column }
+  .study-form { flex:1; display:flex; flex-direction:column }
+  .study-form .study-form-actions {
+    position:sticky; bottom:0; margin-top:auto; background:var(--white); border-top:1px solid var(--line); padding:10px 0;
+  }
+  .study-form input,.study-form textarea,.study-form select { font-size:16px }
+  .canon-sheet .canon-quote { width:36px }
+}
+.video-card .study-menu-items { top:auto; bottom:calc(100% + 4px) }

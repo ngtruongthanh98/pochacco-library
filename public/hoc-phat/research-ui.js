@@ -110,7 +110,7 @@ function workspaceResearch({area,section,tab,group,query}) {
 }
 function formField(label, name, value, {required=false, type='text', max=160, textarea=false}={}) {
   return '<label>'+label+(textarea ? '<textarea name="'+name+'" rows="4" maxlength="'+max+'"'+(required?' required':'')+'>'+esc(value)+'</textarea>' :
-    '<input name="'+name+'" type="'+type+'" value="'+esc(value)+'"'+(type==='text'?' maxlength="'+max+'"':'')+(required?' required':'')+'>')+'</label>';
+    '<input name="'+name+'" type="'+type+'" value="'+esc(value)+'"'+((type==='text'||type==='url')?' maxlength="'+max+'"':'')+(required?' required':'')+'>')+'</label>';
 }
 function researchSectionField(area,section) {
   return '<label>Mục con<select name="section"><option value="">Toàn mảng</option>'+
