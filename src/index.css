@@ -1120,3 +1120,7 @@ picture { display: contents; }
 .ei-help p { margin-top: 6px; }
 .ei .actions { align-items: center; flex-wrap: wrap; }
 .ei-skip { margin-right: auto; }
+.match-note { margin-top: 8px; padding: 8px 12px; border-radius: 10px; font-size: 0.88rem; background: #fffaf2; border: 1.5px solid var(--line); }
+.match-note.ok { border-color: #c9d6a8; background: #f4f8ec; }
+.match-note.warn { border-color: #e9b8a8; background: #fff3ef; }
+.match-warn { color: var(--red-dark); font-weight: 600; margin-top: 2px; }
