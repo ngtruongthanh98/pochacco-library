@@ -39,7 +39,7 @@ const bindingTags = (b: Book): Binding[] => {
   const all = [...new Set(b.holdings.flatMap((h) => (h.kind === 'print' && h.binding ? [h.binding] : [])))]
   return all.length > 1 ? all : all.filter((x) => x !== 'paperback')
 }
-import { FORMAT_OPTIONS, formatOf, isEbookOnly, type FormatFilter } from './data/format'
+import { FORMAT_OPTIONS, isEbookOnly, matchFormat, type FormatFilter } from './data/format'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ScrollTop } from './components/ScrollTop'
 import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
@@ -647,8 +647,8 @@ export default function App() {
   const addedOk = addedMatcher(added)
   const inAdded = added ? inCats.filter(addedOk) : inCats
   const addedCount = (f: string) => inCats.filter(addedMatcher(f)).length
-  const fmtCount = (k: FormatFilter) => (k ? inAdded.filter((b) => formatOf(b) === k).length : inAdded.length)
-  const filtered = fmt ? inAdded.filter((b) => formatOf(b) === fmt) : inAdded
+  const fmtCount = (k: FormatFilter) => (k ? inAdded.filter((b) => matchFormat(b, k)).length : inAdded.length)
+  const filtered = fmt ? inAdded.filter((b) => matchFormat(b, fmt)) : inAdded
   const filtering = searching || group >= 0 || fmt !== null || added !== null
   // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
   const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
@@ -1503,7 +1503,7 @@ export default function App() {
             {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
-                title={searching ? 'Chưa có cuốn này trong thư viện' : added ? `Không có sách nhập ${addedLabel(added).toLowerCase()}` : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : 'Mục này chưa có sách'}
+                title={searching ? 'Chưa có cuốn này trong thư viện' : added ? `Không có sách nhập ${addedLabel(added).toLowerCase()}` : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : fmt ? 'Không có sách thuộc dạng này' : 'Mục này chưa có sách'}
                 text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : added ? 'Chọn “Mọi lúc” để xem toàn bộ.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
