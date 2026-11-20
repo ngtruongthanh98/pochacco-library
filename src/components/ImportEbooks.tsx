@@ -4,7 +4,7 @@ import { driveViewUrl, guessFormat } from '../data/drive'
 import { checkDraft, draftsToJson, emptyDraft, JSON_SAMPLE, LINE_SAMPLE, parseJson, parseLines, type EbookDraft, type ParsedDraft } from '../data/ebookImport'
 import { saveBatch, type StoreConfig } from '../data/githubStore'
 import { ulid } from '../data/ulid'
-import { foldVi } from '../search/normalizeVi'
+import { suggestMatches, type Match } from '../data/ebookMatch'
 import { nameToString, type Book, type EbookHolding } from '../types/book'
 import { parseNames } from '../data/names'
 import { mostCommon, sameText, SuggestInput, SuggestLines, useLibraryOptions } from './Suggest'
@@ -21,7 +21,9 @@ type Row = {
   format: EbookHolding['format']
   target: string // 'new' hoặc id sách có sẵn
   include: boolean
-  suggestions: { book: Book; score: number }[]
+  suggestions: Match[]
+  /** Ứng dụng tự chọn sách có sẵn (khớp chắc chắn) */
+  auto?: boolean
   // Thông tin cho sách mới
   authors: string
   translators: string
@@ -40,15 +42,6 @@ const MODES: { id: Mode; label: string; note: string }[] = [
 ]
 const FORMAT_LABEL: Record<EbookHolding['format'], string> = { pdf: 'PDF', epub: 'EPUB', mobi: 'MOBI', djvu: 'DjVu', other: 'Khác' }
 const digits = (v: string) => v.replace(/\D/g, '').slice(0, 5)
-
-const words = (s: string) => new Set(foldVi(s).split(/[^a-z0-9]+/).filter((w) => w.length > 1))
-const similarity = (a: string, b: string) => {
-  const A = words(a)
-  const B = words(b)
-  if (!A.size || !B.size) return 0
-  const common = [...A].filter((w) => B.has(w)).length
-  return common / Math.min(A.size, B.size)
-}
 
 /** Dán nhiều link Google Drive; ghép với sách giấy đã có hoặc tạo sách mới; lưu một lần. */
 export default function ImportEbooks({
@@ -123,19 +116,19 @@ export default function ImportEbooks({
         seen.add(ref.id)
         const owner = attached.get(ref.id)
         if (owner) return { ...base, fileId: ref.id, problem: `Tệp này đã gắn vào "${owner.title}"` }
-        const suggestions = books
-          .map((b) => ({ book: b, score: similarity(base.title, b.title) }))
-          .filter((x) => x.score >= 0.5)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 5)
-        const best = suggestions[0]
+        const year = Number(d.year)
+        const { suggestions, auto } = suggestMatches(
+          { title: base.title, authors: parseNames(d.authors).map(nameToString), year: year >= 1000 ? year : undefined },
+          books,
+        )
         return {
           ...base,
           fileId: ref.id,
           resourceKey: ref.resourceKey,
           format: ref.kind === 'doc' ? 'other' : base.format,
           suggestions,
-          target: best && best.score >= 0.8 ? best.book.id : 'new',
+          target: auto ? auto.book.id : 'new',
+          auto: !!auto,
           include: true,
         }
       }),
@@ -150,6 +143,11 @@ export default function ImportEbooks({
   const ready = (rows ?? []).filter((r) => r.include && r.fileId && !r.problem && (r.target !== 'new' || r.title.trim()))
   const nNew = ready.filter((r) => r.target === 'new').length
   const nAttach = ready.length - nNew
+  const targetCount = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of ready) if (r.target !== 'new') m.set(r.target, (m.get(r.target) ?? 0) + 1)
+    return m
+  }, [ready])
 
   const save = async () => {
     setBusy(true)
@@ -207,7 +205,7 @@ export default function ImportEbooks({
           <h2>Nhập sách điện tử từ Google Drive</h2>
           <p className="muted">
             Mỗi tài liệu cần <b>tên tài liệu</b> và <b>link Google Drive</b>; tác giả, nhà xuất bản, năm có thì điền thêm.
-            Ứng dụng sẽ tự ghép với sách giấy cùng nhan đề đã có trong thư viện.
+            Ứng dụng chỉ tự ghép với sách có sẵn khi trùng hẳn nhan đề, cùng tập và không khác tác giả; trường hợp gần giống sẽ được gợi ý để anh tự chọn.
           </p>
         </div>
       </div>
@@ -471,13 +469,14 @@ export default function ImportEbooks({
                       <div className="import-grid">
                         <label>
                           Gắn vào
-                          <select value={r.target} onChange={(e) => patch(r.key, { target: e.target.value })}>
+                          <select value={r.target} onChange={(e) => patch(r.key, { target: e.target.value, auto: false })}>
                             <option value="new">Tạo sách mới (chỉ có bản điện tử)</option>
                             {r.suggestions.length > 0 && (
-                              <optgroup label="Gợi ý theo nhan đề">
-                                {r.suggestions.map(({ book }) => (
-                                  <option key={book.id} value={book.id}>
-                                    {label(book)}
+                              <optgroup label="Gợi ý (nhan đề gần giống)">
+                                {r.suggestions.map((m) => (
+                                  <option key={m.book.id} value={m.book.id}>
+                                    {label(m.book)}
+                                    {m.conflicts.length ? ` · ${m.conflicts.join(', ')}` : ''}
                                   </option>
                                 ))}
                               </optgroup>
@@ -504,6 +503,14 @@ export default function ImportEbooks({
                           </select>
                         </label>
                       </div>
+                      {r.target !== 'new' && <MatchNote row={r} book={books.find((b) => b.id === r.target)} shared={targetCount.get(r.target) ?? 0} />}
+                      {r.target === 'new' && r.suggestions.length > 0 && (
+                        <div className="match-note hint">
+                          Có {r.suggestions.length} sách gần giống nhưng chưa đủ chắc để tự ghép
+                          {r.suggestions[0].conflicts.length ? ` (cuốn gần nhất: ${r.suggestions[0].conflicts.join(', ')})` : ''}. Nếu đúng là cùng cuốn,
+                          chọn ở ô Gắn vào.
+                        </div>
+                      )}
                       {r.target === 'new' && (
                         <div className="import-info">
                           <label className="full">
@@ -558,6 +565,23 @@ export default function ImportEbooks({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/** Giải thích vì sao bản điện tử được gắn vào cuốn này, và cảnh báo khi có dấu hiệu khác cuốn. */
+function MatchNote({ row, book, shared }: { row: Row; book?: Book; shared: number }) {
+  if (!book) return null
+  const m = row.suggestions.find((x) => x.book.id === book.id)
+  const warn = [...(m?.conflicts ?? []), ...(shared > 1 ? [`${shared} tệp cùng gắn vào cuốn này`] : [])]
+  if (book.holdings.some((h) => h.kind === 'ebook')) warn.push('cuốn này đã có bản điện tử')
+  return (
+    <div className={`match-note ${warn.length ? 'warn' : 'ok'}`}>
+      <b>{row.auto ? 'Tự ghép' : 'Gắn'} vào «{book.title}»</b>
+      {book.authors?.length ? ` của ${book.authors.map(nameToString).join(', ')}` : ''}
+      {book.year ? ` (${book.year})` : ''}
+      {m?.reasons.length ? <span> · {m.reasons.join(', ')}</span> : !m ? <span> · chọn tay</span> : null}
+      {warn.length > 0 && <div className="match-warn">Kiểm tra lại: {warn.join('; ')}.</div>}
     </div>
   )
 }
