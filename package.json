@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@xyflow/react": "^12.12.1",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "fflate": "^0.8.3",
