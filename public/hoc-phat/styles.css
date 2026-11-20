@@ -141,3 +141,14 @@ main{padding:18px 14px 55px}.intro-grid,.reader-grid,.research-grid{grid-templat
 .canon-segment h4,.canon-segment blockquote { margin:0; font:inherit; font-family:var(--serif); font-size:var(--reader-font); white-space:pre-wrap; overflow-wrap:anywhere }
 .canon-segment h4 { font-weight:700 }
 .canon-segment blockquote { padding-inline-start:12px; border-inline-start:2px solid var(--line) }
+
+@font-face {
+  font-family: "Noto Serif";
+  src: url("fonts/noto-serif-reader.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+.canon-sheet .canon-segment [lang="vi"] {
+  font-family: "Noto Serif", var(--serif);
+}
