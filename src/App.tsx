@@ -709,6 +709,16 @@ export default function App() {
                 <span className="tab-text">{t.label}</span>
               </button>
             ))}
+            <a
+              className="page-tab tab-main dhamma-tab"
+              href={`${import.meta.env.BASE_URL}hoc-phat/index.html`}
+              style={{ '--m-order': 5 } as CSSProperties}
+            >
+              <svg className="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 7c-3-2-6-3-9-2v14c3-1 6 0 9 2 3-2 6-3 9-2V5c-3-1-6 0-9 2Zm0 0v14" />
+              </svg>
+              <span className="tab-text">Học Phật</span>
+            </a>
             {(() => {
               const cur = navTabs.find((t) => t.more && t.id === page)
               return (
