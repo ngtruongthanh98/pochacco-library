@@ -863,13 +863,14 @@ picture { display: contents; }
 .tax-checks .check input { width: auto; }
 .tax-field { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 600; }
 
-/* ---------- Thanh tab: máy tính một hàng chữ, điện thoại 5 ô có biểu tượng ---------- */
+/* ---------- Thanh tab: máy tính một hàng chữ, điện thoại có biểu tượng ---------- */
+.topbar .dhamma-tab { text-decoration: none; }
 .topbar .page-tab .tab-icon { display: none; }
 .topbar .page-tab .tab-icon.desk { display: inline-block; }
 .topbar .tab-morebtn { display: none !important; }
 .more-menu, .more-backdrop { display: none; }
 @media (max-width: 600px) {
-  .topbar .pages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 0 2px; overflow: visible; }
+  .topbar .pages { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 0 2px; overflow: visible; }
   .topbar .tab-more, .topbar .logout { display: none !important; }
   .topbar .page-tab { order: var(--m-order, 0); }
   .topbar .tab-morebtn { order: 99; }
