@@ -33,16 +33,7 @@ body { margin: 0; }
 body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.05;
   background: url(/assets/pattern.webp) 0 0 / 360px 360px repeat; }
 
-/* Thanh tab: dải đỏ dính trên cùng khi cuộn */
-.topbar { position: sticky; top: 0; z-index: 20; background: var(--red); box-shadow: 0 2px 0 var(--gold), 0 6px 18px rgba(97, 30, 20, 0.18); }
-.topbar .pages { max-width: 1040px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 2px; border: 0; overflow-x: auto; scrollbar-width: none; }
-.topbar .pages::-webkit-scrollbar { display: none; }
 main:has(.stats) { max-width: 1040px; }
-.topbar .page-tab { white-space: nowrap; flex: none; color: #fde9d9; font-weight: 650; padding: 13px 16px 11px; border-radius: 0; background: none; border-bottom: 3px solid transparent; margin: 0; }
-.topbar .page-tab:hover { background: rgba(255, 255, 255, 0.10); color: #fff; }
-.topbar .page-tab.active { color: #fff; border-bottom-color: var(--gold); background: rgba(0, 0, 0, 0.10); }
-.topbar .logout { margin-left: auto; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fde9d9; cursor: pointer; }
-.topbar .logout:hover, .topbar .logout:focus-visible { background: rgba(255, 255, 255, 0.15); color: #fff; border-color: #fff; }
 
 @media (max-width: 900px) {
   .hero-inner { height: 210px; }
@@ -57,10 +48,6 @@ main:has(.stats) { max-width: 1040px; }
   .hero-sub { margin-left: 8px; font-size: 0.64rem; letter-spacing: 1.2px; }
   .hero-sub::before, .hero-sub::after { display: none; }
   .hero-stats { display: none; }
-  .topbar .pages { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
-  .topbar .pages::-webkit-scrollbar { display: none; }
-  .topbar .page-tab { padding: 12px 11px 10px; white-space: nowrap; }
-  .topbar .logout { position: sticky; right: 0; flex-shrink: 0; background: var(--red); box-shadow: -10px 0 10px var(--red); }
 }
 
 main { max-width: 760px; margin: 0 auto; padding: 20px 16px 64px; }
@@ -862,43 +849,6 @@ picture { display: contents; }
 .tax-checks .check { display: flex; gap: 6px; align-items: center; font-size: 0.9rem; }
 .tax-checks .check input { width: auto; }
 .tax-field { display: grid; gap: 4px; font-size: 0.9rem; font-weight: 600; }
-
-/* ---------- Thanh tab: máy tính một hàng chữ, điện thoại có biểu tượng ---------- */
-.topbar .dhamma-tab { text-decoration: none; }
-.topbar .page-tab .tab-icon { display: none; }
-.topbar .page-tab .tab-icon.desk { display: inline-block; }
-.topbar .tab-morebtn { display: none !important; }
-.more-menu, .more-backdrop { display: none; }
-@media (max-width: 600px) {
-  .topbar .pages { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 0 2px; overflow: visible; }
-  .topbar .tab-more, .topbar .logout { display: none !important; }
-  .topbar .page-tab { order: var(--m-order, 0); }
-  .topbar .tab-morebtn { order: 99; }
-  .topbar .page-tab:not(.tab-more) {
-    display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0;
-    padding: 8px 2px 6px; min-height: 56px; font-size: 0.72rem; font-weight: 650; line-height: 1.1; white-space: nowrap;
-    border-bottom: 3px solid transparent; border-radius: 0; -webkit-tap-highlight-color: transparent;
-  }
-  .topbar .page-tab .tab-icon, .topbar .page-tab .tab-icon.desk { display: block; width: 22px; height: 22px; flex: none; }
-  .topbar .page-tab .tab-text { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  .topbar .page-tab.active { background: rgba(0, 0, 0, 0.14); }
-  .topbar .tab-morebtn.open { background: rgba(255, 255, 255, 0.14); color: #fff; }
-  .more-backdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(40, 22, 17, 0.18); }
-  .more-menu {
-    display: grid; position: absolute; top: calc(100% + 6px); right: 8px; z-index: 30; width: min(320px, calc(100vw - 16px));
-    padding: 6px; border-radius: 18px; background: var(--cream); border: 1.5px solid var(--line);
-    box-shadow: 0 16px 40px rgba(40, 22, 17, 0.28); animation: pop-in .15s ease-out;
-  }
-  .more-menu button { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: center; text-align: left; min-height: 56px; padding: 8px 12px; border-radius: 12px; background: none; color: var(--ink); border: 0; font-weight: 500; }
-  .more-menu button:where(:hover) { background: #fbe9e4; }
-  .more-menu button.on { background: #fbe0dc; }
-  .more-menu button.on svg, .more-menu button svg { color: var(--red); }
-  .more-menu button span { display: grid; gap: 1px; }
-  .more-menu button b { font-size: 1rem; }
-  .more-menu button small { color: var(--muted); font-size: 0.78rem; }
-  .more-menu .danger-item { border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; margin-top: 4px; }
-  .more-menu .danger-item b { color: var(--red-dark); }
-}
 
 /* ---------- Gợi ý bổ sung ---------- */
 .suggest { display: grid; gap: 16px; }
