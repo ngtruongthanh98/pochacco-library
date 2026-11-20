@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { computeStats, type Row } from '../search/stats'
 import { nameToString, type Book } from '../types/book'
 import StatsDeep from './StatsDeep'
@@ -7,6 +7,8 @@ import Intake from './Intake'
 import { BarList, Columns, DataTable, Donut, Growth, HeatGrid, OTHER, SERIES, StackBar, Tile, Treemap, foldOther, nf, pct } from './charts'
 import type { Stats as StatsData } from '../search/stats'
 import { formatOf } from '../data/format'
+
+const LibraryRelationships = lazy(() => import('./LibraryRelationships'))
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -141,6 +143,7 @@ function PublisherTable({ rows, onPick }: { rows: StatsData['pubProfiles']; onPi
 
 const TABS = [
   { id: 'overview', label: 'Tổng quan' },
+  { id: 'relationships', label: 'Sơ đồ thư viện' },
   { id: 'topics', label: 'Thể loại' },
   { id: 'people', label: 'Tác giả & NXB' },
   { id: 'time', label: 'Thời gian' },
@@ -241,7 +244,7 @@ export default function Stats({
   const daysSpan = growthAll.length ? Math.round((Date.parse(growthAll.at(-1)!.date) - Date.parse(growthAll[0].date)) / 86400000) : 0
   const busiest = [...growthAll].sort((a, b) => b.added - a.added)[0]
 
-  if (!t.titles && !t.wishlist)
+  if (!allBooks.length)
     return (
       <div className="card empty">
         <img src={asset('empty-shelf.webp')} alt="" />
@@ -253,38 +256,40 @@ export default function Stats({
   return (
     <div className="stats">
       <section className="card stats-head">
-        <h2>Thống kê {scope === 'print' ? 'sách giấy' : scope === 'ebook' ? 'sách điện tử' : 'thư viện'}</h2>
-        <div className="scope-bar">
-          <nav className="subtabs" aria-label="Phạm vi thống kê">
-            {SCOPES.map((x) => (
-              <button key={x.id} className={`subtab${scope === x.id ? ' active' : ''}`} aria-pressed={scope === x.id} onClick={() => setScope(x.id)} title={x.hint}>
-                {x.label}
-                <span className="count">{nf(x.id === 'print' ? mix.print + mix.both : x.id === 'ebook' ? mix.ebook + mix.both : mix.print + mix.both + mix.ebook)}</span>
-              </button>
-            ))}
-          </nav>
-          <div className="scope-mix" role="img" aria-label={`${mix.print} cuốn chỉ có bản giấy, ${mix.both} cuốn có cả hai, ${mix.ebook} cuốn chỉ có bản điện tử`}>
-            {([['print', 'Chỉ bản giấy', SERIES[0]], ['both', 'Có cả hai', SERIES[2]], ['ebook', 'Chỉ bản điện tử', SERIES[3]]] as const).map(([k, label, c]) => (
-              <div key={k} className="scope-seg" style={{ flexGrow: mix[k] || 0.0001, background: c }} title={`${label}: ${nf(mix[k])} cuốn`} />
-            ))}
+        <h2>Thống kê {tab === 'relationships' ? 'thư viện' : scope === 'print' ? 'sách giấy' : scope === 'ebook' ? 'sách điện tử' : 'thư viện'}</h2>
+        {tab !== 'relationships' && <>
+          <div className="scope-bar">
+            <nav className="subtabs" aria-label="Phạm vi thống kê">
+              {SCOPES.map((x) => (
+                <button key={x.id} className={`subtab${scope === x.id ? ' active' : ''}`} aria-pressed={scope === x.id} onClick={() => setScope(x.id)} title={x.hint}>
+                  {x.label}
+                  <span className="count">{nf(x.id === 'print' ? mix.print + mix.both : x.id === 'ebook' ? mix.ebook + mix.both : mix.print + mix.both + mix.ebook)}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="scope-mix" role="img" aria-label={`${mix.print} cuốn chỉ có bản giấy, ${mix.both} cuốn có cả hai, ${mix.ebook} cuốn chỉ có bản điện tử`}>
+              {([['print', 'Chỉ bản giấy', SERIES[0]], ['both', 'Có cả hai', SERIES[2]], ['ebook', 'Chỉ bản điện tử', SERIES[3]]] as const).map(([k, label, c]) => (
+                <div key={k} className="scope-seg" style={{ flexGrow: mix[k] || 0.0001, background: c }} title={`${label}: ${nf(mix[k])} cuốn`} />
+              ))}
+            </div>
+            <p className="muted small">
+              {nf(mix.print)} cuốn chỉ có bản giấy, {nf(mix.both)} cuốn có cả bản giấy và bản điện tử, {nf(mix.ebook)} cuốn chỉ có bản điện tử; tổng {nf(mix.copies)} bản giấy trên kệ.{' '}
+              {SCOPES.find((x) => x.id === scope)!.hint} Mọi số liệu bên dưới tính theo phạm vi này.
+            </p>
           </div>
-          <p className="muted small">
-            {nf(mix.print)} cuốn chỉ có bản giấy, {nf(mix.both)} cuốn có cả bản giấy và bản điện tử, {nf(mix.ebook)} cuốn chỉ có bản điện tử; tổng {nf(mix.copies)} bản giấy trên kệ.{' '}
-            {SCOPES.find((x) => x.id === scope)!.hint} Mọi số liệu bên dưới tính theo phạm vi này.
-          </p>
-        </div>
-        <div className="tiles">
-          <Tile label="Đầu sách" value={nf(t.titles)} sub={scope === 'ebook' ? `${nf(mix.ebook)} cuốn chỉ có bản điện tử` : `${nf(t.copies)} bản giấy${t.copies > t.titles ? `, ${nf(t.copies - t.titles)} bản trùng` : ''}`} />
-          <Tile label="Tổng số trang" value={nf(t.pages)} sub={t.medianPages ? `trung vị ${t.medianPages} trang/cuốn` : undefined} />
-          <Tile label="Tác giả, dịch giả" value={nf(t.people)} sub={`${nf(t.publishers)} nhà xuất bản`} />
-          <Tile label="Sách dịch" value={pct(t.translated, t.titles)} sub={`${t.translated} cuốn`} ring={t.titles ? t.translated / t.titles : 0} />
-          {scope === 'ebook' ? (
-            <Tile label="Có cả bản giấy" value={nf(mix.both)} sub={pct(mix.both, t.titles)} ring={t.titles ? mix.both / t.titles : 0} />
-          ) : (
-            <Tile label={scope === 'print' ? 'Có thêm bản điện tử' : 'Có bản điện tử'} value={nf(t.ebooks)} sub={pct(t.ebooks, t.titles)} ring={t.titles ? t.ebooks / t.titles : 0} />
-          )}
-          <Tile label="Đủ thông tin" value={pct(t.complete, t.titles)} sub={`${t.titles - t.complete} cuốn cần bổ sung`} ring={t.titles ? t.complete / t.titles : 0} />
-        </div>
+          <div className="tiles">
+            <Tile label="Đầu sách" value={nf(t.titles)} sub={scope === 'ebook' ? `${nf(mix.ebook)} cuốn chỉ có bản điện tử` : `${nf(t.copies)} bản giấy${t.copies > t.titles ? `, ${nf(t.copies - t.titles)} bản trùng` : ''}`} />
+            <Tile label="Tổng số trang" value={nf(t.pages)} sub={t.medianPages ? `trung vị ${t.medianPages} trang/cuốn` : undefined} />
+            <Tile label="Tác giả, dịch giả" value={nf(t.people)} sub={`${nf(t.publishers)} nhà xuất bản`} />
+            <Tile label="Sách dịch" value={pct(t.translated, t.titles)} sub={`${t.translated} cuốn`} ring={t.titles ? t.translated / t.titles : 0} />
+            {scope === 'ebook' ? (
+              <Tile label="Có cả bản giấy" value={nf(mix.both)} sub={pct(mix.both, t.titles)} ring={t.titles ? mix.both / t.titles : 0} />
+            ) : (
+              <Tile label={scope === 'print' ? 'Có thêm bản điện tử' : 'Có bản điện tử'} value={nf(t.ebooks)} sub={pct(t.ebooks, t.titles)} ring={t.titles ? t.ebooks / t.titles : 0} />
+            )}
+            <Tile label="Đủ thông tin" value={pct(t.complete, t.titles)} sub={`${t.titles - t.complete} cuốn cần bổ sung`} ring={t.titles ? t.complete / t.titles : 0} />
+          </div>
+        </>}
         <nav className="subtabs stats-tabs" aria-label="Mục thống kê">
           {TABS.map((x) => (
             <button key={x.id} className={`subtab${tab === x.id ? ' active' : ''}`} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>
@@ -293,6 +298,12 @@ export default function Stats({
           ))}
         </nav>
       </section>
+
+      {tab === 'relationships' && (
+        <Suspense fallback={<div className="card" role="status">Đang tải sơ đồ thư viện…</div>}>
+          <LibraryRelationships books={allBooks} onOpen={onOpen} />
+        </Suspense>
+      )}
 
       {tab === 'overview' && (
         <>
