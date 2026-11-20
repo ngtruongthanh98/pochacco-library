@@ -32,6 +32,10 @@ export type ReaderConfig = { driveApiKey?: string }
 export const driveMediaUrl = (fileId: string, key: string) =>
   `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true&key=${encodeURIComponent(key)}`
 
+/** Tệp Drive cũ có khóa tài nguyên: Drive API chỉ cho đọc khi gửi kèm khóa này trong header. */
+export const driveHeaders = (fileId: string, resourceKey?: string): Record<string, string> =>
+  resourceKey ? { 'X-Goog-Drive-Resource-Keys': `${fileId}/${resourceKey}` } : {}
+
 /** Kiểm tra khóa: đọc tên và dung lượng một tệp. */
 export async function testDriveKey(key: string, fileId: string): Promise<{ name: string; size?: number }> {
   const res = await fetch(
@@ -62,9 +66,10 @@ export async function driveErrorText(res: Response): Promise<string> {
 export type DriveMeta = { name: string; mimeType: string; size?: number }
 
 /** Tên, kiểu và dung lượng thật của tệp trên Drive (để chọn đúng trình đọc dù định dạng khai báo sai). */
-export async function driveFileMeta(fileId: string, key: string): Promise<DriveMeta> {
+export async function driveFileMeta(fileId: string, key: string, resourceKey?: string): Promise<DriveMeta> {
   const res = await fetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size&supportsAllDrives=true&key=${encodeURIComponent(key)}`,
+    { headers: driveHeaders(fileId, resourceKey) },
   )
   if (!res.ok) throw new Error(await driveErrorText(res))
   const j = (await res.json()) as { name: string; mimeType: string; size?: string }

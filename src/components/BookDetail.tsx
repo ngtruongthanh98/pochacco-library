@@ -373,7 +373,7 @@ export default function BookDetail({
                       <button className="open-drive" onClick={() => onRead(h)}>
                         Đọc ngay
                       </button>
-                      <a className="drive-link" href={driveViewUrl(h.fileId)} target="_blank" rel="noopener noreferrer">
+                      <a className="drive-link" href={driveViewUrl(h.fileId, h.resourceKey)} target="_blank" rel="noopener noreferrer">
                         Mở trên Drive
                       </a>
                     </>

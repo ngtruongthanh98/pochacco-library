@@ -123,12 +123,15 @@ const PageView = memo(function PageView({
  */
 export default function PdfReader({
   url,
+  headers,
   fileId,
   offset,
   onFallback,
   onQuote,
 }: {
   url: string
+  /** Header phụ khi tải tệp (khóa tài nguyên của tệp Drive cũ) */
+  headers?: Record<string, string>
   fileId: string
   /** Trang PDF = trang in + offset */
   offset: number
@@ -197,13 +200,13 @@ export default function PdfReader({
       const open = async (bust: boolean) => {
         const u = bust ? `${url}${url.includes('?') ? '&' : '?'}nocache=${Date.now()}` : url
         // Thử đọc vài byte đầu để báo lỗi quyền truy cập rõ ràng thay vì lỗi chung của PDF.js.
-        const probe = await fetch(u, { headers: { Range: 'bytes=0-1023' }, cache: 'no-store' })
+        const probe = await fetch(u, { headers: { ...headers, Range: 'bytes=0-1023' }, cache: 'no-store' })
         if (!probe.ok) throw Object.assign(new Error(await driveErrorText(probe)), { drive: true })
         const head = new Uint8Array(await probe.arrayBuffer())
         if (!/%PDF-/.test(String.fromCharCode(...head.slice(0, 1024))))
           throw Object.assign(new Error('Google Drive không trả về nội dung PDF (có thể tệp vượt hạn mức tải hoặc cần xác nhận quét virus).'), { drive: true })
         if (cancelled) return null
-        const task = getDocument({ url: u, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true, ...PDFJS_OPTS })
+        const task = getDocument({ url: u, httpHeaders: headers, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true, ...PDFJS_OPTS })
         t.task = task
         task.onProgress = (pr: { loaded: number; total: number }) => !cancelled && setProgress(pr)
         return task.promise

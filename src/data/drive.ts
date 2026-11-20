@@ -2,12 +2,18 @@
 
 import type { EbookHolding } from '../types/book'
 
-export type DriveRef = { id: string; kind: 'file' | 'folder' | 'doc' }
+export type DriveRef = { id: string; kind: 'file' | 'folder' | 'doc'; resourceKey?: string }
 
 const ID = '([A-Za-z0-9_-]{20,})'
 
 /** Nhận các dạng link Drive phổ biến; trả về null nếu không phải link Drive. */
 export const parseDriveLink = (text: string): DriveRef | null => {
+  const ref = parseDriveId(text)
+  const rk = text.match(/[?&]resourcekey=([\w-]+)/i)?.[1]
+  return ref && rk ? { ...ref, resourceKey: rk } : ref
+}
+
+const parseDriveId = (text: string): DriveRef | null => {
   const s = text.trim()
   let m = s.match(new RegExp(`drive\\.google\\.com/(?:drive/(?:u/\\d+/)?)?folders/${ID}`))
   if (m) return { id: m[1], kind: 'folder' }
@@ -21,7 +27,10 @@ export const parseDriveLink = (text: string): DriveRef | null => {
   return null
 }
 
-export const driveViewUrl = (id: string) => `https://drive.google.com/file/d/${id}/view`
+export const driveViewUrl = (id: string, resourceKey?: string) =>
+  `https://drive.google.com/file/d/${id}/view${resourceKey ? `?resourcekey=${resourceKey}` : ''}`
+export const drivePreviewUrl = (id: string, resourceKey?: string) =>
+  `https://drive.google.com/file/d/${id}/preview${resourceKey ? `?resourcekey=${resourceKey}` : ''}`
 
 export const formatFromName = (name: string): EbookHolding['format'] | null => {
   const m = name.toLowerCase().match(/\.(pdf|epub|djvu|mobi|azw3?|prc|kf8|fb2|cbz|docx?)\b/)
