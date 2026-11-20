@@ -105,12 +105,14 @@ function art() {
   return '<img class="hero-art" src="manuscript.webp" alt="Minh họa bản lá buông trên nền vải màu vàng đất" width="600" height="445">';
 }
 function home() {
-  const last = readingById(state.lastReading) || readingById('tam-tang');
-  const done = Boolean(state.progress[last.id]);
+  const last = studyResumeReading();
+  const done = Boolean(last && state.progress[last.id]);
+  const resume = last ? readingHref(last.id) : '#/doc';
+  const sampleVisible = !sampleReadingHidden('tam-tang');
   return '<div class="page-head"><h1>Hôm nay</h1><p>Đọc tiếp một bài, nghe giảng hoặc quay lại đề tài đang viết.</p></div>'+
-    '<div class="intro-grid"><section class="hero"><div class="hero-copy"><div class="kicker">LUẬN TẠNG · VI DIỆU PHÁP</div><h2>Bộ Vị Trí<br>và 24 duyên</h2><p>Đọc đối chiếu Pāli, tiếng Việt và tiếng Anh.</p><a class="btn light" href="'+readingHref(last.id)+'">'+icon('book')+(done?'Đọc lại bài':'Tiếp tục đọc')+'</a></div>'+art()+'</section>'+
-    '<section class="card queue"><h2>Đang học</h2><div class="meta">'+(done?'Đã hoàn thành bài gần nhất':'Đang đọc bài gần nhất')+'</div><div class="progress" role="progressbar" aria-label="Tiến độ bài gần nhất" aria-valuenow="'+Number(done)+'" aria-valuemax="1"><span style="width:'+(done?100:0)+'%"></span></div><a href="'+readingHref(last.id)+'">'+icon('book')+'<span><strong>'+esc(last.title)+'</strong><small>'+ (done?'Đã học':'Bài đọc đang mở')+'</small></span></a><a href="#/doc">'+icon('mark')+'<span><strong>Từ vựng đã lưu</strong><small>'+state.terms.length+' thuật ngữ</small></span></a></section></div>'+
-    '<section><div class="section-head"><h2>Lộ trình học</h2><img class="section-sticker" src="../assets/sticker-divider.webp" width="244" height="75" alt=""></div><div class="path-grid">'+paths.map(p=>'<a class="card path" href="'+(p.href || '#/doc?lo-trinh='+p.course)+'"><span class="icon-tile">'+icon(p.icon)+'</span><h3>'+p.title+'</h3><p>'+p.desc+'</p></a>').join('')+'</div></section>'+
+    '<div class="intro-grid"><section class="hero"><div class="hero-copy">'+(sampleVisible?'<div class="kicker">LUẬN TẠNG · VI DIỆU PHÁP</div><h2>Bộ Vị Trí<br>và 24 duyên</h2><p>Đọc đối chiếu Pāli, tiếng Việt và tiếng Anh.</p>':'<h2>Bài đọc</h2>')+'<a class="btn light" href="'+resume+'">'+icon('book')+(last?(done?'Đọc lại bài':'Tiếp tục đọc'):'Xem bài đọc')+'</a></div>'+art()+'</section>'+
+    '<section class="card queue"><h2>Đang học</h2>'+(last?'<div class="meta">'+(done?'Đã hoàn thành bài gần nhất':'Đang đọc bài gần nhất')+'</div><div class="progress" role="progressbar" aria-label="Tiến độ bài gần nhất" aria-valuenow="'+Number(done)+'" aria-valuemax="1"><span style="width:'+(done?100:0)+'%"></span></div><a href="'+resume+'">'+icon('book')+'<span><strong>'+esc(last.title)+'</strong><small>'+ (done?'Đã học':'Bài đọc đang mở')+'</small></span></a>':'')+'<a href="#/doc">'+icon('mark')+'<span><strong>Từ vựng đã lưu</strong><small>'+state.terms.length+' thuật ngữ</small></span></a></section></div>'+
+    '<section><div class="section-head"><h2>Lộ trình học</h2><img class="section-sticker" src="../assets/sticker-divider.webp" width="244" height="75" alt=""></div><div class="path-grid">'+paths.map(p=>'<a class="card path" href="'+(p.href || (sampleReadingHidden(p.course)?'#/doc':readingHref(p.course)))+'"><span class="icon-tile">'+icon(p.icon)+'</span><h3>'+p.title+'</h3><p>'+p.desc+'</p></a>').join('')+'</div></section>'+
     researchCardList()+
     '<section><div class="section-head"><h2>Video và đề tài</h2></div><div class="lower-grid"><a class="card row-link" href="#/video"><span class="icon-tile">'+icon('video')+'</span><div><h3>Kho video</h3><p>Nghe kinh điển và thuyết pháp</p></div></a><a class="card row-link" href="#/de-tai"><span class="icon-tile">'+icon('file')+'</span><div><h3>Đề tài nghiên cứu</h3><p>Mở dàn ý, nguồn và bản thảo</p></div></a></div></section>';
 }
@@ -125,7 +127,7 @@ function render({focus=false}={}) {
   cancelCanonReading();
   const current = route();
   const {path,id,studyTab,area,section} = current;
-  if (path === '#/doc' && readingById(id) && state.lastReading !== id) {
+  if (path === '#/doc' && readingById(id) && !sampleReadingHidden(id) && state.lastReading !== id) {
     state.lastReading = id;
     save();
   }
@@ -160,6 +162,7 @@ document.querySelector('.skip').addEventListener('click', event => {
 window.addEventListener('storage',event=>{
   if (event.key !== studyStorageKey || !event.newValue) return;
   state = loadStudyState(seed);
+  if (!state.hiddenSampleReadings.length) studyView.hiddenReadings = false;
   studyUndo = null;
   if (document.activeElement?.id === 'study-draft') {
     const project = activeProject();

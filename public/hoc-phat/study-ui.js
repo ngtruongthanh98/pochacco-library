@@ -2,6 +2,8 @@ const readingHref = id => '#/doc?bai='+encodeURIComponent(id);
 const projectHref = (id, tab = 'outline') => '#/de-tai?de-tai='+encodeURIComponent(id)+'&muc='+tab;
 const readingById = id => state.readings.find(item => item.id === id) ||
   (Object.hasOwn(courses,id) ? {...courses[id], id, course:id, builtIn:true} : null);
+const sampleReadingHidden = id => state.hiddenSampleReadings.includes(id);
+const studyResumeReading = () => sampleReadingHidden(state.lastReading) ? null : readingById(state.lastReading);
 const projectById = id => state.projects.find(item => item.id === id);
 const activeProject = () => projectById(route().id);
 const studyMatches = (query, ...parts) => normalize(parts.join(' ')).includes(normalize(query.trim()));
@@ -23,7 +25,7 @@ const studyMenu = (label, id, actions) =>
   '<details class="study-menu"><summary aria-label="Tùy chọn '+esc(label)+'" title="Tùy chọn">⋯</summary>'+
   '<div class="study-menu-items">'+actions.map(([text, action])=>studyButton(text,action,id)).join('')+'</div></details>';
 
-const studyView = {readSearch:'', readCourse:'all', projectSearch:'', archive:false};
+const studyView = {readSearch:'', readCourse:'all', hiddenReadings:false, projectSearch:'', archive:false};
 let studyUndo = null;
 let studyImport;
 
@@ -32,8 +34,16 @@ function studyHeader(title, action) {
     studyButton('Sao lưu','backup')+'</div></div>';
 }
 
+function studyReadingMenu(item) {
+  const actions = item.builtIn
+    ? (sampleReadingHidden(item.id) ? [['Khôi phục bài mẫu','restore-reading']] : [['Xóa khỏi danh sách','hide-reading']])
+    : [['Chỉnh sửa','edit-reading'],['Xóa','delete-reading']];
+  return studyMenu(item.title,item.id,actions);
+}
+
 function studyReadingCards() {
   const items = [...state.readings, ...Object.keys(courses).map(readingById)].filter(item =>
+    sampleReadingHidden(item.id) === studyView.hiddenReadings &&
     (studyView.readCourse === 'all' || item.course === studyView.readCourse) &&
     studyMatches(studyView.readSearch,item.title,item.lead,item.text,studyCourses[item.course]));
   return items.map(item => '<article class="panel study-record"><div class="study-record-copy">'+
@@ -41,16 +51,19 @@ function studyReadingCards() {
     '<h2><a href="'+readingHref(item.id)+'">'+esc(item.title)+'</a></h2>'+
     '<p class="study-clamp">'+esc(item.lead || item.text || item.url)+'</p>'+studyUpdated(item.updated)+'</div>'+
     '<div class="study-record-actions"><a class="btn secondary" href="'+readingHref(item.id)+'">Đọc bài</a>'+
-    (item.builtIn ? '' : studyMenu(item.title,item.id,[['Chỉnh sửa','edit-reading'],['Xóa','delete-reading']]))+
+    studyReadingMenu(item)+
     '</div></article>').join('') || studyEmpty('Không có bài đọc phù hợp.');
 }
 
 function studyReadingPage(id) {
   const item = readingById(id);
   if (!item) {
-    const last = readingById(state.lastReading);
+    const last = studyResumeReading();
     return studyHeader('Đọc bài',studyButton('Thêm bài đọc','edit-reading',null,'primary'))+
-      (last ? '<p class="study-resume"><a class="btn secondary" href="'+readingHref(last.id)+'">Đọc tiếp</a> <span>'+esc(last.title)+'</span></p>' : '')+
+      (last && !studyView.hiddenReadings ? '<p class="study-resume"><a class="btn secondary" href="'+readingHref(last.id)+'">Đọc tiếp</a> <span>'+esc(last.title)+'</span></p>' : '')+
+      (state.hiddenSampleReadings.length ? '<div class="tabs" aria-label="Hiển thị bài đọc">'+
+        tabs([{id:'visible',label:'Đang hiện'},{id:'hidden',label:'Đã ẩn ('+state.hiddenSampleReadings.length+')'}],
+          studyView.hiddenReadings?'hidden':'visible','study-reading-visibility')+'</div>' : '')+
       '<div class="filters"><input type="search" id="study-reading-search" aria-label="Tìm bài đọc" placeholder="Tìm bài đọc…" value="'+esc(studyView.readSearch)+'">'+
       '<select id="study-reading-course" aria-label="Lộ trình">'+studyOption('all','Mọi lộ trình',studyView.readCourse)+
       Object.entries(studyCourses).map(([key,label])=>studyOption(key,label,studyView.readCourse)).join('')+'</select></div>'+
@@ -60,7 +73,7 @@ function studyReadingPage(id) {
   const glossary = item.builtIn && item.course !== 'thien';
   return '<div class="page-head"><a class="text-button" href="#/doc">← Danh sách bài đọc</a>'+
     '<p class="meta">'+esc(item.meta || studyCourses[item.course])+'</p><div class="head-split"><h1>'+esc(item.title)+'</h1>'+
-    (item.builtIn ? '' : studyMenu(item.title,id,[['Chỉnh sửa','edit-reading'],['Xóa','delete-reading']]))+'</div>'+
+    studyReadingMenu(item)+'</div>'+
     (item.lead?'<p>'+esc(item.lead)+'</p>':'')+'</div>'+
     '<div class="reader-grid"><article class="panel"><div class="article-section">'+
     (item.builtIn ? '<h2>'+(glossary?'Thuật ngữ đối chiếu':'Ghi chú thực hành')+'</h2><p class="meta">'+esc(item.note)+'</p>' :
@@ -439,6 +452,7 @@ function applyStudyBackup(data) {
     notify('Chưa nhập được bản sao vì trình duyệt không lưu được dữ liệu.');
     return;
   }
+  if (!state.hiddenSampleReadings.length) studyView.hiddenReadings = false;
   studyUndo = null;
   studyImport = undefined;
   dialog.close();
@@ -459,6 +473,24 @@ function studyClick(action, value, button) {
       document.querySelector('#video-search')?.focus();
       break;
     case 'edit-reading': studyEditReading(value); break;
+    case 'reading-visibility':
+      studyView.hiddenReadings = value === 'hidden';
+      render();
+      document.querySelector('[data-action="study-reading-visibility"][aria-pressed="true"]')?.focus();
+      break;
+    case 'hide-reading':
+    case 'restore-reading': {
+      if (!Object.hasOwn(courses,value)) break;
+      const hiding = action === 'hide-reading';
+      state.hiddenSampleReadings = hiding
+        ? [...new Set([...state.hiddenSampleReadings,value])]
+        : state.hiddenSampleReadings.filter(item=>item!==value);
+      if (!state.hiddenSampleReadings.length) studyView.hiddenReadings = false;
+      studySaved(hiding?'Đã xóa bài mẫu khỏi danh sách. Có thể khôi phục trong mục Đã ẩn.':'Đã khôi phục bài mẫu.');
+      if (hiding && route().id === value) location.hash = '#/doc';
+      else render();
+      break;
+    }
     case 'delete-reading': studyDeleteReading(value); break;
     case 'confirm-delete-reading': studyRemoveReading(value); break;
     case 'edit-note': studyEditNote(value); break;
