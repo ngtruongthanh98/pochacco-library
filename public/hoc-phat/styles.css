@@ -135,3 +135,9 @@ main{padding:18px 14px 55px}.intro-grid,.reader-grid,.research-grid{grid-templat
 .canon-edition-details summary{cursor:pointer;font-weight:650;color:var(--red-dark)}
 .canon-edition-details[open] summary{margin-bottom:10px}
 @media(max-width:520px){.canon-reader-toolbar{align-items:flex-start;flex-direction:column}.canon-reader-options .btn{min-height:38px;padding-inline:9px}}
+.canon-source { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; max-width:74ch; margin:0 auto 6px }
+.canon-source .canon-text-credit { margin:0 }
+.canon-source-link { text-decoration:underline; text-underline-offset:3px }
+.canon-segment h4,.canon-segment blockquote { margin:0; font:inherit; font-family:var(--serif); font-size:var(--reader-font); white-space:pre-wrap; overflow-wrap:anywhere }
+.canon-segment h4 { font-weight:700 }
+.canon-segment blockquote { padding-inline-start:12px; border-inline-start:2px solid var(--line) }
