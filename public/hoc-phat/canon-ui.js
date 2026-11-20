@@ -226,7 +226,7 @@ function renderCanonReaderPage(target, page, moveToText=false) {
   const end=Math.min(segments.length,start+canonReadingPageSize);
   const sheet=readerElement('div','canon-sheet');
   const passage=readerElement('div','canon-segments');
-  for (const [key,root,translation,kind] of segments.slice(start,end)) {
+  for (const [offset,[key,root,translation,kind]] of segments.slice(start,end).entries()) {
     const segment=readerElement('div','canon-segment');
     const row=readerElement('div',parallel?'canon-parallel':'');
     const mainText=readerElement(kind||'p','',mode==='vi'?translation.normalize('NFC'):root);
@@ -238,7 +238,13 @@ function renderCanonReaderPage(target, page, moveToText=false) {
       row.append(english);
     }
     if (key) segment.append(readerElement('small','',key));
-    segment.append(row);
+    const quote=readerElement('button','canon-quote', '⋯');
+    quote.type='button';
+    quote.title='Lưu trích dẫn';
+    quote.setAttribute('aria-label','Lưu trích dẫn '+(key || 'đoạn '+(start+offset+1)));
+    quote.dataset.action='study-canon-quote';
+    quote.dataset.value=String(start+offset);
+    segment.append(row,quote);
     passage.append(segment);
   }
 
