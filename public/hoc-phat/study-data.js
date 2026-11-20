@@ -32,6 +32,7 @@ function loadStudyState(defaults) {
   }
   current.notes = current.notes.map(note => note.id ? note : {...note, id:newRecordId()});
   current.readings ??= [];
+  current.hiddenSampleReadings ??= [];
   current.progress ??= current.complete ? {'tam-tang':true} : {};
   current.lastReading ??= 'tam-tang';
   delete current.outline;
@@ -44,7 +45,7 @@ function loadStudyState(defaults) {
   return current;
 }
 
-const studyBackupFields = ['readings','notes','videos','projects','terms','progress','lastReading'];
+const studyBackupFields = ['readings','notes','videos','projects','terms','progress','lastReading','hiddenSampleReadings'];
 const studyBackupLimit = 8_000_000;
 
 function makeStudyBackup() {
@@ -122,7 +123,10 @@ function parseStudyBackup(raw) {
     if (typeof value !== 'boolean') invalid();
     return [choice(key,readingIds),value];
   }));
-  return {readings, notes, videos, projects, progress, terms:data.terms.map(term => text(term,160,true)),
+  const hiddenSampleReadings = data.hiddenSampleReadings ?? [];
+  if (!Array.isArray(hiddenSampleReadings) || hiddenSampleReadings.length > Object.keys(courses).length) invalid();
+  const hidden = [...new Set(hiddenSampleReadings.map(key => choice(key,Object.keys(courses))))];
+  return {readings, notes, videos, projects, progress, hiddenSampleReadings:hidden, terms:data.terms.map(term => text(term,160,true)),
     lastReading:choice(data.lastReading,readingIds)};
 }
 
@@ -137,6 +141,7 @@ function mergeStudyBackup(incoming) {
   }
   merged.progress = {...incoming.progress, ...state.progress};
   merged.terms = [...new Set([...state.terms, ...incoming.terms])];
+  merged.hiddenSampleReadings = [...new Set([...state.hiddenSampleReadings, ...incoming.hiddenSampleReadings])];
   merged.lastReading = state.lastReading || incoming.lastReading;
   return {merged, counts};
 }
