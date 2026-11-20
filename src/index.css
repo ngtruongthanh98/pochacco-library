@@ -542,6 +542,7 @@ a.drive-link { margin-left: 6px; font-size: 0.85rem; font-weight: 600; color: va
 .pdf-inner { position: relative; }
 .pdf-inner canvas { display: block; }
 .pdf-page-num { position: absolute; inset: 0; display: grid; place-items: center; color: #c9bfb4; font-size: 2rem; font-weight: 700; pointer-events: none; }
+.pdf-page-err { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); font-size: 0.95rem; }
 .pdf-zoom .fit { font-size: 0.82rem; padding: 0 10px; }
 .pdf-zoom .fit.on { background: var(--red); color: #fff; border-color: var(--red); }
 .zoom-label { min-width: 46px; text-align: center; font-size: 0.85rem; font-weight: 650; color: var(--muted); align-self: center; }
