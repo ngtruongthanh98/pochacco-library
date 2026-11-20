@@ -6,6 +6,17 @@ import { driveErrorText } from '../data/configStore'
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
+// Tài nguyên PDF.js chép sẵn khi build (xem vite.config.ts). Thiếu wasmUrl thì ảnh JPEG 2000/JBIG2
+// trong sách scan không giải mã được và trang hiện trắng.
+const PDFJS = `${import.meta.env.BASE_URL}pdfjs/`
+const PDFJS_OPTS = {
+  wasmUrl: `${PDFJS}wasm/`,
+  cMapUrl: `${PDFJS}cmaps/`,
+  cMapPacked: true,
+  standardFontDataUrl: `${PDFJS}standard_fonts/`,
+  iccUrl: `${PDFJS}iccs/`,
+}
+
 const MB = 1024 * 1024
 const GAP = 14
 const PAD = 12
@@ -32,6 +43,8 @@ const PageView = memo(function PageView({
 }) {
   const holderRef = useRef<HTMLDivElement>(null)
   const [done, setDone] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
     const holder = holderRef.current
     if (!active || !holder) return
@@ -42,7 +55,8 @@ const PageView = memo(function PageView({
     const text = document.createElement('div')
     text.className = 'textLayer'
     ;(async () => {
-      const p = await doc.getPage(num)
+      const p = await doc.getPage(num).catch(() => null)
+      if (!p) return void (!cancelled && setFailed(true))
       if (cancelled) return
       const base = p.getViewport({ scale: 1 })
       // Vừa khung chung của mọi trang, giữ đúng tỉ lệ của trang này.
@@ -65,12 +79,15 @@ const PageView = memo(function PageView({
       renderTask = p.render({ canvas, viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined })
       try {
         await renderTask.promise
-      } catch {
+      } catch (e) {
+        // Lỗi thật (không phải do cuộn qua trang khác mà huỷ): báo để bấm vẽ lại.
+        if (!cancelled && (e as Error)?.name !== 'RenderingCancelledException') setFailed(true)
         return
       }
       if (cancelled) return
       holder.replaceChildren(inner)
       setDone(true)
+      setFailed(false)
       textLayer = new TextLayer({ textContentSource: p.streamTextContent(), container: text, viewport: vp })
       await textLayer.render().catch(() => undefined)
     })()
@@ -83,11 +100,19 @@ const PageView = memo(function PageView({
       canvas.height = 0
       setDone(false)
     }
-  }, [doc, num, boxW, boxH, active])
+  }, [doc, num, boxW, boxH, active, retry])
   return (
     <div className="pdf-page" data-page={num} style={{ width: boxW, height: boxH }}>
       <div className="pdf-holder" ref={holderRef} />
-      {!done && <span className="pdf-page-num">{num}</span>}
+      {!done && !failed && <span className="pdf-page-num">{num}</span>}
+      {failed && !done && (
+        <div className="pdf-page-err">
+          <span>Không tải được trang {num}</span>
+          <button type="button" className="secondary" onClick={() => { setFailed(false); setRetry((r) => r + 1) }}>
+            Tải lại trang
+          </button>
+        </div>
+      )}
     </div>
   )
 })
@@ -178,7 +203,7 @@ export default function PdfReader({
         if (!/%PDF-/.test(String.fromCharCode(...head.slice(0, 1024))))
           throw Object.assign(new Error('Google Drive không trả về nội dung PDF (có thể tệp vượt hạn mức tải hoặc cần xác nhận quét virus).'), { drive: true })
         if (cancelled) return null
-        const task = getDocument({ url: u, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true })
+        const task = getDocument({ url: u, rangeChunkSize: MB, disableAutoFetch: true, disableStream: true, ...PDFJS_OPTS })
         t.task = task
         task.onProgress = (pr: { loaded: number; total: number }) => !cancelled && setProgress(pr)
         return task.promise
