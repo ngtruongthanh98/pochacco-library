@@ -38,6 +38,8 @@ export type EbookHolding = {
   format: 'pdf' | 'epub' | 'mobi' | 'djvu' | 'other'
   storage: 'gdrive' | 'local' | 'url'
   fileId?: string
+  /** Khóa tài nguyên của tệp Drive cũ (link có ?resourcekey=...), cần kèm theo khi đọc tệp */
+  resourceKey?: string
   path?: string
   url?: string
   sha256?: string

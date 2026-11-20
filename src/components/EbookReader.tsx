@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { driveViewUrl } from '../data/drive'
+import { drivePreviewUrl, driveViewUrl } from '../data/drive'
 import type { Book, EbookHolding } from '../types/book'
-import { driveFileMeta, driveMediaUrl, readerKind, type DriveMeta } from '../data/configStore'
+import { driveFileMeta, driveHeaders, driveMediaUrl, readerKind, type DriveMeta } from '../data/configStore'
 import type { Excerpt } from '../types/excerpt'
 import { QuoteForm, type ExcerptActions } from './Quotes'
 
@@ -43,13 +43,14 @@ export default function EbookReader({
   const [loaded, setLoaded] = useState(false)
   const [slow, setSlow] = useState(false)
   const id = holding.fileId!
+  const rk = holding.resourceKey
   const offset = holding.pageOffset ?? 0
   const pdfPage = /^\d+$/.test(printPage) ? Number(printPage) + offset : null
 
   useEffect(() => {
     if (!hasKey) return
     let cancelled = false
-    driveFileMeta(holding.fileId!, driveApiKey!)
+    driveFileMeta(holding.fileId!, driveApiKey!, holding.resourceKey)
       .then((m) => {
         if (cancelled) return
         setMeta(m)
@@ -64,7 +65,7 @@ export default function EbookReader({
     return () => {
       cancelled = true
     }
-  }, [hasKey, holding.fileId, driveApiKey])
+  }, [hasKey, holding.fileId, holding.resourceKey, driveApiKey])
 
   const realFormat = meta ? (meta.name.match(/\.([a-z0-9]{2,5})$/i)?.[1] ?? holding.format).toUpperCase() : holding.format.toUpperCase()
 
@@ -107,7 +108,7 @@ export default function EbookReader({
             <span>{pdfPage ? `→ trang PDF ${pdfPage}` : offset ? `(+${offset})` : ''}</span>
           </label>
         )}
-        <a className="reader-open" href={driveViewUrl(id)} target="_blank" rel="noopener noreferrer">
+        <a className="reader-open" href={driveViewUrl(id, rk)} target="_blank" rel="noopener noreferrer">
           Mở trong tab mới
         </a>
       </header>
@@ -147,6 +148,7 @@ export default function EbookReader({
           <Suspense fallback={<div className="reader-loading">Đang tải trình đọc sách…</div>}>
             <BookReader
               url={driveMediaUrl(id, driveApiKey)}
+              headers={driveHeaders(id, rk)}
               fileId={id}
               fileName={meta.name}
               onQuote={
@@ -167,6 +169,7 @@ export default function EbookReader({
           <Suspense fallback={<div className="reader-loading">Đang tải trình đọc PDF…</div>}>
             <PdfReader
               url={driveMediaUrl(id, driveApiKey)}
+              headers={driveHeaders(id, rk)}
               fileId={id}
               offset={offset}
               onFallback={() => setMode('drive')}
@@ -187,7 +190,7 @@ export default function EbookReader({
       <div className="reader-frame">
         {!loaded && <div className="reader-loading">Đang mở sách từ Google Drive...</div>}
         <iframe
-          src={`https://drive.google.com/file/d/${id}/preview`}
+          src={drivePreviewUrl(id, rk)}
           title={book.title}
           allow="autoplay; fullscreen"
           allowFullScreen

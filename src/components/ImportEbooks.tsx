@@ -15,6 +15,7 @@ type Row = {
   key: string
   raw: string
   fileId?: string
+  resourceKey?: string
   problem?: string
   title: string
   format: EbookHolding['format']
@@ -131,6 +132,7 @@ export default function ImportEbooks({
         return {
           ...base,
           fileId: ref.id,
+          resourceKey: ref.resourceKey,
           format: ref.kind === 'doc' ? 'other' : base.format,
           suggestions,
           target: best && best.score >= 0.8 ? best.book.id : 'new',
@@ -153,7 +155,7 @@ export default function ImportEbooks({
     setBusy(true)
     setError(null)
     const now = new Date().toISOString()
-    const holding = (r: Row): EbookHolding => ({ kind: 'ebook', format: r.format, storage: 'gdrive', fileId: r.fileId })
+    const holding = (r: Row): EbookHolding => ({ kind: 'ebook', format: r.format, storage: 'gdrive', fileId: r.fileId, ...(r.resourceKey ? { resourceKey: r.resourceKey } : {}) })
     const added: Book[] = ready
       .filter((r) => r.target === 'new')
       .map((r) => {
@@ -455,7 +457,7 @@ export default function ImportEbooks({
                       <span className="pill p-exists">Gắn vào sách có sẵn</span>
                     )}
                     {r.fileId && (
-                      <a className="small" href={driveViewUrl(r.fileId)} target="_blank" rel="noopener noreferrer">
+                      <a className="small" href={driveViewUrl(r.fileId, r.resourceKey)} target="_blank" rel="noopener noreferrer">
                         Mở tệp
                       </a>
                     )}

@@ -50,11 +50,13 @@ const flatten = (items: TocItem[] | null | undefined, depth = 0): { label: strin
  */
 export default function BookReader({
   url,
+  headers,
   fileId,
   fileName,
   onQuote,
 }: {
   url: string
+  headers?: Record<string, string>
   fileId: string
   fileName: string
   onQuote?: (text: string, where: { page?: string; chapter?: string }) => void
@@ -78,7 +80,7 @@ export default function BookReader({
     ;(async () => {
       let blob: Blob
       try {
-        const res = await fetch(url)
+        const res = await fetch(url, { headers })
         if (!res.ok) throw new Error(await driveErrorText(res))
         const total = Number(res.headers.get('content-length')) || 0
         if (res.body) {

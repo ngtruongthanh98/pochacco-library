@@ -369,7 +369,7 @@ export default function BookForm({
     if (ref.kind === 'folder')
       return setDriveErr('Đây là link thư mục. Hãy dán link của từng tệp sách, hoặc dùng trang "Nhập sách điện tử" để dán nhiều link một lần.')
     if (ebooks.some((e) => e.fileId === ref.id)) return setDriveErr('Tệp này đã được gắn vào cuốn sách.')
-    setEbooks([...ebooks, { kind: 'ebook', format: ref.kind === 'doc' ? 'other' : guessFormat(driveLink), storage: 'gdrive', fileId: ref.id }])
+    setEbooks([...ebooks, { kind: 'ebook', format: ref.kind === 'doc' ? 'other' : guessFormat(driveLink), storage: 'gdrive', fileId: ref.id, ...(ref.resourceKey ? { resourceKey: ref.resourceKey } : {}) }])
     setDriveLink('')
   }
   const patchEbook = (i: number, p: Partial<EbookHolding>) =>
@@ -956,7 +956,7 @@ export default function BookForm({
             <div className="ebook-head">
               <span className="tag olive">{e.format.toUpperCase()}</span>
               {e.fileId && (
-                <a href={driveViewUrl(e.fileId)} target="_blank" rel="noopener noreferrer">
+                <a href={driveViewUrl(e.fileId, e.resourceKey)} target="_blank" rel="noopener noreferrer">
                   Mở trên Google Drive
                 </a>
               )}
