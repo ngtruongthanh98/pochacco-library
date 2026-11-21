@@ -395,18 +395,18 @@ function renderAbhidhammaEdition(target,edition,mode) {
   const heading=readerElement('div','canon-source');
   heading.append(readerElement('p','meta canon-text-credit',edition.credit),canonSourceLink(edition.url,'Mở bản dịch ở tab mới'));
   const controls=readerElement('div','buttons');
-  if(edition.index!==edition.url) controls.append(canonSourceLink(edition.index,mode==='vi'?'Mục lục bản Việt':'Thông tin ấn bản'));
-  if(edition.volume) {
-    const volume=readerElement('button','btn secondary','Đọc '+edition.volume);
+  if(edition.index!==edition.url) controls.append(canonSourceLink(edition.index,mode==='vi'?'Bản Việt dạng văn bản':'Thông tin ấn bản'));
+  for(const option of edition.volumes) {
+    const volume=readerElement('button','btn secondary',option.label);
     volume.type='button';
     volume.dataset.action='canon-reading';
-    volume.dataset.value=edition.mode;
+    volume.dataset.value=option.mode;
+    volume.disabled=option.active;
     controls.append(volume);
   }
   const frame=readerElement('iframe','abhidhamma-frame');
   frame.title=edition.title;
   frame.referrerPolicy='no-referrer';
-  if(mode==='vi')frame.setAttribute('sandbox','');
   frame.src=edition.url;
   sheet.append(heading,readerElement('p','meta',edition.scope),controls,frame);
   target.reading=undefined;
@@ -434,7 +434,7 @@ async function loadCanonReading(mode) {
   if(!external&&!edition)return;
 
   cancelCanonReading();
-  const activeMode=external?(selectedMode==='en-2'?'en':selectedMode):parallel?'parallel':edition===vietnamese?'vi':'pli';
+  const activeMode=external?selectedMode.split('-')[0]:parallel?'parallel':edition===vietnamese?'vi':'pli';
   for(const button of workspace.querySelectorAll('[data-action="canon-reading"][aria-pressed]')) {
     button.setAttribute('aria-pressed',String(button.dataset.value===activeMode));
   }
