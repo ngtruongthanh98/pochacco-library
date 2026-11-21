@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "accounts": {
+    "pochacco": {
+      "kdf": "PBKDF2-SHA256",
+      "iterations": 600000,
+      "salt": "ZOlpjhbf+OgGeTE8HlqefA==",
+      "iv": "LoFCN858jHMbQQqh",
+      "data": "vuuLqB6CzCV/IeaP15eS6Ttpo8+iXSLlYK1ubYpgT+gXQfJ4wL51qAfkBLMC/wA0I55tI/2xdEsNCx2TpkshVp7WN0PoAkyBQEhQ5gEr6qT+fjavsc4QtYRTErksm0bIaIV79M+gD1WKDzMtEmEN6mXI7Uvcpz8n2ezYcGYCHNMDHWRjwUEaPlXZuuZvrArwolrInRT2W9xndGseB6pzssdnSPGJTHt5MNzH/fdzD94uXw=="
+    }
+  }
+}
