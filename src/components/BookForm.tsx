@@ -1,3 +1,4 @@
+import { printCopyIds, resizePrintCopies } from '../data/printCopies'
 import { fmtVnd, parseVnd, SHOP_DEFAULTS, todayIso } from '../data/money'
 import { useMemo, useState } from 'react'
 import { placeIndex, suggestPlace } from '../data/publisherPlace'
@@ -51,11 +52,11 @@ const splitList = (text: string) =>
     .map((s) => s.trim())
     .filter(Boolean)
 
-const toInt = (s: string) => (/^\d+$/.test(s.trim()) ? Number(s.trim()) : undefined)
+const toInt = (s: string) => /^\d+$/.test(s.trim()) && Number.isSafeInteger(Number(s)) ? Number(s) : undefined
 
 /** Một bản giấy thêm (khác loại bìa hoặc để ở kệ khác). */
-type PrintDraft = { binding: string; location: string; copies: string; condition: string }
-const toDraft = (h: PrintHolding): PrintDraft => ({ binding: h.binding ?? '', location: h.location ?? '', copies: String(h.copies ?? 1), condition: h.condition ?? '' })
+type PrintDraft = { binding: string; location: string; copies: string; condition: string; copyIds?: string[] }
+const toDraft = (h: PrintHolding, copyIds: string[]): PrintDraft => ({ binding: h.binding ?? '', location: h.location ?? '', copies: String(h.copies ?? 1), condition: h.condition ?? '', copyIds })
 
 type Fields = Record<
   | 'type' | 'title' | 'subtitle' | 'originalTitle' | 'authors' | 'translators' | 'editors'
@@ -160,8 +161,11 @@ const build = (
   function opt(v: string | unknown[]) {
     return v.length === 0 ? undefined : v
   }
+  const id = original?.id ?? ulid()
+  const firstPrint = original?.holdings.find((h): h is PrintHolding => h.kind === 'print')
+  const primaryIds = firstPrint ? printCopyIds(id, firstPrint, 0) : []
   const book: Book = {
-    id: ulid(),
+    id,
     type: f.type as ItemType,
     isbn13,
     isbn10,
@@ -197,6 +201,7 @@ const build = (
               kind: 'print' as const,
               location: opt(f.location.trim()),
               copies: toInt(f.copies) ?? 1,
+              copyIds: resizePrintCopies(id, primaryIds, toInt(f.copies) ?? 1),
               condition: opt(f.condition.trim()),
               binding: (f.binding || undefined) as Binding | undefined,
             },
@@ -204,6 +209,7 @@ const build = (
               kind: 'print' as const,
               location: opt(x.location.trim()),
               copies: toInt(x.copies) ?? 1,
+              copyIds: resizePrintCopies(id, x.copyIds ?? [], toInt(x.copies) ?? 1),
               condition: opt(x.condition.trim()),
               binding: (x.binding || undefined) as Binding | undefined,
             })),
@@ -296,7 +302,7 @@ export default function BookForm({
     startHoldings.filter((h): h is EbookHolding => h.kind === 'ebook'),
   )
   const [extraPrints, setExtraPrints] = useState<PrintDraft[]>(() =>
-    startHoldings.filter((h): h is PrintHolding => h.kind === 'print').slice(1).map(toDraft),
+    startHoldings.filter((h): h is PrintHolding => h.kind === 'print').slice(1).map((h, i) => toDraft(h, initial ? printCopyIds(initial.id, h, i + 1) : [])),
   )
   const setExtra = (i: number, k: keyof PrintDraft) => (v: string) => setExtraPrints((xs) => xs.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
   const [hasPrint, setHasPrint] = useState(
