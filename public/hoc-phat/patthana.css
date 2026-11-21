@@ -1,0 +1,63 @@
+/* Paṭṭhāna · 24 duyên · responsive editorial reader */
+.pt-home-link{margin-top:25px;display:flex;justify-content:space-between;align-items:center;gap:16px;border-left:4px solid var(--gold)}
+.pt-home-link p{margin-top:6px;color:var(--muted);font-size:14px}
+.pt-home-link .btn{flex:none}
+.pt-summary{margin-bottom:17px;display:flex;align-items:center;gap:17px}
+.pt-summary strong{font-size:1.35rem;color:var(--red-dark)}
+.pt-summary .progress{flex:1;margin:0;height:9px}
+.pt-layout{display:grid;grid-template-columns:minmax(220px,.39fr) minmax(0,1fr);gap:16px;align-items:start}
+.pt-aside{position:sticky;top:12px;max-height:calc(100dvh - 25px);overflow:auto;padding:15px}
+.pt-aside h2{font-size:1.15rem;margin-bottom:11px}
+.pt-search-label{display:block;font-size:13px;font-weight:650;margin-bottom:5px;color:var(--muted)}
+.pt-aside input[type=search]{width:100%;min-width:0;font-size:14px;margin-bottom:8px}
+.pt-aside nav{display:grid;gap:3px;padding-bottom:4px}
+.pt-entry{display:flex;align-items:center;gap:9px;min-height:52px;border-radius:9px;padding:7px 8px;color:var(--ink)}
+.pt-entry:hover,.pt-entry:focus-visible{background:var(--soft)}
+.pt-entry.selected{background:#f6e2d1;box-shadow:inset 3px 0 var(--red)}
+.pt-entry-label{display:grid;min-width:0}
+.pt-entry-label strong{font-size:14px;line-height:1.35}
+.pt-entry-label small{color:var(--muted);overflow-wrap:anywhere;font-size:12px}
+.pt-number{font-weight:750;color:var(--red-dark);font-size:13px;min-width:22px}
+.pt-complete-symbol{font-weight:750;color:#47764b;margin-left:auto}
+.pt-lesson{min-width:0}
+.pt-lesson-head{margin-bottom:17px;background:var(--white);border:1.5px solid var(--line);border-radius:14px;padding:23px}
+.pt-lesson-head h1{margin:7px 0 3px}
+.pt-pali-title{font:1.22rem/1.45 Georgia,serif;color:var(--olive)}
+.pt-lead{margin:12px 0 15px;color:var(--ink);font-size:15px}
+.pt-section{margin-bottom:14px;overflow-wrap:anywhere}
+.pt-section h2{font-size:1.17rem;margin-bottom:9px}
+.pt-section h3{font-size:1rem;margin:15px 0 8px}
+.pt-section p{line-height:1.72}
+.pt-section .muted{margin-bottom:13px}
+.pt-section p+p{margin-top:9px}
+.pt-tabs{margin:12px 0;gap:3px}
+.pt-tabs .tab{padding:7px 10px;white-space:normal;min-height:38px}
+.pt-text-source{background:#f9eddb;padding:19px;border:1px solid var(--line);border-radius:10px}
+.pt-text-source .kicker{font-size:12px}
+.pt-pali,.pt-translation{font:1.06rem/1.8 Georgia,"Times New Roman",serif;white-space:normal;overflow-wrap:anywhere}
+.pt-pali{margin:9px 0;padding-left:16px;border-left:3px solid var(--gold)}
+.pt-source-note{font-size:13px;color:var(--muted);margin-top:12px}
+.pt-source-links{display:grid;gap:9px;margin-top:12px}
+.pt-source-links a{color:var(--red-dark);font-size:14px;font-weight:650;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.pt-term-list,.pt-ref ul{padding-left:20px;margin:9px 0}
+.pt-term-list li,.pt-ref li{margin:6px 0}
+.pt-analysis{display:grid;gap:8px;margin:10px 0 17px}
+.pt-analysis>div{display:grid;grid-template-columns:145px minmax(0,1fr);gap:10px;border-bottom:1px solid var(--line);padding-bottom:7px}
+.pt-analysis dt{color:var(--muted);font-size:13px;font-weight:650}
+.pt-analysis dd{margin:0}
+.pt-relationship{display:grid;grid-template-columns:1fr;max-width:390px;margin:14px auto;padding:8px;gap:6px;text-align:center}
+.pt-node{border:1.5px solid var(--line);border-radius:11px;padding:14px;background:#fdf0df}
+.pt-node small{display:block;font-size:11px;letter-spacing:.04em;color:var(--muted);margin-bottom:3px}
+.pt-node strong{font-size:15px;line-height:1.55}
+.pt-relation-arrow{display:grid;justify-items:center;gap:0;font-weight:700;color:var(--red-dark)}
+.pt-relation-arrow span{font-size:30px;line-height:1}
+.pt-relation-arrow small{background:var(--soft);border-radius:999px;padding:4px 10px}
+.pt-ref{border-top:1px solid var(--line);padding-top:4px}
+.pt-note{background:#f8eaca;border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;margin-top:13px;font-size:14px}
+.pt-review{margin-top:13px;border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+.pt-review summary{cursor:pointer;font-weight:650;color:var(--red-dark)}
+.pt-review p{margin-top:8px}
+.pt-next{display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-bottom:24px}
+@media(max-width:900px){.pt-layout{grid-template-columns:minmax(188px,.34fr) minmax(0,1fr)}.pt-lesson-head,.pt-section{padding:17px}.pt-aside{padding:12px}.pt-entry{padding:6px}}
+@media(max-width:700px){.pt-layout{grid-template-columns:1fr}.pt-aside{position:static;max-height:none}.pt-aside nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:245px;overflow:auto;gap:4px}.pt-entry{min-width:0;background:#fff8ef;border:1px solid var(--line)}.pt-entry-label strong{font-size:13px}.pt-entry-label small{font-size:11px}.pt-home-link{align-items:start;flex-direction:column}.pt-home-link .btn{width:100%}.pt-summary{gap:8px}}
+@media(max-width:480px){.section-bar .section-nav{grid-template-columns:repeat(6,minmax(0,1fr))}.section-nav .nav-link{font-size:clamp(.59rem,2.55vw,.72rem);padding:6px 1px}.section-nav svg{width:14px;height:14px}.pt-aside nav{grid-template-columns:1fr;max-height:190px}.pt-lesson-head,.pt-section{padding:14px}.pt-analysis>div{grid-template-columns:1fr;gap:1px}.pt-next .btn{flex:1;white-space:normal}.pt-tabs .tab{font-size:12px;padding:7px}.pt-text-source{padding:13px}}
