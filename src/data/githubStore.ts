@@ -1,3 +1,4 @@
+import { withPrintCopyIds } from './printCopies'
 import type { Book } from '../types/book'
 
 export type StoreConfig = {
@@ -112,7 +113,7 @@ export const fetchCatalog = async (cfg: StoreConfig): Promise<Book[]> => {
       return (await res.json()) as Book[]
     }),
   )
-  return shards.flat()
+  return shards.flat().map(withPrintCopyIds)
 }
 
 // ---------- Ghi dữ liệu ----------
@@ -169,7 +170,7 @@ const writeShard = async (
  */
 export const addBooks = async (cfg: StoreConfig, newBooks: Book[], message?: string): Promise<void> => {
   const ref = cfg.branch ?? 'main'
-  let pending = [...newBooks]
+  let pending = newBooks.map(withPrintCopyIds)
   for (let attempt = 0; attempt < 3 && pending.length; attempt++) {
     const dir = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/catalog?ref=${ref}`, {
       headers: headers(cfg),
@@ -245,7 +246,7 @@ const modifyBook = async (
       found = true
       const next = change(shard.books[i])
       const books = next
-        ? shard.books.map((b, k) => (k === i ? next : b))
+        ? shard.books.map((b, k) => (k === i ? withPrintCopyIds(next) : b))
         : shard.books.filter((_, k) => k !== i)
       const res = await writeShard(cfg, path, ref, books, shard.sha, message)
       if (res.ok) return
@@ -335,13 +336,13 @@ export const saveBatch = async (cfg: StoreConfig, adds: Book[], updates: Book[],
     const paths = await listShards(cfg, ref)
     if (!paths.length) paths.push(`catalog/${shardName(0)}`)
     const shards = await Promise.all(paths.map(async (p) => ({ path: p, ...(await readShard(cfg, p, ref)) })))
-    const byId = new Map(updates.map((b) => [b.id, b]))
+    const byId = new Map(updates.map((b) => [b.id, withPrintCopyIds(b)]))
     const existing = new Set(shards.flatMap((s) => s.books.map((b) => b.id)))
     const changed = new Map<string, Book[]>()
     for (const s of shards) {
       if (s.books.some((b) => byId.has(b.id))) changed.set(s.path, s.books.map((b) => byId.get(b.id) ?? b))
     }
-    let pending = adds.filter((b) => !existing.has(b.id))
+    let pending = adds.filter((b) => !existing.has(b.id)).map(withPrintCopyIds)
     let n = Number(paths.at(-1)!.slice(-8, -5))
     while (pending.length) {
       const path = `catalog/${shardName(n)}`

@@ -1,3 +1,4 @@
+import { printCopyIds } from '../data/printCopies'
 import MiniSearch from 'minisearch'
 import { categoryLabel } from '../data/categories'
 import { nameToString, type Book } from '../types/book'
@@ -10,6 +11,7 @@ type Doc = {
   publisher: string
   subjects: string
   isbn: string
+  copyCodes: string
   description: string
 }
 
@@ -22,16 +24,18 @@ const toDoc = (b: Book): Doc => ({
   publisher: [b.publisher, b.partner].filter(Boolean).join(' '),
   subjects: [...b.holdings.map((h) => (h.kind === 'print' ? (h.location ?? '') : '')), ...(b.categories ?? []).map(categoryLabel), ...(b.subjects ?? []), ...(b.tags ?? []), b.series ?? ''].join(' '),
   isbn: [b.isbn13, b.isbn10].filter(Boolean).map((x) => normalizeIsbn(x!)).join(' '),
+  copyCodes: b.holdings.filter((h) => h.kind === 'print')
+    .flatMap((h, i) => printCopyIds(b.id, h, i)).join(' '),
   description: b.description ?? '',
 })
 
 export const buildIndex = (books: Book[]) => {
   const index = new MiniSearch<Doc>({
-    fields: ['title', 'people', 'publisher', 'subjects', 'isbn', 'description'],
+    fields: ['title', 'people', 'publisher', 'subjects', 'isbn', 'copyCodes', 'description'],
     storeFields: ['id'],
     processTerm: (term) => foldVi(term),
     searchOptions: {
-      boost: { title: 3, people: 2, isbn: 5, description: 0.3 },
+      boost: { title: 3, people: 2, isbn: 5, copyCodes: 5, description: 0.3 },
       prefix: true,
       fuzzy: 0.2,
       combineWith: 'AND',

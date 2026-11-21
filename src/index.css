@@ -638,6 +638,7 @@ picture { display: contents; }
 /* Loại bìa, nhiều bản giấy, các bản khác */
 .tag.binding { background: #6b4a2e; }
 .holdings .tag.binding { margin-left: 4px; }
+.print-copy-codes { list-style: none; padding-left: 0; margin: 4px 0 0; overflow-wrap: anywhere; }
 .extra-prints { display: grid; gap: 10px; margin-top: 4px; }
 .extra-print { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--cream); border: 1.5px dashed var(--line); }
 .extra-print-head { display: flex; justify-content: space-between; align-items: baseline; }

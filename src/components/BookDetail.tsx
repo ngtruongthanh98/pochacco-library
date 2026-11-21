@@ -1,3 +1,4 @@
+import { printCopyIds } from '../data/printCopies'
 import { useMemo, useState } from 'react'
 import { categoryLabel } from '../data/categories'
 import { isEbookOnly } from '../data/format'
@@ -146,7 +147,7 @@ export default function BookDetail({
   const editions = useMemo(() => otherEditions(book, books), [book, books])
   const related = useMemo(() => {
     const ed = new Set(editions.map((b) => b.id))
-    return relatedBooks(book, books).filter((r) => !ed.has(r.book.id))
+    return relatedBooks(book, books, 8, ed)
   }, [book, books, editions])
 
   const prints = book.holdings.filter((h) => h.kind === 'print')
@@ -359,6 +360,9 @@ export default function BookDetail({
                   {h.binding && <span className="tag binding">{bindingLabel(h.binding)}</span>} {h.location ? `Kệ ${h.location}` : 'Chưa ghi vị trí'}
                   {h.copies && h.copies > 1 ? `, ${h.copies} bản` : ''}
                   {h.condition ? `, ${h.condition}` : ''}
+                  <ul className="print-copy-codes" aria-label="Mã từng bản giấy">
+                    {printCopyIds(book.id, h, prints.indexOf(h)).map((id) => <li key={id}><code>{id}</code></li>)}
+                  </ul>
                 </li>
               ) : (
                 <li key={i} className="ebook-li">
@@ -401,7 +405,7 @@ export default function BookDetail({
                         {bindings.length ? bindings.join(', ') : b.holdings.some((h) => h.kind === 'print') ? 'Bản giấy' : ebook ? 'Sách điện tử' : 'Muốn mua'}
                       </span>
                       <span className="related-by">
-                        {[b.publisher, b.year, b.edition ? `tái bản lần ${b.edition}` : '', b.pages ? `${b.pages} trang` : '', b.isbn13 ? `ISBN ${b.isbn13}` : 'chưa có ISBN']
+                        {[(b.translators ?? []).map(nameToString).join(', '), b.publisher, b.year, b.edition ? `tái bản lần ${b.edition}` : '', b.pages ? `${b.pages} trang` : '', b.isbn13 ? `ISBN ${b.isbn13}` : 'chưa có ISBN']
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
@@ -426,6 +430,9 @@ export default function BookDetail({
                     <span className="related-title">{r.book.title}</span>
                     <span className="related-by">
                       {[(r.book.authors ?? []).map(nameToString).join(', '), r.book.year].filter(Boolean).join(' · ')}
+                    </span>
+                    <span className="related-by">
+                      {[r.book.holdings.some((h) => h.kind === 'print') && 'Bản giấy', r.book.holdings.some((h) => h.kind === 'ebook') && 'Ebook'].filter(Boolean).join(' · ')}
                     </span>
                     <span className="related-why">{r.reason}</span>
                   </span>

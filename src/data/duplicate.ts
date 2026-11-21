@@ -19,6 +19,7 @@ export function editionDraft(b: Book): Partial<Book> {
     ...duplicateDraft(b),
     title: b.title,
     seriesNo: b.seriesNo,
+    volume: b.volume,
     workKey: b.workKey,
     sizeCm: undefined,
     holdings: [{ kind: 'print', location: print?.location, copies: 1, binding: other }],

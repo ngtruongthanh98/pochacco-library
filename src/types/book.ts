@@ -27,6 +27,8 @@ export type PrintHolding = {
   kind: 'print'
   location?: string
   copies?: number
+  /** Mã từng bản vật lý, theo thứ tự trong nhóm bản in. */
+  copyIds?: string[]
   condition?: string
   /** Loại bìa của bản giấy này (bỏ trống là chưa ghi). */
   binding?: Binding
