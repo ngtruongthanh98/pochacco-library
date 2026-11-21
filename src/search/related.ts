@@ -89,11 +89,13 @@ export function relatedBooks(book: Book, all: Book[], limit = 8, excluded = new 
     const words = sharedKeys(me.words, other.words)
     const rareWords = words.filter((word) => (frequency.get(word) ?? 0) <= Math.max(3, all.length * 0.035))
     const overlap = words.length / Math.max(1, me.words.size + other.words.size - words.length)
-    if (rareWords.length >= 2 && overlap >= 0.24)
+    const categories = sharedKeys(me.categories, other.categories)
+    const titleMatch = rareWords.length >= 2 && overlap >= 0.24
+    const strongTitleMatch = categories.length > 0 && rareWords.length >= 3 && overlap >= 0.4
+    if (titleMatch && (signals.length > 0 || strongTitleMatch))
       add(Math.min(9, 4 + overlap * 5), 'Nhan đề có nhiều từ khóa chung')
 
     if (!signals.length) continue
-    const categories = sharedKeys(me.categories, other.categories)
     const score = signals.reduce((sum, signal) => sum + signal.score, 0) + (categories.length ? 1 : 0)
     const reason = signals.sort((a, b) => b.score - a.score)[0].reason
     results.push({ book: candidate, score, reason })
