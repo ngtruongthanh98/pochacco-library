@@ -38,6 +38,7 @@ function save() {
 const nav = [
   {hash:'#/',label:'Hôm nay',icon:'home'},
   {hash:'#/doc',label:'Đọc bài',icon:'book'},
+  {hash:'#/24-duyen',label:'24 duyên',icon:'leaf'},
   {hash:'#/video',label:'Video',icon:'video'},
   {hash:researchBase,label:'Nghiên cứu',icon:'layers'},
   {hash:'#/de-tai',label:'Đề tài',icon:'file'},
@@ -89,6 +90,7 @@ function route() {
   const p = nav.some(n => n.hash === path) ? path : '#/';
   const params = new URLSearchParams(query);
   if (p === '#/doc') return {path:p,id:params.get('bai') || params.get('lo-trinh')};
+  if (p === '#/24-duyen') return {path:p,id:params.get('bai')};
   if (p === '#/de-tai') {
     const tab = params.get('muc');
     return {path:p,id:params.get('de-tai'),studyTab:researchTabs.some(item=>item.id===tab)?tab:'outline'};
@@ -113,6 +115,7 @@ function home() {
     '<div class="intro-grid"><section class="hero"><div class="hero-copy">'+(sampleVisible?'<div class="kicker">LUẬN TẠNG · VI DIỆU PHÁP</div><h2>Bộ Vị Trí<br>và 24 duyên</h2><p>Đọc đối chiếu Pāli, tiếng Việt và tiếng Anh.</p>':'<h2>Bài đọc</h2>')+'<a class="btn light" href="'+resume+'">'+icon('book')+(last?(done?'Đọc lại bài':'Tiếp tục đọc'):'Xem bài đọc')+'</a></div>'+art()+'</section>'+
     '<section class="card queue"><h2>Đang học</h2>'+(last?'<div class="meta">'+(done?'Đã hoàn thành bài gần nhất':'Đang đọc bài gần nhất')+'</div><div class="progress" role="progressbar" aria-label="Tiến độ bài gần nhất" aria-valuenow="'+Number(done)+'" aria-valuemax="1"><span style="width:'+(done?100:0)+'%"></span></div><a href="'+resume+'">'+icon('book')+'<span><strong>'+esc(last.title)+'</strong><small>'+ (done?'Đã học':'Bài đọc đang mở')+'</small></span></a>':'')+'<a href="#/doc">'+icon('mark')+'<span><strong>Từ vựng đã lưu</strong><small>'+state.terms.length+' thuật ngữ</small></span></a></section></div>'+
     '<section><div class="section-head"><h2>Lộ trình học</h2><img class="section-sticker" src="../assets/sticker-divider.webp" width="244" height="75" alt=""></div><div class="path-grid">'+paths.map(p=>'<a class="card path" href="'+(p.href || (sampleReadingHidden(p.course)?'#/doc':readingHref(p.course)))+'"><span class="icon-tile">'+icon(p.icon)+'</span><h3>'+p.title+'</h3><p>'+p.desc+'</p></a>').join('')+'</div></section>'+
+    '<section class="pt-home-link card"><div><h2>24 duyên trong Bộ Vị Trí</h2><p>24 bài học Pāḷi · tiếng Việt · sơ đồ trợ duyên · ví dụ · nguồn Tịnh Sự</p></div><a href="#/24-duyen" class="btn">Bắt đầu học →</a></section>'+ 
     researchCardList()+
     '<section><div class="section-head"><h2>Video và đề tài</h2></div><div class="lower-grid"><a class="card row-link" href="#/video"><span class="icon-tile">'+icon('video')+'</span><div><h3>Kho video</h3><p>Nghe kinh điển và thuyết pháp</p></div></a><a class="card row-link" href="#/de-tai"><span class="icon-tile">'+icon('file')+'</span><div><h3>Đề tài nghiên cứu</h3><p>Mở dàn ý, nguồn và bản thảo</p></div></a></div></section>';
 }
@@ -135,7 +138,7 @@ function render({focus=false}={}) {
     '<a class="nav-link tab" href="'+n.hash+'"'+(path===n.hash?' aria-current="page"':'')+'>'+icon(n.icon)+'<span>'+n.label+'</span></a>'
   ).join('');
   document.title = (current.catalog ? 'Thư mục Theravāda' : section?.title || area?.title || nav.find(n=>n.hash===path).label)+' · Học Phật | Pochacco Library';
-  pageContent.innerHTML = path==='#/doc'?studyReadingPage(id):path==='#/video'?videoPage():path==='#/de-tai'?studyProjectPage(id,studyTab):current.catalog?commentaryPage(current):path===researchBase?workspaceResearch(current):home();
+  pageContent.innerHTML = path==='#/24-duyen'?renderPatthanaPage(id):path==='#/doc'?studyReadingPage(id):path==='#/video'?videoPage():path==='#/de-tai'?studyProjectPage(id,studyTab):current.catalog?commentaryPage(current):path===researchBase?workspaceResearch(current):home();
   if(current.tab==='van-ban') renderCanonWorkspace(current);
   if(focus){main.focus({preventScroll:true});if(current.tab==='van-ban')main.scrollIntoView();else window.scrollTo(0,0);}
 }
@@ -160,6 +163,7 @@ document.querySelector('.skip').addEventListener('click', event => {
   main.scrollIntoView();
 });
 window.addEventListener('storage',event=>{
+  if (event.key===ptProgressKey) { if(route().path==='#/24-duyen')render(); return; }
   if (event.key !== studyStorageKey || !event.newValue) return;
   state = loadStudyState(seed);
   if (!state.hiddenSampleReadings.length) studyView.hiddenReadings = false;
@@ -192,6 +196,7 @@ document.addEventListener('click', event => {
   if(!button) return;
   const {action,value} = button.dataset;
   if (action === 'close') dialog.close();
+  if (action.startsWith('pt-')) {ptClick(action,value);return;}
   if (action.startsWith('study-')) {
     const menu = button.closest('details.study-menu');
     if (menu) {
@@ -221,6 +226,7 @@ document.addEventListener('click', event => {
   }
 });
 document.addEventListener('input', event=>{
+  if(event.target.id==='pt-search') {ptSearch(event.target.value);return;}
   if(event.target.form?.id==='canon-filters' && event.target.name==='q') updateCanonFilters(event.target.form);
   if(event.target.form?.id==='commentary-filters' && event.target.name==='q') updateCommentaryFilters(event.target.form);
   if(event.target.id==='video-search'){view.query=event.target.value;document.querySelector('#video-grid').innerHTML=filteredVideos();}
