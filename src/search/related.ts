@@ -20,6 +20,7 @@ const TOPICS: [string, RegExp][] = [
   ['Phạm Văn Đồng', /\bpham van dong\b/],
   ['Cách mạng Pháp', /\b(?:cach mang phap|revolution francaise|french revolution)\b/],
   ['Công nghệ và xã hội', /\b(?:cong nghe va xa hoi|mat trai cua cong nghe|lung doan cong nghe|technopoly|dark side of technology|van hoa (?:va|truoc) cong nghe)\b/],
+  ['Tình yêu và kết nối cảm xúc', /\b(?:quan he tinh cam|ket noi cam xuc|thuat yeu duong|cam giac duoc yeu|the nao la tinh yeu|ban ve tinh yeu va su co doc|nghiep tinh yeu)\b/],
   ['Khế ước xã hội', /\b(?:khe uoc xa hoi|du contrat social|social contract)\b/],
   ['Tâm lý học đám đông', /\b(?:tam ly (?:hoc )?dam dong|psychologie des foules|crowd psychology)\b/],
   ['Chiến tranh Việt Nam', /\b(?:chien tranh viet nam|khang chien chong my|vietnam war)\b/],
