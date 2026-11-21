@@ -124,7 +124,8 @@ function canonDetail(data,area,section,query,id) {
   const root=editions.find(([lang,,,segmented])=>lang==='pli' && segmented);
   const aligned=editions.find(([lang,author,,segmented])=>lang==='en' && segmented && canonAlignedAuthors.has(author));
   const vietnameseEdition=canonVietnameseEdition(editions);
-  const inlineRead=canonReaderMarkup(root,aligned,id,vietnameseEdition);
+  const abhi=area.id==='vi-dieu-phap' && abhidhammaEdition(section.id,id,'vi');
+  const inlineRead=canonReaderMarkup(root,aligned,id,vietnameseEdition,abhi);
   return '<article class="stack canon-detail"><div><a class="text-button" href="'+esc(lookup)+'">Danh sách '+esc(section.title)+'</a></div>'+
     '<div><span class="status canon-code">'+esc(code)+'</span><h2>'+esc(canonName(entry))+'</h2><p class="meta">'+esc(groupLabel)+'</p></div>'+
     inlineRead+
@@ -177,13 +178,15 @@ let canonReadingRequest;
 const canonVietnameseEdition = editions =>
   editions.find(([lang,,,segmented])=>lang==='vi' && segmented) || editions.find(([lang])=>lang==='vi');
 
-function canonReaderMarkup(root,aligned,id,vietnameseEdition) {
-  if (!root && !vietnameseEdition) return '<p class="empty">Ấn bản này có thể đọc tại <a class="text-button" href="'+
+function canonReaderMarkup(root,aligned,id,vietnameseEdition,abhi) {
+  const opensInVietnamese=!!(vietnameseEdition||abhi);
+  if (!root && !opensInVietnamese) return '<p class="empty">Ấn bản này có thể đọc tại <a class="text-button" href="'+
     esc(scOrigin+'/'+encodeURIComponent(id))+'" target="_blank" rel="noopener noreferrer">SuttaCentral</a>.</p>';
   return '<section class="canon-inline" id="canon-inline" data-size="'+canonReadingSize+'" aria-labelledby="canon-reader-title">'+
     '<div class="canon-reader-toolbar"><h3 id="canon-reader-title">Chánh văn</h3><div class="buttons canon-reader-options">'+
-    (vietnameseEdition?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="vi" aria-pressed="true">Tiếng Việt</button>':'')+
-    (root?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="pli" aria-pressed="'+!vietnameseEdition+'">Pāli</button>':'')+
+    (opensInVietnamese?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="vi" aria-pressed="true">Tiếng Việt</button>':'')+
+    (root?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="pli" aria-pressed="'+!opensInVietnamese+'">Pāli</button>':'')+
+    (abhi?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="en" aria-pressed="false">Tiếng Anh</button>':'')+
     (aligned?'<button class="btn secondary" type="button" data-action="canon-reading" data-value="parallel" aria-pressed="false">Pāli–Anh</button>':'')+
     '<button class="btn secondary canon-font" type="button" data-action="canon-size" data-value="-1" aria-label="Giảm cỡ chữ"'+(canonReadingSize===0?' disabled':'')+'>A−</button>'+
     '<button class="btn secondary canon-font" type="button" data-action="canon-size" data-value="1" aria-label="Tăng cỡ chữ"'+(canonReadingSize===3?' disabled':'')+'>A+</button>'+
@@ -197,8 +200,8 @@ const readerElement = (tag, className, content) => {
   return element;
 };
 
-function canonSourceLink(url) {
-  const link=readerElement('a','text-button canon-source-link','Mở bản gốc trên SuttaCentral');
+function canonSourceLink(url,label='Mở bản gốc trên SuttaCentral') {
+  const link=readerElement('a','text-button canon-source-link',label);
   link.href=url;
   link.target='_blank';
   link.rel='noopener noreferrer';
@@ -387,29 +390,62 @@ function cancelCanonReading() {
   canonReadingRequest=undefined;
 }
 
+function renderAbhidhammaEdition(target,edition,mode) {
+  const sheet=readerElement('div','canon-sheet abhidhamma-sheet');
+  const heading=readerElement('div','canon-source');
+  heading.append(readerElement('p','meta canon-text-credit',edition.credit),canonSourceLink(edition.url,'Mở bản dịch ở tab mới'));
+  const controls=readerElement('div','buttons');
+  if(edition.index!==edition.url) controls.append(canonSourceLink(edition.index,mode==='vi'?'Mục lục bản Việt':'Thông tin ấn bản'));
+  if(edition.volume) {
+    const volume=readerElement('button','btn secondary','Đọc '+edition.volume);
+    volume.type='button';
+    volume.dataset.action='canon-reading';
+    volume.dataset.value=edition.mode;
+    controls.append(volume);
+  }
+  const frame=readerElement('iframe','abhidhamma-frame');
+  frame.title=edition.title;
+  frame.referrerPolicy='no-referrer';
+  if(mode==='vi')frame.setAttribute('sandbox','');
+  frame.src=edition.url;
+  sheet.append(heading,readerElement('p','meta',edition.scope),controls,frame);
+  target.reading=undefined;
+  target.replaceChildren(sheet);
+  target.setAttribute('aria-busy','false');
+}
+
 async function loadCanonReading(mode) {
   const target=document.querySelector('#canon-body');
   const workspace=document.querySelector('#canon-workspace');
-  const id=route().query?.get('vb');
+  const currentRoute=route();
+  const id=currentRoute.query?.get('vb');
   const entry=workspace?.canonData?.entries.find(item=>item[entryAt.id]===id);
   if(!target||!entry)return;
   const editions=entry[entryAt.editions];
   const root=editions.find(([language,,,segmented])=>language==='pli' && segmented);
   const aligned=editions.find(([language,author,,segmented])=>language==='en' && segmented && canonAlignedAuthors.has(author));
   const vietnamese=canonVietnameseEdition(editions);
-  const selectedMode=mode||(vietnamese?'vi':'pli');
+  const sectionId=currentRoute.area?.id==='vi-dieu-phap'?currentRoute.section?.id:null;
+  const abhi=abhidhammaEdition(sectionId,id,'vi');
+  const selectedMode=mode||((vietnamese||abhi)?'vi':'pli');
+  const external=selectedMode==='vi'&&vietnamese?null:abhidhammaEdition(sectionId,id,selectedMode);
   const parallel=selectedMode==='parallel'&&!!aligned;
   const edition=parallel?aligned:selectedMode==='vi'&&vietnamese?vietnamese:root;
-  if(!edition)return;
+  if(!external&&!edition)return;
 
   cancelCanonReading();
+  const activeMode=external?(selectedMode==='en-2'?'en':selectedMode):parallel?'parallel':edition===vietnamese?'vi':'pli';
+  for(const button of workspace.querySelectorAll('[data-action="canon-reading"][aria-pressed]')) {
+    button.setAttribute('aria-pressed',String(button.dataset.value===activeMode));
+  }
+  for(const button of workspace.querySelectorAll('.canon-font')) button.hidden=!!external;
+  if(external) {
+    renderAbhidhammaEdition(target,external,activeMode);
+    return;
+  }
   const request=new AbortController();
   canonReadingRequest=request;
   const current=()=>target.isConnected&&canonReadingRequest===request;
-  const activeMode=parallel?'parallel':edition===vietnamese?'vi':'pli';
-  for(const button of workspace.querySelectorAll('[data-action="canon-reading"]')) {
-    if(button.hasAttribute('aria-pressed'))button.setAttribute('aria-pressed',String(button.dataset.value===activeMode));
-  }
   const modeLabel={pli:'chánh văn Pāli',parallel:'bản đối chiếu Pāli–Anh',vi:'bản tiếng Việt'};
   const status=readerElement('p','meta','Đang tải '+modeLabel[activeMode]+'…');
   status.setAttribute('role','status');

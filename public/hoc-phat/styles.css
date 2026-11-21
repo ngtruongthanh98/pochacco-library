@@ -213,3 +213,8 @@ main{padding:18px 14px 55px}.intro-grid,.reader-grid,.research-grid{grid-templat
   .canon-sheet .canon-quote { width:36px }
 }
 .video-card .study-menu-items { top:auto; bottom:calc(100% + 4px) }
+
+.abhidhamma-sheet { padding:clamp(12px,2vw,20px) }
+.abhidhamma-sheet .canon-text-credit { margin-inline:0 }
+.abhidhamma-frame { display:block; width:100%; height:clamp(420px,72dvh,900px); margin-top:12px; border:1px solid var(--line); border-radius:8px; background:white }
+.canon-reader-options .canon-font[hidden] { display:none }
