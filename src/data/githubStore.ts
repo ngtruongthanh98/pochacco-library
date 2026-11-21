@@ -1,3 +1,4 @@
+import { applyCategoryReview, parseCategoryReview } from './categoryReview'
 import { withPrintCopyIds } from './printCopies'
 import type { Book } from '../types/book'
 
@@ -90,6 +91,19 @@ export const saveTaxonomy = async (
   return ((await res.json()) as { content: { sha: string } }).content.sha
 }
 
+const fetchCategoryReview = async (cfg: StoreConfig, ref: string) => {
+  try {
+    const url = `${API}/repos/${cfg.owner}/${cfg.repo}/contents/config/category-review.json?ref=${encodeURIComponent(ref)}`
+    const res = await fetch(url, { headers: headers(cfg, 'application/vnd.github.raw+json'), cache: 'no-store' })
+    if (res.status === 404) return new Map()
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return parseCategoryReview(await res.json())
+  } catch (error) {
+    console.warn('Không tải được bản rà soát chủ đề.', error)
+    return new Map()
+  }
+}
+
 type DirEntry = { name: string; path: string; sha: string; type: string }
 
 /** Đọc toàn bộ các tệp catalog/books-*.json trong repo dữ liệu. */
@@ -103,17 +117,18 @@ export const fetchCatalog = async (cfg: StoreConfig): Promise<Book[]> => {
   const entries = ((await dir.json()) as DirEntry[]).filter(
     (e) => e.type === 'file' && /^books-\d+\.json$/.test(e.name),
   )
-  const shards = await Promise.all(
-    entries.map(async (e) => {
+  const [review, shards] = await Promise.all([
+    fetchCategoryReview(cfg, ref),
+    Promise.all(entries.map(async (e) => {
       const res = await fetch(
         `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${e.path}?ref=${ref}`,
         { headers: headers(cfg, 'application/vnd.github.raw+json'), cache: 'no-store' },
       )
       if (!res.ok) throw new Error(`Không đọc được ${e.path} (HTTP ${res.status})`)
       return (await res.json()) as Book[]
-    }),
-  )
-  return shards.flat().map(withPrintCopyIds)
+    })),
+  ])
+  return shards.flat().map((book) => withPrintCopyIds(applyCategoryReview(book, review.get(book.id))))
 }
 
 // ---------- Ghi dữ liệu ----------
