@@ -61,3 +61,33 @@
   .rel-filters label { flex: 1 1 145px; }
 }
 .library-relationships > .subtabs { flex-wrap: wrap; overflow: visible; }
+.rel-graph-toggle { border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; margin-bottom: 12px; }
+.rel-graph-toggle summary { padding: 11px 2px; cursor: pointer; font-weight: 700; color: var(--red-dark); }
+.rel-graph-toggle[open] { padding-bottom: 10px; }
+.rel-format-key { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+.rel-format-key button.rel-format-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; text-align: left; gap: 6px 10px; padding: 10px; }
+.rel-format-key .rel-format-row span { width: auto; height: auto; border-radius: 0; }
+.rel-format-key .rel-format-row .rel-meter { display: block; grid-column: 1 / -1; height: 5px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.rel-format-key .rel-format-row .rel-meter span { display: block; height: 100%; }
+.rel-insights { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; padding: 9px; background: #f8ecd9; border-radius: 8px; font-size: .84rem; }
+.rel-insights small { display: block; flex-basis: 100%; color: var(--muted); }
+.rel-inspection { margin-top: 12px; border: 1px solid var(--line); border-inline-start: 3px solid var(--red); border-radius: 9px; padding: 10px; background: #fff9ee; }
+.rel-inspection h5 { font-size: .9rem; color: var(--red-dark); margin: 0 0 4px; }
+.rel-inspection ul { padding-inline-start: 20px; }
+.rel-inspection-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rel-inspection-actions button { min-height: 42px; }
+.rel-evidence { color: var(--red-dark); line-height: 1.35; }
+.rel-book-action[aria-pressed='true'] { outline: 2px solid var(--red); outline-offset: -2px; }
+.rel-groups button span { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .rel-filters label { flex: 1 1 100%; }
+  .rel-canvas { height: 265px; }
+  .rel-groups { grid-template-columns: minmax(0, 1fr); }
+  .rel-books li { align-items: center; }
+  .rel-book-action { min-height: 44px; }
+}
+.rel-compare { margin: 4px 0 12px; }
+.rel-compare summary { cursor: pointer; padding: 6px 0; font-weight: 650; }
+.rel-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.rel-compare-grid > div { padding: 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 520px) { .rel-compare-grid { grid-template-columns: minmax(0, 1fr); } }

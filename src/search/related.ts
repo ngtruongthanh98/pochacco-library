@@ -1,7 +1,7 @@
 import { nameToString, type Book, type Name } from '../types/book'
 import { relationText } from './editions'
 
-export type Related = { book: Book; score: number; reason: string }
+export type Related = { book: Book; score: number; reason: string; evidence: string[] }
 
 const STOP = new Set(
   'va cua cac nhung trong ve voi mot cho la tu den the and of an for tap quyen phan ban sach gioi thieu tai lieu lich su viet nam hoi ky'.split(' '),
@@ -11,6 +11,7 @@ const GENERIC = new Set(['lich su', 'viet nam', 'hoi ky', 'tieu su', 'chinh tri'
 // Chỉ gắn cụm khi nhan đề hoặc chủ đề có dấu hiệu đặc trưng. Các cách viết cũ và
 // tên tiếng nước ngoài được nhận diện ngay cả khi bản ghi thiếu thẻ chủ đề.
 const TOPICS: [string, RegExp][] = [
+  ['Diễn biến hòa bình', /\bdien bien hoa binh\b/],
   ['Hội nghị và Hiệp định Paris 1973', /\b(?:(?:hiep dinh|hoi nghi|dam phan|thuong luong) (?:tai |ve viet nam tai )?(?:paris|pa ri)|le duc tho.{0,35}kissinger|paris peace (?:accords|talks))\b/],
   ['Hà Nội – Điện Biên Phủ trên không', /\b(?:dien bien phu tren khong|linebacker ii|ha noi.{0,30}12 ngay dem|12 ngay dem.{0,30}ha noi)\b/],
   ['Đường Trường Sơn – Đường Hồ Chí Minh', /\b(?:truong son|duong (?:mon )?ho chi minh|ho chi minh trail)\b/],
@@ -97,8 +98,8 @@ export function relatedBooks(book: Book, all: Book[], limit = 8, excluded = new 
 
     if (!signals.length) continue
     const score = signals.reduce((sum, signal) => sum + signal.score, 0) + (categories.length ? 1 : 0)
-    const reason = signals.sort((a, b) => b.score - a.score)[0].reason
-    results.push({ book: candidate, score, reason })
+    const evidence = signals.sort((a, b) => b.score - a.score).map((signal) => signal.reason)
+    results.push({ book: candidate, score, reason: evidence[0], evidence })
   }
   return results.sort((a, b) => b.score - a.score || a.book.title.localeCompare(b.book.title, 'vi') || a.book.id.localeCompare(b.book.id)).slice(0, limit)
 }
