@@ -11,7 +11,7 @@ const ptGroups = [
 ];
 const ptSourceLinks = [
  {label:"24 Duyên Tổng Thuyết · bản dịch Trưởng lão Tịnh Sự",url:"https://sachphatphap.vn/24-duyen-tong-thuyet"},
- {label:"Bản giải Siêu lý Cao học · Trưởng lão Tịnh Sự",url:"https://phatgiaonguyenthuy.com/article/g/ban-giai-sieu-ly-cao-hoc.html"},
+ {label:"Bản giải Siêu lý Cao học · Trưởng lão Tịnh Sự",url:"https://phatgiaonguyenthuy.com/article/abhidhamma/ban-giai-sieu-ly-cao-hoc.html"},
  {label:"Abhidhammattha Saṅgaha · chương duyên hệ",url:"https://www.palikanon.com/english/sangaha/chapter_8.htm"}
 ];
 const ptLessons = [
@@ -329,7 +329,7 @@ const ptLessons = [
   },
   {
     "id": "kamma",
-    "vi": "Nghiệp duyên",
+    "vi": "Nghiệp duyên (Dị thời nghiệp duyên)",
     "pali": "Kamma-paccaya",
     "en": "Kamma condition",
     "group": 2,
