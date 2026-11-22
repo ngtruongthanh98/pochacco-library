@@ -1,0 +1,70 @@
+.library-trees { min-width: 0; }
+.library-trees h3 { margin: 0 0 8px; color: var(--red-dark); }
+.library-trees > .subtabs { flex-wrap: wrap; overflow: visible; }
+.library-tree-panel { display: grid; gap: 12px; min-width: 0; margin-top: 8px; }
+.library-tree-panel p { margin: 0; }
+p.library-tree-root, .library-tree-root {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; background: var(--cream); color: var(--red-dark);
+  border: 1px solid var(--line); border-radius: 10px; font-weight: 700; overflow-wrap: anywhere;
+}
+.library-tree-root small, .library-tree-root strong, .library-branch small,
+.library-tree-leaf small, .library-root-picker small { display: block; }
+.library-tree-root span, .library-branch small, .library-tree-leaf small, .library-root-picker small {
+  color: var(--muted); font-size: .8rem; font-weight: 500;
+}
+.library-tree {
+  list-style: none; margin: 0; padding-inline-start: 13px; margin-inline-start: 7px;
+  border-inline-start: 1px solid var(--line);
+}
+.library-tree > li { position: relative; margin-block: 5px; min-width: 0; }
+.library-tree > li::before {
+  content: ''; position: absolute; inset-inline-start: -14px; top: 19px;
+  width: 13px; border-top: 1px solid var(--line);
+}
+.library-branch summary, .library-matrix-panel summary {
+  cursor: pointer; color: var(--red-dark); padding: 8px; min-height: 40px;
+  background: var(--cream); border: 1px solid var(--line); border-radius: 8px;
+}
+.library-branch summary {
+  list-style: none; display: grid; align-items: start; gap: 0 7px;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  overflow-wrap: anywhere;
+}
+.library-branch summary::-webkit-details-marker { display: none; }
+.library-branch summary::before {
+  content: ''; display: block; width: 6px; height: 6px; margin-top: .5em;
+  border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg);
+}
+.library-branch[open] > summary::before { transform: rotate(45deg); }
+.library-tree-count { color: var(--muted); font-size: .77rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.library-tree-leaf, .library-root-picker li { padding: 7px 4px; overflow-wrap: anywhere; }
+.library-tree-leaf small, .library-root-picker small { margin-top: 2px; }
+.library-root-picker { margin: 0; padding: 0; list-style: none; }
+.library-root-picker li + li { border-top: 1px solid var(--line); }
+.library-tree-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.library-tree-actions button, .library-tree-root button, .library-tree > li > button.secondary { padding: 6px 9px; }
+.library-neighbor { padding-inline-start: 4px; }
+.library-matrix-panel summary { font-weight: 700; }
+.library-matrix-panel > p { margin-block: 10px; }
+.library-matrix-scroll { overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.library-matrix { border-collapse: collapse; width: 100%; }
+.library-matrix :is(td, th) { padding: 4px 6px; text-align: center; border-bottom: 1px solid var(--line); }
+.library-matrix th:first-child {
+  min-width: 140px; width: 100%; text-align: start; position: sticky; inset-inline-start: 0; background: var(--paper);
+}
+.library-matrix th:first-child button { font-size: .83rem; }
+.library-matrix th[scope="col"] { background: var(--cream); }
+.library-matrix .matrix-link {
+  min-width: 32px; min-height: 32px; padding: 0; background: var(--cream); color: var(--red-dark);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.library-matrix .matrix-link[aria-pressed="true"] { outline: 2px solid var(--red); outline-offset: -2px; }
+.matrix-evidence { border-inline-start: 2px solid var(--red); padding-inline: 8px; margin-block-start: 8px; overflow-wrap: anywhere; }
+.matrix-evidence ul { margin: 3px 0 0; padding-inline-start: 20px; }
+@media (max-width: 480px) {
+  .library-tree { padding-inline-start: 9px; margin-inline-start: 5px; }
+  .library-tree > li::before { inset-inline-start: -10px; width: 9px; }
+  .library-branch summary { grid-template-columns: 8px minmax(0, 1fr); }
+  .library-tree-count { grid-column: 2; }
+}

@@ -58,11 +58,14 @@ function index(all: Book[]) {
 
 const sharedKeys = <T>(a: Iterable<T>, b: { has(key: T): boolean }) => [...a].filter((k) => b.has(k))
 
-export function relatedBooks(book: Book, all: Book[], limit = 8, excluded = new Set<string>()): Related[] {
+export function relatedBooks(
+  book: Book, all: Book[], limit = 8, excluded = new Set<string>(), candidates = all,
+): Related[] {
+  if (limit <= 0) return []
   const { profiles, frequency } = index(all)
   const me = profiles.get(book.id) ?? profile(book)
   const results: Related[] = []
-  for (const candidate of all) {
+  for (const candidate of candidates) {
     if (candidate.id === book.id || excluded.has(candidate.id) || candidate.status === 'wishlist') continue
     if (!candidate.holdings.some((h) => h.kind === 'print' || h.kind === 'ebook')) continue
     const other = profiles.get(candidate.id)!

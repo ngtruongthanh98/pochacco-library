@@ -8,7 +8,7 @@ import { BarList, Columns, DataTable, Donut, Growth, HeatGrid, OTHER, SERIES, St
 import type { Stats as StatsData } from '../search/stats'
 import { formatOf } from '../data/format'
 
-const LibraryRelationships = lazy(() => import('./LibraryRelationships'))
+const LibraryTrees = lazy(() => import('./LibraryTrees'))
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
 
@@ -301,7 +301,7 @@ export default function Stats({
 
       {tab === 'relationships' && (
         <Suspense fallback={<div className="card" role="status">Đang tải sơ đồ thư viện…</div>}>
-          <LibraryRelationships books={allBooks} onOpen={onOpen} />
+          <LibraryTrees books={allBooks} onOpen={onOpen} />
         </Suspense>
       )}
 
