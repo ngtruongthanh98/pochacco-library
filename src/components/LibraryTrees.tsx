@@ -166,12 +166,12 @@ function RelatedTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
         <button type="button" className="secondary" onClick={() => onOpen(root)}>Mở hồ sơ</button>
       </div>
       {links.length ? <>
-        <ul className="library-tree" key={root.id}>
+        <ul className="library-tree" key={`tree-${root.id}`}>
           {links.map(link => <Branch key={link.book.id} label={link.book.title} detail={[...link.evidence, editionDetails(link.book)].filter(Boolean).join(' · ')}>
             {() => <NeighborBranch link={link} root={root} books={books} onFocus={focusBook} onOpen={onOpen} />}
           </Branch>)}
         </ul>
-        <details key={root.id} className="library-matrix-panel" onToggle={event => setShowMatrix(event.currentTarget.open)}>
+        <details key={`matrix-${root.id}`} className="library-matrix-panel" onToggle={event => setShowMatrix(event.currentTarget.open)}>
           <summary>Ma trận sách liên quan · {visible.length} đầu sách</summary>
           {showMatrix && <Matrix key={root.id} visible={visible} books={books} onOpen={onOpen} />}
         </details>
