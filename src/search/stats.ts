@@ -1,6 +1,8 @@
 import { CATEGORY_GROUPS, categoryLabel } from '../data/categories'
 import { nameToString, type Book } from '../types/book'
 import { foldVi } from './normalizeVi'
+import { printCount } from '../data/printCopies'
+import { groupEditions } from './editions'
 
 export type Row = { key: string; label: string; count: number; pages?: number; extra?: string }
 
@@ -14,6 +16,30 @@ export const STATUS_LABEL: Record<Book['status'], string> = {
 
 const copiesOf = (b: Book) =>
   b.holdings.reduce((s, h) => s + (h.kind === 'print' ? (h.copies ?? 1) : 0), 0)
+
+export function duplicatePrintBooks(books: Book[]) {
+  const available = books.filter((book) =>
+    book.type === 'book' && (book.status === 'owned' || book.status === 'lent') &&
+    book.holdings.some((holding) => holding.kind === 'print'),
+  )
+  const groups = groupEditions(available).map((editions) => {
+    const records = editions.map((book) => {
+      const holdings = book.holdings.filter((holding) => holding.kind === 'print')
+      const copies = holdings.reduce((sum, holding) => sum + printCount(holding), 0)
+      return { book, copies, holdings }
+    })
+    records.sort((a, b) =>
+      (a.book.status === 'lent' ? 1 : 0) - (b.book.status === 'lent' ? 1 : 0) ||
+      b.copies - a.copies || (b.book.year ?? 0) - (a.book.year ?? 0) ||
+      a.book.title.localeCompare(b.book.title, 'vi'),
+    )
+    const copies = records.reduce((sum, row) => sum + row.copies, 0)
+    return { records, copies }
+  })
+  return groups.filter((group) => group.copies > 1)
+    .sort((a, b) => b.copies - a.copies || a.records[0].book.title.localeCompare(b.records[0].book.title, 'vi'))
+}
+
 const locOf = (b: Book) => {
   const p = b.holdings.find((h) => h.kind === 'print')
   return p?.kind === 'print' ? p.location : undefined

@@ -1,12 +1,13 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { computeStats, type Row } from '../search/stats'
-import { nameToString, type Book } from '../types/book'
+import { computeStats, duplicatePrintBooks, type Row } from '../search/stats'
+import { bindingLabel, nameToString, type Book } from '../types/book'
 import StatsDeep from './StatsDeep'
 import Spending from './Spending'
 import Intake from './Intake'
 import { BarList, Columns, DataTable, Donut, Growth, HeatGrid, OTHER, SERIES, StackBar, Tile, Treemap, foldOther, nf, pct } from './charts'
 import type { Stats as StatsData } from '../search/stats'
 import { formatOf } from '../data/format'
+import { printCount } from '../data/printCopies'
 
 const LibraryTrees = lazy(() => import('./LibraryTrees'))
 
@@ -143,6 +144,7 @@ function PublisherTable({ rows, onPick }: { rows: StatsData['pubProfiles']; onPi
 
 const TABS = [
   { id: 'overview', label: 'Tổng quan' },
+  { id: 'duplicates', label: 'Bản trùng' },
   { id: 'relationships', label: 'Sơ đồ thư viện' },
   { id: 'topics', label: 'Thể loại' },
   { id: 'people', label: 'Tác giả & NXB' },
@@ -213,6 +215,8 @@ export default function Stats({
   const books = useMemo(() => (scope === 'all' ? allBooks : allBooks.filter(inScope(scope))), [allBooks, scope])
   const s = useMemo(() => computeStats(books), [books])
   const t = s.totals
+  const duplicates = useMemo(() => duplicatePrintBooks(books), [books])
+  const extraCopies = duplicates.reduce((sum, group) => sum + group.copies - 1, 0)
   const [showAllMissing, setShowAllMissing] = useState(false)
   const [tab, setTabState] = useState<Tab>(() => {
     try {
@@ -278,7 +282,7 @@ export default function Stats({
             </p>
           </div>
           <div className="tiles">
-            <Tile label="Đầu sách" value={nf(t.titles)} sub={scope === 'ebook' ? `${nf(mix.ebook)} cuốn chỉ có bản điện tử` : `${nf(t.copies)} bản giấy${t.copies > t.titles ? `, ${nf(t.copies - t.titles)} bản trùng` : ''}`} />
+            <Tile label="Đầu sách" value={nf(t.titles)} sub={scope === 'ebook' ? `${nf(mix.ebook)} cuốn chỉ có bản điện tử` : `${nf(t.copies)} bản giấy${extraCopies ? `, ${nf(extraCopies)} bản trùng` : ''}`} />
             <Tile label="Tổng số trang" value={nf(t.pages)} sub={t.medianPages ? `trung vị ${t.medianPages} trang/cuốn` : undefined} />
             <Tile label="Tác giả, dịch giả" value={nf(t.people)} sub={`${nf(t.publishers)} nhà xuất bản`} />
             <Tile label="Sách dịch" value={pct(t.translated, t.titles)} sub={`${t.translated} cuốn`} ring={t.titles ? t.translated / t.titles : 0} />
@@ -294,6 +298,7 @@ export default function Stats({
           {TABS.map((x) => (
             <button key={x.id} className={`subtab${tab === x.id ? ' active' : ''}`} onClick={() => setTab(x.id)} aria-current={tab === x.id ? 'page' : undefined}>
               {x.label}
+              {x.id === 'duplicates' && <span className="count">{nf(duplicates.length)}</span>}
             </button>
           ))}
         </nav>
@@ -303,6 +308,63 @@ export default function Stats({
         <Suspense fallback={<div className="card" role="status">Đang tải sơ đồ thư viện…</div>}>
           <LibraryTrees books={allBooks} onOpen={onOpen} />
         </Suspense>
+      )}
+
+
+      {tab === 'duplicates' && (
+        <section className="card">
+          <h3>Sách có nhiều bản giấy</h3>
+          <p className="muted small">
+            Gồm các đầu sách có từ hai bản giấy đang sở hữu hoặc đang cho mượn, kể cả các ấn bản khác nhau của cùng tác phẩm.
+          </p>
+          {duplicates.length ? (
+            <>
+              <p>{nf(duplicates.length)} đầu sách · {nf(extraCopies)} bản giấy ngoài bản đầu tiên</p>
+              <table className="needs">
+                <thead>
+                  <tr>
+                    <th scope="col">Đầu sách và các bản ghi</th>
+                    <th scope="col">Số bản giấy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {duplicates.map(({ records, copies }) => {
+                    const first = records[0].book
+                    return (
+                      <tr key={first.id}>
+                        <td>
+                          {records.map(({ book, holdings }) => (
+                            <div key={book.id}>
+                              <button className="linkish" onClick={() => onOpen(book)}>{book.title}</button>
+                              {book.subtitle && <div className="muted small">{book.subtitle}</div>}
+                              <div className="muted small">
+                                {[
+                                  (book.authors ?? book.editors ?? []).map(nameToString).join(', '),
+                                  book.publisher, book.year,
+                                  book.status === 'lent' ? 'Đang cho mượn' : undefined,
+                                ].filter(Boolean).join(' · ')}
+                              </div>
+                              <div className="muted small">
+                                {holdings.map((holding) => [
+                                  `${nf(printCount(holding))} bản`,
+                                  bindingLabel(holding.binding),
+                                  holding.location,
+                                ].filter(Boolean).join(' · ')).join(' / ')}
+                              </div>
+                            </div>
+                          ))}
+                        </td>
+                        <td className="num">{nf(copies)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </>
+          ) : (
+            <p className="muted">Chưa có đầu sách nào có nhiều bản giấy trong phạm vi này.</p>
+          )}
+        </section>
       )}
 
       {tab === 'overview' && (

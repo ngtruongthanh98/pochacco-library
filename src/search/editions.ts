@@ -38,3 +38,49 @@ export function otherEditions(book: Book, all: Book[]): Book[] {
     return title === relationTitle(b.title) && subtitle === relationText(b.subtitle ?? '')
   }).sort((a, b) => (a.year ?? 0) - (b.year ?? 0) || a.id.localeCompare(b.id))
 }
+
+// Một tác phẩm có thể in trọn tập hoặc chia tập thành các phần riêng.
+const partOf = (book: Book) => {
+  const text = relationText(`${book.title} ${book.subtitle ?? ''}`)
+  return text.match(/\b(?:phan|part|nam thu|book) (\d+|[ivxlcdm]+)\b/)?.[1] ?? ''
+}
+
+/** Nhóm các biểu ghi cùng tác phẩm theo quy tắc dùng ở trang chi tiết sách. */
+export function groupEditions(books: Book[]): Book[][] {
+  const keysOf = (book: Book) => [
+    ['work', book.workKey?.trim()],
+    ['isbn', normalizeIsbn(book.isbn13 ?? book.isbn10 ?? '')],
+    ['title', relationTitle(book.title)],
+    ['original', book.originalTitle && relationTitle(book.originalTitle)],
+  ].flatMap(([kind, value]) => value ? [`${kind}:${value}`] : [])
+
+  const byKey = new Map<string, Book[]>()
+  const keysById = new Map<string, string[]>()
+  for (const book of books) {
+    const keys = keysOf(book)
+    keysById.set(book.id, keys)
+    for (const key of keys) {
+      const bucket = byKey.get(key)
+      if (bucket) bucket.push(book)
+      else byKey.set(key, [book])
+    }
+  }
+
+  const visited = new Set<string>()
+  const groups: Book[][] = []
+  for (const book of books) {
+    if (visited.has(book.id)) continue
+    const group = [book]
+    visited.add(book.id)
+    for (const member of group) {
+      const candidates = new Set(keysById.get(member.id)!.flatMap((key) => byKey.get(key)!))
+      for (const edition of otherEditions(member, [...candidates])) {
+        if (visited.has(edition.id) || partOf(member) !== partOf(edition)) continue
+        visited.add(edition.id)
+        group.push(edition)
+      }
+    }
+    groups.push(group)
+  }
+  return groups
+}
