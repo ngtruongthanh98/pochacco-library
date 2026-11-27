@@ -1,0 +1,15 @@
+.matrix-selected-head, .matrix-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.matrix-selected { display: grid; gap: 5px; margin: 0; padding-inline-start: 1.6rem; }
+.matrix-selected li { padding-inline: 4px; overflow-wrap: anywhere; }
+.matrix-selected li .link { margin-inline-start: 8px; }
+.matrix-tools label { min-width: 165px; }
+.book-matrix .library-matrix { min-width: max-content; }
+.book-matrix .library-matrix th:first-child { width: min(38vw, 230px); min-width: min(38vw, 230px); max-width: min(38vw, 230px); z-index: 1; }
+.book-matrix .library-matrix th:first-child button { overflow-wrap: anywhere; }
+.book-matrix .library-matrix :is(td, th) { min-width: 32px; }
+.book-matrix .matrix-empty { background: #f4e9db; }
+.book-matrix .matrix-link { font-size: .85rem; }
+.book-matrix .library-matrix .matrix-level-1 { background: #fbe4cd; color: #6a311c; }
+.book-matrix .library-matrix .matrix-level-2 { background: #efbc8b; color: #50200d; }
+.book-matrix .library-matrix .matrix-level-3 { background: #8f3628; color: #fffaf3; }
+.book-matrix .matrix-link[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }

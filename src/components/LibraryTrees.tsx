@@ -1,9 +1,10 @@
-import { lazy, Suspense, useId, useMemo, useRef, useState, type ReactNode } from 'react'
-import { BRANCH_LIMIT, bookLinks, bookMatrix, topicOrder, topicTree, type BookLink, type TopicNode } from '../search/libraryTrees'
+import { lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BRANCH_LIMIT, bookLinks, topicOrder, topicTree, type BookLink, type TopicNode } from '../search/libraryTrees'
 import { findRelationshipBooks } from '../search/relationships'
 import { nameToString, type Book } from '../types/book'
 import './libraryRelationships.css'
 import './libraryTrees.css'
+import BookMatrix from './BookMatrix'
 
 const LibraryRelationships = lazy(() => import('./LibraryRelationships'))
 
@@ -15,6 +16,7 @@ const editionDetails = (book: Book) => [book.publisher, book.year, book.edition 
 const VIEWS = [
   { id: 'topics', label: 'Cây chủ đề' },
   { id: 'related', label: 'Cây sách liên quan' },
+  { id: 'matrix', label: 'Ma trận sách' },
   { id: 'other', label: 'Các sơ đồ khác' },
 ] as const
 
@@ -81,41 +83,6 @@ function TopicTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
   </div>
 }
 
-function Matrix({ visible, books, onOpen }: { visible: Book[]; books: Book[]; onOpen: OpenBook }) {
-  const [pair, setPair] = useState<[number, number] | null>(null)
-  const edges = useMemo(() => bookMatrix(visible, books), [visible, books])
-  const pairId = useId()
-  return <>
-    <p className="muted small">Ma trận đối chiếu các cặp giữa sách gốc và những sách ở nhánh cấp một. Chọn dấu ✓ để xem căn cứ liên hệ. Dấu – cho biết dữ liệu hiện tại chưa ghi nhận liên hệ.</p>
-    <div className="library-matrix-scroll" tabIndex={0} role="region" aria-label="Bảng ma trận sách liên quan">
-      <table className="library-matrix">
-        <thead><tr><th scope="col">Sách</th>{visible.map((book, i) =>
-          <th key={book.id} scope="col" aria-label={book.title}>{i + 1}</th>,
-        )}</tr></thead>
-        <tbody>{visible.map((book, row) => <tr key={book.id}>
-          <th scope="row"><button type="button" className="rel-book-title" onClick={() => onOpen(book)}>{row + 1}. {book.title}</button></th>
-          {visible.map((other, col) => {
-            if (row === col) return <td key={other.id} aria-label="Cùng một đầu sách">·</td>
-            const [first, second] = row < col ? [row, col] : [col, row]
-            const evidence = edges[first][second - first - 1]
-            const active = pair?.[0] === first && pair[1] === second
-            return <td key={other.id}>{evidence.length
-              ? <button type="button" className="matrix-link" aria-label={`Liên hệ giữa ${book.title} và ${other.title}`}
-                aria-controls={pairId} aria-pressed={active} onClick={() => setPair(active ? null : [first, second])}>✓</button>
-              : <span aria-label="Chưa ghi nhận liên hệ">–</span>}</td>
-          })}
-        </tr>)}</tbody>
-      </table>
-    </div>
-    <div id={pairId} aria-live="polite">
-      {pair && <div className="matrix-evidence">
-        <strong>{visible[pair[0]].title} ↔ {visible[pair[1]].title}</strong>
-        <ul>{edges[pair[0]][pair[1] - pair[0] - 1].map(reason => <li key={reason}>{reason}</li>)}</ul>
-      </div>}
-    </div>
-  </>
-}
-
 function NeighborBranch({ link, root, books, onFocus, onOpen }: {
   link: BookLink; root: Book; books: Book[]; onFocus: OpenBook; onOpen: OpenBook
 }) {
@@ -131,10 +98,9 @@ function NeighborBranch({ link, root, books, onFocus, onOpen }: {
   </div>
 }
 
-function RelatedTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
+function RelatedTree({ books, onOpen, onMatrix }: { books: Book[]; onOpen: OpenBook; onMatrix: (ids: string[]) => void }) {
   const [query, setQuery] = useState('')
   const [bookId, setBookId] = useState('')
-  const [showMatrix, setShowMatrix] = useState(false)
   const rootHeading = useRef<HTMLDivElement>(null)
   const root = books.find(book => book.id === bookId)
   const results = useMemo(() => query.trim() ? findRelationshipBooks(books, query, 'topic') : [], [books, query])
@@ -143,7 +109,6 @@ function RelatedTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
   const focusBook = (book: Book) => {
     setBookId(book.id)
     setQuery('')
-    setShowMatrix(false)
     requestAnimationFrame(() => rootHeading.current?.focus())
   }
   return <div className="library-tree-panel">
@@ -171,10 +136,9 @@ function RelatedTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
             {() => <NeighborBranch link={link} root={root} books={books} onFocus={focusBook} onOpen={onOpen} />}
           </Branch>)}
         </ul>
-        <details key={`matrix-${root.id}`} className="library-matrix-panel" onToggle={event => setShowMatrix(event.currentTarget.open)}>
-          <summary>Ma trận sách liên quan · {visible.length} đầu sách</summary>
-          {showMatrix && <Matrix key={root.id} visible={visible} books={books} onOpen={onOpen} />}
-        </details>
+        <div><button type="button" className="secondary" onClick={() => onMatrix(visible.map(book => book.id))}>
+          Mở ma trận của {visible.length} đầu sách
+        </button></div>
       </> : <p className="muted">Chưa tìm thấy sách liên quan trong thư viện.</p>}
     </>}
   </div>
@@ -182,6 +146,7 @@ function RelatedTree({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
 
 export default function LibraryTrees({ books, onOpen }: { books: Book[]; onOpen: OpenBook }) {
   const [view, setView] = useState<typeof VIEWS[number]['id']>('topics')
+  const [matrixBooks, setMatrixBooks] = useState<string[]>([])
   const owned = useMemo(() => books.filter(book => book.status === 'owned' || book.status === 'lent'), [books])
   return <>
     <section className="card library-trees" aria-labelledby="library-trees-heading">
@@ -194,7 +159,8 @@ export default function LibraryTrees({ books, onOpen }: { books: Book[]; onOpen:
       </nav>
       {!owned.length && <p className="muted">Chưa có sách để lập sơ đồ.</p>}
       {!!owned.length && view === 'topics' && <TopicTree books={owned} onOpen={onOpen} />}
-      {!!owned.length && view === 'related' && <RelatedTree books={owned} onOpen={onOpen} />}
+      {!!owned.length && view === 'related' && <RelatedTree books={owned} onOpen={onOpen} onMatrix={ids => { setMatrixBooks(ids); setView('matrix') }} />}
+      {!!owned.length && view === 'matrix' && <BookMatrix books={owned} selected={matrixBooks} onSelection={setMatrixBooks} onOpen={onOpen} />}
     </section>
     {view === 'other' && <Suspense fallback={<div className="card" role="status">Đang tải sơ đồ…</div>}>
       <LibraryRelationships books={books} onOpen={onOpen} />

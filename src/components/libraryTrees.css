@@ -22,7 +22,7 @@ p.library-tree-root, .library-tree-root {
   content: ''; position: absolute; inset-inline-start: -14px; top: 19px;
   width: 13px; border-top: 1px solid var(--line);
 }
-.library-branch summary, .library-matrix-panel summary {
+.library-branch summary {
   cursor: pointer; color: var(--red-dark); padding: 8px; min-height: 40px;
   background: var(--cream); border: 1px solid var(--line); border-radius: 8px;
 }
@@ -45,8 +45,6 @@ p.library-tree-root, .library-tree-root {
 .library-tree-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .library-tree-actions button, .library-tree-root button, .library-tree > li > button.secondary { padding: 6px 9px; }
 .library-neighbor { padding-inline-start: 4px; }
-.library-matrix-panel summary { font-weight: 700; }
-.library-matrix-panel > p { margin-block: 10px; }
 .library-matrix-scroll { overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
 .library-matrix { border-collapse: collapse; width: 100%; }
 .library-matrix :is(td, th) { padding: 4px 6px; text-align: center; border-bottom: 1px solid var(--line); }
