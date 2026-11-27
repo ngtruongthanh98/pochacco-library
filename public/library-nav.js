@@ -11,6 +11,7 @@
   // Trên điện thoại: các mục phụ gom vào nút "Khác"; khi đang ở một mục phụ, nút hiện tên mục đó.
   const secondary = [
     ['people', 'Tác giả', '#/tac-gia', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9c0-4 4-6 8-6s8 2 8 6'],
+    ['series', 'Bộ sách', '#/bo-sach', 'M4 4h4v16H4ZM10 4h4v16h-4ZM16 5l3-1 4 15-4 1Z'],
     ['suggest', 'Gợi ý', '#/goi-y', 'M9 18h6m-5 3h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3Z'],
     ['shelves', 'Xếp kệ', '#/xep-ke', 'M4 3h16v18H4ZM4 9h16M4 15h16M8 4v4m3-4v4m3 2v4M8 16v4m4-4v4'],
     ['refs', 'Tài liệu', '#/tai-lieu-tham-khao', 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01'],

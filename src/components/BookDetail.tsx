@@ -113,6 +113,7 @@ export default function BookDetail({
   onTopic,
   onOpen,
   onSearch,
+  onSeries,
   onPerson,
   onCategory,
   onRead,
@@ -137,6 +138,7 @@ export default function BookDetail({
   onTopic: (t: string) => void
   onOpen: (b: Book) => void
   onSearch: (q: string) => void
+  onSeries: (name: string) => void
   onPerson: (name: string) => void
   onCategory: (id: string) => void
   onRead: (h: EbookHolding) => void
@@ -190,7 +192,7 @@ export default function BookDetail({
     [
       'Tùng thư',
       book.series && (
-        <button className="linkish" onClick={() => onSearch(book.series!)}>
+        <button className="linkish" onClick={() => onSeries(book.series!)}>
           {book.series}
           {book.seriesNo !== undefined ? `, số ${book.seriesNo}` : ''}
         </button>

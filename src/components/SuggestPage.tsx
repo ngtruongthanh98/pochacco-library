@@ -59,7 +59,7 @@ function Card({ s, onWish, onDismiss }: { s: Suggestion; onWish: (vol?: number) 
   )
 }
 
-function SeriesCard({ s, onWish, onDismiss, onTotal }: { s: Suggestion; onWish: (vol: number) => void; onDismiss: () => void; onTotal: (n: number | null) => void }) {
+function SeriesCard({ s, onWish, onDismiss, onTotal, onOpen }: { s: Suggestion; onWish: (vol: number) => void; onDismiss: () => void; onTotal: (n: number | null) => void; onOpen: () => void }) {
   const [vol, setVol] = useState(s.missing![0])
   const [edit, setEdit] = useState(false)
   const [tot, setTot] = useState(String(s.total ?? ''))
@@ -67,16 +67,16 @@ function SeriesCard({ s, onWish, onDismiss, onTotal }: { s: Suggestion; onWish: 
     <article className="sg-card series">
       <div className="sg-cover">
         <span className="sg-vols" aria-hidden="true">
-          {s.total! - s.missing!.length}/{s.total}
+          {s.total! - s.missing!.length}{s.totalVerified ? `/${s.total}` : ' tập'}
         </span>
       </div>
       <div className="sg-body">
-        <h4>{s.title}</h4>
+        <h4><button type="button" className="link" onClick={onOpen}>{s.title}</button></h4>
         <div className="sg-meta small">{[s.authors.join(', '), s.publisher].filter(Boolean).join(' · ')}</div>
         <p className="sg-reason small">{s.reason}</p>
-        <div className="sg-volbar" role="img" aria-label={`Đã có ${s.total! - s.missing!.length} trên ${s.total} tập`}>
+        <div className="sg-volbar" role="img" aria-label={s.totalVerified ? `Đã có ${s.total! - s.missing!.length} trên ${s.total} tập` : `Dãy số đã ghi đến tập ${s.total}`}>
           {Array.from({ length: s.total! }, (_, i) => (
-            <span key={i} className={s.missing!.includes(i + 1) ? 'miss' : 'have'} title={`Tập ${i + 1}${s.missing!.includes(i + 1) ? ': còn thiếu' : ''}`} />
+            <span key={i} className={s.missing!.includes(i + 1) ? 'miss' : 'have'} title={`Tập ${i + 1}${s.missing!.includes(i + 1) ? ': chưa ghi nhận' : ''}`} />
           ))}
         </div>
         <div className="sg-actions">
@@ -124,7 +124,7 @@ function SeriesCard({ s, onWish, onDismiss, onTotal }: { s: Suggestion; onWish: 
   )
 }
 
-export default function SuggestPage({ cfg, books, onWish }: { cfg: StoreConfig; books: Book[]; onWish: (draft: Partial<Book>) => void }) {
+export default function SuggestPage({ cfg, books, onWish, onSeries }: { cfg: StoreConfig; books: Book[]; onWish: (draft: Partial<Book>) => void; onSeries: (key: string) => void }) {
   const [sc, setSc] = useState<SuggestConfig | null>(null)
   const shaRef = useRef<string | null>(null)
   const [src, setSrc] = useState<SourceId>('series')
@@ -291,7 +291,7 @@ export default function SuggestPage({ cfg, books, onWish }: { cfg: StoreConfig; 
         <div className="sg-list">
           {shown.map((s) =>
             s.source === 'series' ? (
-              <SeriesCard key={s.id} s={s} onWish={(v) => onWish(toDraft(s, v))} onDismiss={() => dismiss(s)} onTotal={(n) => setTotal(s, n)} />
+              <SeriesCard key={s.id} s={s} onWish={(v) => onWish(toDraft(s, v))} onDismiss={() => dismiss(s)} onTotal={(n) => setTotal(s, n)} onOpen={() => onSeries(s.seriesKey!)} />
             ) : (
               <Card key={s.id} s={s} onWish={() => onWish(toDraft(s))} onDismiss={() => dismiss(s)} />
             ),
@@ -299,7 +299,7 @@ export default function SuggestPage({ cfg, books, onWish }: { cfg: StoreConfig; 
         </div>
         {src === 'series' && (
           <p className="muted small">
-            App nhận ra bộ sách qua nhan đề có chữ “Tập n” hoặc trường Tùng thư và số tập. Số tập đã biết sẵn: {Object.entries(KNOWN_TOTALS).length} bộ; bộ khác app tạm đoán theo tập lớn nhất bạn có, bấm
+            App nhận ra bộ sách qua nhan đề có chữ “Tập n” hoặc trường Tùng thư và số tập. Số tập đã biết sẵn: {Object.entries(KNOWN_TOTALS).length} bộ; với các bộ khác, gợi ý chỉ hiển thị khoảng trống trong dãy số đã ghi. Bấm
             “Sửa tổng số tập” để chỉnh.
           </p>
         )}

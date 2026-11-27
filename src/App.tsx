@@ -8,6 +8,8 @@ import ShelfScan from './components/ShelfScan'
 import Stats from './components/Stats'
 import PersonPage from './components/PersonPage'
 import SuggestPage from './components/SuggestPage'
+import SeriesPage from './components/SeriesPage'
+import { seriesKeyOf } from './data/series'
 import ShelfPlan from './components/ShelfPlan'
 import BookForm from './components/BookForm'
 import { applyTaxonomy, DEFAULT_GROUPS, CATEGORY_GROUPS, categoryLabel, parseTaxonomy, type CategoryGroup } from './data/categories'
@@ -337,8 +339,9 @@ export default function App() {
   const [prefill, setPrefill] = useState<Partial<Book> | null>(null)
   const [dupFrom, setDupFrom] = useState<Book | null>(null)
   const [dupMode, setDupMode] = useState<'copy' | 'edition'>('copy')
-  const [page, setPage] = useState<'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people' | 'suggest' | 'shelves'>(initial.page)
+  const [page, setPage] = useState<Route['page']>(initial.page)
   const [person, setPerson] = useState<string | null>(initial.person)
+  const [series, setSeries] = useState<string | null>(initial.series)
   // Các cuốn đã chọn để tạo danh mục tài liệu tham khảo (giữ qua các lần mở trang)
   const [picked, setPickedState] = useState<string[]>(() => {
     try {
@@ -415,7 +418,7 @@ export default function App() {
   sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, added, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, added, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null, series: page === 'series' ? series : null }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -449,6 +452,7 @@ export default function App() {
       setTopic(r.topic)
       setRefView(r.refList)
       setPerson(r.person)
+      setSeries(r.series)
       setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
       setQueue(null)
       const y = savedScroll() ?? 0
@@ -509,12 +513,18 @@ export default function App() {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
     const destination = event.target.closest<HTMLElement>('a[data-page]')?.dataset.page
     if (destination === 'people') openPerson(null)
+    else if (destination === 'series') openSeries(null)
     else if (destination === 'refs') openRefs(null)
     else if (destination === 'library' || destination === 'stats' || destination === 'quotes' ||
       destination === 'games' || destination === 'suggest' || destination === 'shelves' || destination === 'settings') {
       goTab(destination)
     } else return
     event.preventDefault()
+  }
+
+  const openSeries = (key: string | null) => {
+    setSeries(key)
+    goTab('series')
   }
 
   const openPerson = (name: string | null) => {
@@ -638,7 +648,7 @@ export default function App() {
 
   useEffect(() => {
     const base = 'Pochacco Library'
-    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : page === 'suggest' ? `Gợi ý bổ sung · ${base}` : page === 'shelves' ? `Xếp kệ · ${base}` : base
+    document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : page === 'series' ? `Bộ sách · ${base}` : page === 'suggest' ? `Gợi ý bổ sung · ${base}` : page === 'shelves' ? `Xếp kệ · ${base}` : base
   }, [openBook, page])
   const searching = q.trim().length > 0
   const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
@@ -737,6 +747,17 @@ export default function App() {
               window.scrollTo(0, 0)
             }}
           />
+        ) : page === 'series' && !openId && !adding ? (
+          loading ? (
+            <State img="anim-read" title="Pochacco đang tìm các bộ sách..." />
+          ) : error && !books.length ? (
+            <State img="anim-read" title="Chưa tải được danh mục bộ sách" text={error} />
+          ) : (
+            <SeriesPage cfg={cfg} books={books} selected={series} onSeries={openSeries} onOpen={(book) => {
+              setOpenId(book.id)
+              window.scrollTo(0, 0)
+            }} />
+          )
         ) : page === 'suggest' && !openId && !adding ? (
           loading ? (
             <State img="anim-read" title="Pochacco đang xem tủ sách..." />
@@ -744,6 +765,7 @@ export default function App() {
             <SuggestPage
               cfg={cfg}
               books={books}
+              onSeries={openSeries}
               onWish={(d) => {
                 setPrefill(d)
                 setDupFrom(null)
@@ -993,7 +1015,9 @@ export default function App() {
                 window.scrollTo(0, 0)
               }}
               onPerson={openPerson}
+              onSeries={(name) => openSeries(seriesKeyOf(name))}
               onSearch={(text) => {
+                setPage('library')
                 setOpenId(null)
                 setGroup(-1)
                 setCat(null)
@@ -1002,6 +1026,7 @@ export default function App() {
               }}
               onRead={(h) => setReading(byId.get(openId)!.holdings.indexOf(h))}
               onCategory={(id) => {
+                setPage('library')
                 setOpenId(null)
                 setQ('')
                 setGroup(CATEGORY_GROUPS.findIndex((g) => g.items.some((i) => i.id === id)))

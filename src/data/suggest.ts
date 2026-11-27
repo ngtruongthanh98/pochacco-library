@@ -7,7 +7,8 @@ import { cleanDescription, toName } from './lookup'
 import { findCandidates } from './wiki'
 import { foldVi } from '../search/normalizeVi'
 import { peopleIndex, personKey } from '../search/people'
-import type { Book } from '../types/book'
+import { nameToString, type Book } from '../types/book'
+import { bookSeries, fmtRanges, seriesCoverage } from './series'
 
 export type SourceId = 'series' | 'author' | 'gap' | 'about' | 'topic'
 export const SOURCES: { id: SourceId; label: string; desc: string }[] = [
@@ -38,6 +39,7 @@ export type Suggestion = {
   /** Các tập còn thiếu (chỉ với nguồn "series") */
   missing?: number[]
   total?: number
+  totalVerified?: boolean
   seriesKey?: string
   seriesBase?: string
 }
@@ -83,71 +85,30 @@ export function ownedMatcher(books: Book[]) {
 }
 
 // ---------- 1. Bộ còn thiếu tập (không cần mạng) ----------
-/** Số tập của một số bộ phổ biến bản tiếng Việt; người dùng sửa được. */
-export const KNOWN_TOTALS: Record<string, number> = {
-  vilenintoantap: 55,
-  cmacvaphangghentoantap: 50,
-  hochiminhtoantap: 15,
-}
-const volRe = /^(.*?)[\s,:–-]*(?:tập|tap|t\.|quyển|quyen|vol\.?)\s*(\d{1,3})\b/i
-export const seriesKeyOf = (base: string) => personKey(base.replace(/\(\d{4}\)/g, ''))
+export { fmtRanges, KNOWN_TOTALS, seriesKeyOf } from './series'
 
 export function seriesGaps(books: Book[], totals: Record<string, number>): Suggestion[] {
-  const groups = new Map<string, { base: string; vols: Set<number>; sample: Book }>()
-  for (const b of books) {
-    let base: string | undefined
-    let n: number | undefined
-    const m = volRe.exec(b.title)
-    if (m && m[1].trim().length >= 4) {
-      base = m[1].trim()
-      n = Number(m[2])
-    } else if (b.series && b.seriesNo) {
-      base = b.series
-      n = b.seriesNo
-    } else if (b.volume && /^\d+$/.test(b.volume)) {
-      base = b.title
-      n = Number(b.volume)
-    }
-    if (!base || !n) continue
-    const key = seriesKeyOf(base)
-    const g = groups.get(key) ?? { base, vols: new Set<number>(), sample: b }
-    g.vols.add(n)
-    groups.set(key, g)
-  }
-  const out: Suggestion[] = []
-  for (const [key, g] of groups) {
-    if (g.vols.size < 2 && !totals[key]) continue
-    const max = Math.max(...g.vols)
-    const total = totals[key] ?? KNOWN_TOTALS[key] ?? max
-    const missing: number[] = []
-    for (let i = 1; i <= total; i++) if (!g.vols.has(i)) missing.push(i)
-    if (!missing.length) continue
-    const s = g.sample
-    out.push({
-      id: `series:${key}`,
+  return bookSeries(books).flatMap((group): Suggestion[] => {
+    const coverage = seriesCoverage(group, totals)
+    if (!coverage.missing.length || (coverage.present.size < 2 && !coverage.configured)) return []
+    const sample = coverage.owned[0]?.book ?? group.entries[0].book
+    return [{
+      id: `series:${group.key}`,
       source: 'series',
-      title: g.base,
-      authors: (s.authors ?? []).map((n) => ('literal' in n ? n.literal : [n.given, n.family].filter(Boolean).join(' '))),
-      publisher: s.publisher,
-      reason: `Bạn có ${g.vols.size}/${total} tập; còn thiếu ${fmtRanges(missing)}.${totals[key] || KNOWN_TOTALS[key] ? '' : ' (Tổng số tập đang đoán theo tập lớn nhất bạn có.)'}`,
+      title: group.name,
+      authors: (sample.authors ?? []).map(nameToString),
+      publisher: sample.publisher,
+      reason: coverage.knownTotal
+        ? `Bạn có ${coverage.present.size}/${coverage.total} tập; còn thiếu ${fmtRanges(coverage.missing)}.`
+        : `Chưa thấy ${fmtRanges(coverage.missing)} trong dãy số đã ghi. Tổng số tập chưa xác minh.`,
       group: 'Bộ sách',
-      missing,
-      total,
-      seriesKey: key,
-      seriesBase: g.base,
-    })
-  }
-  return out.sort((a, b) => (a.missing!.length - b.missing!.length))
-}
-export const fmtRanges = (xs: number[]) => {
-  const parts: string[] = []
-  for (let i = 0; i < xs.length; ) {
-    let j = i
-    while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1) j++
-    parts.push(j > i ? `tập ${xs[i]}–${xs[j]}` : `tập ${xs[i]}`)
-    i = j + 1
-  }
-  return parts.join(', ')
+      missing: coverage.missing,
+      total: coverage.total,
+      totalVerified: coverage.knownTotal !== null,
+      seriesKey: group.key,
+      seriesBase: group.name,
+    }]
+  }).sort((a, b) => a.missing!.length - b.missing!.length)
 }
 
 // ---------- Google Books ----------
@@ -322,6 +283,8 @@ export function toDraft(s: Suggestion, vol?: number): Partial<Book> {
     JSON.stringify({
       title: vol ? `${s.seriesBase ?? s.title} - Tập ${vol}` : s.title,
       subtitle: s.subtitle,
+      series: vol ? s.seriesBase : undefined,
+      seriesNo: vol,
       authors: s.authors.length ? s.authors.map((a) => toName(a, lang)) : undefined,
       publisher: s.publisher,
       year: s.year,

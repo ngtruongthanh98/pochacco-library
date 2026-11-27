@@ -3,6 +3,7 @@ import { isAddedFilter } from './search/added'
 //   #/                          danh sách; ?q=… tìm kiếm, ?nhom=… nhóm, ?loai=… danh mục, ?xep=… cách sắp xếp, ?trang=… số trang
 //   #/thong-ke                  trang thống kê
 //   #/tac-gia, #/tac-gia/<tên>  tác giả và nhân vật
+//   #/bo-sach, #/bo-sach/<mã>  danh sách bộ sách và chi tiết
 //   #/cai-dat                   trang cài đặt (tùy biến phân loại)
 //   #/sach/<id>                 chi tiết sách
 //   #/sach/<id>/sua             sửa sách
@@ -16,7 +17,7 @@ import { FORMAT_OPTIONS, type FormatFilter } from './data/format'
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
 export type Route = {
-  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people' | 'suggest' | 'shelves'
+  page: 'library' | 'stats' | 'settings' | 'quotes' | 'games' | 'refs' | 'people' | 'suggest' | 'shelves' | 'series'
   openId: string | null
   editing: boolean
   reading: number | null
@@ -38,6 +39,7 @@ export type Route = {
   refList: string | null
   /** Trang tác giả, nhân vật: null là danh sách chung */
   person: string | null
+  series: string | null
 }
 
 export const EMPTY_ROUTE: Route = {
@@ -57,6 +59,7 @@ export const EMPTY_ROUTE: Route = {
   pg: 1,
   refList: null,
   person: null,
+  series: null,
 }
 
 const groupSlug = (i: number) => CATEGORY_GROUPS[i].id
@@ -75,6 +78,7 @@ export function formatRoute(r: Route): string {
   if (r.page === 'games') return '#/tro-choi'
   if (r.page === 'suggest') return '#/goi-y'
   if (r.page === 'shelves') return '#/xep-ke'
+  if (r.page === 'series') return r.series ? `#/bo-sach/${encodeURIComponent(r.series)}` : '#/bo-sach'
   if (r.page === 'people') return r.person ? `#/tac-gia/${encodeURIComponent(r.person)}` : '#/tac-gia'
   if (r.page === 'refs') return r.refList ? `#/tai-lieu-tham-khao/${encodeURIComponent(r.refList)}` : '#/tai-lieu-tham-khao'
   if (r.page === 'quotes') return r.topic ? `#/trich-dan?${new URLSearchParams({ 'chu-de': r.topic })}` : '#/trich-dan'
@@ -107,6 +111,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'tro-choi') return { ...r, page: 'games' }
   if (parts[0] === 'goi-y') return { ...r, page: 'suggest' }
   if (parts[0] === 'xep-ke') return { ...r, page: 'shelves' }
+  if (parts[0] === 'bo-sach') return { ...r, page: 'series', series: parts[1] ?? null }
   if (parts[0] === 'tac-gia') return { ...r, page: 'people', person: parts[1] ?? null }
   if (parts[0] === 'tai-lieu-tham-khao') return { ...r, page: 'refs', refList: parts[1] ? decodeURIComponent(parts[1]) : null }
   if (parts[0] === 'trich-dan') return { ...r, page: 'quotes', topic: new URLSearchParams(qs).get('chu-de') }
