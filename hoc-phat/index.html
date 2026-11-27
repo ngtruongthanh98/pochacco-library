@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#bf2c27">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://i.ytimg.com; connect-src 'self' https://suttacentral.net; frame-src https://www.youtube-nocookie.com https://vdpzoom.com https://www.abhidhamma.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Học Phật · Pochacco Library</title>
+<link rel="icon" type="image/png" href="../favicon-48.png">
+<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="patthana.css?v=1">
+<link rel="stylesheet" href="../library-nav.css">
+<script src="../library-nav.js" defer></script>
+<script src="research-data.js" defer></script>
+<script src="research-ui.js" defer></script>
+<script src="commentary-sources.js" defer></script>
+<script src="commentary-ui.js" defer></script>
+<script src="abhidhamma-editions.js?v=3" defer></script>
+<script src="canon-ui.js?v=3" defer></script>
+<script src="patthana-data.js?v=1" defer></script>
+<script src="patthana-ui.js?v=1" defer></script>
+<script src="study-data.js?v=2" defer></script>
+<script src="study-ui.js?v=2" defer></script>
+<script src="app.js?v=2" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Đến nội dung</a>
+<header class="library-header">
+  <div class="library-banner" aria-hidden="true"></div>
+  <div class="library-header-inner">
+    <a class="library-brand" href="../">
+      <img class="wordmark" src="../assets/wordmark.webp" alt="Pochacco Library" width="900" height="308">
+      <span class="library-subtitle">Thư viện sách cá nhân</span>
+    </a>
+  </div>
+</header>
+<pochacco-nav active-page="dhamma"></pochacco-nav>
+<main id="main" tabindex="-1">
+  <div class="section-bar">
+    <div class="section-label"><strong>Học Phật</strong></div>
+    <nav id="section-nav" class="tabs section-nav" aria-label="Điều hướng Học Phật"></nav>
+  </div>
+  <div id="page-content"></div>
+</main>
+<dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
