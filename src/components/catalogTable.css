@@ -1,0 +1,30 @@
+main.catalog-table-mode { max-width: 1180px; }
+.catalog-result-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; }
+.catalog-view { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.catalog-view button { color: var(--red-dark); background: transparent; border-radius: 7px; padding: 5px 12px; font-size: .875rem; }
+.catalog-view button[aria-pressed="true"] { background: var(--red); color: var(--paper); }
+.catalog-view button[aria-pressed="false"]:hover { background: var(--cream); }
+.catalog-facets { display: grid; gap: 8px 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+.catalog-facets label { min-width: 0; }
+.catalog-preset-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.catalog-preset-row :is(input, select) { flex: 1 1 220px; min-width: 0; }
+.catalog-columns { margin: 0 0 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.catalog-columns summary { cursor: pointer; width: fit-content; color: var(--red-dark); font-weight: 600; }
+.catalog-column-options { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0; }
+.catalog-table-scroll { max-width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.catalog-table table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.catalog-table :is(th, td) { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.catalog-table thead { background: var(--cream); color: var(--red-dark); }
+.catalog-table thead th { white-space: nowrap; }
+.catalog-table tbody th { min-width: 12rem; }
+.catalog-table td { min-width: 7rem; }
+.catalog-table th .muted { display: block; font-weight: 400; }
+.catalog-table th .link { text-align: left; font-weight: 650; overflow-wrap: anywhere; }
+.catalog-table td input[type="checkbox"] { width: auto; accent-color: var(--red); }
+.catalog-table td:has(input[type="checkbox"]) { min-width: 0; }
+.catalog-table tbody tr:nth-child(even) { background: #fff5e9; }
+.catalog-table tbody tr.catalog-picked { background: #f8e3c4; }
+.catalog-table tr:last-child td, .catalog-table tbody tr:last-child th { border-bottom: 0; }
+.catalog-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.catalog-scroll-hint { display: none; margin: 0 0 6px; }
+@media (max-width: 600px) { .catalog-scroll-hint { display: block; } }

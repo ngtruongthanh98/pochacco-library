@@ -1,5 +1,9 @@
 import { createElement, lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import BookDetail from './components/BookDetail'
+import CatalogTable from './components/CatalogTable'
+import { MetadataFilters, SavedFilters } from './components/CatalogFilterPanel'
+import { CATALOG_FILTERS, catalogFacets, catalogMatcher, writeCatalogFilters, type CatalogFilters } from './search/catalogFilters'
+import './components/catalogTable.css'
 import Cover from './components/Cover'
 import EbookReader from './components/EbookReader'
 import ImportEbooks from './components/ImportEbooks'
@@ -47,7 +51,7 @@ import { ScrollTop } from './components/ScrollTop'
 import { loadPageSize, PAGE_SIZES, Pager, savePageSize, sizeLabel, type PageSize } from './components/Pager'
 import { ADDED_PRESETS, addedLabel, addedMatcher, batches, dayKey, fmtDay } from './search/added'
 import { loadSortPref, saveSortPref, sortBooks, SORT_OPTIONS, type SortKey } from './search/sortBooks'
-import { formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
+import { EMPTY_ROUTE, formatRoute, historyDepth, onlyQueryChanged, parseRoute, savedScroll, writeHistory, type Route, type ScanMode } from './router'
 import { nameToString, type Book, type EbookHolding } from './types/book'
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}`
@@ -387,6 +391,8 @@ export default function App() {
   const [q, setQ] = useState(initial.q)
   const [sort, setSort] = useState<SortKey | null>(initial.sort)
   const [fmt, setFmt] = useState<FormatFilter>(initial.fmt)
+  const [catalogFilters, setCatalogFilters] = useState<CatalogFilters>(initial.filters)
+  const [table, setTable] = useState(initial.table)
   const [topic, setTopic] = useState<string | null>(initial.topic)
   const [added, setAdded] = useState<string | null>(initial.added)
   const [rangeOpen, setRangeOpen] = useState(false)
@@ -400,7 +406,14 @@ export default function App() {
       /* bỏ qua */
     }
   }
-  const advCount = (fmt ? 1 : 0) + (added ? 1 : 0)
+  const metadataCount = Object.keys(catalogFilters).length
+  const advCount = Number(!!fmt) + Number(!!added) + metadataCount
+  const clearAdvanced = () => {
+    setFmt(null)
+    setAdded(null)
+    setRangeOpen(false)
+    setCatalogFilters({})
+  }
   const [excerpts, setExcerpts] = useState<Excerpt[]>([])
   const [exError, setExError] = useState<string | null>(null)
   const [readerCfg, setReaderCfg] = useState<ReaderConfig>({})
@@ -414,11 +427,9 @@ export default function App() {
   const [taxVer, setTaxVer] = useState(0)
   const [taxReady, setTaxReady] = useState(false)
   const [taxSha, setTaxSha] = useState<string | null>(null)
-  const sortPrefRef = useRef(sortPref)
-  sortPrefRef.current = sortPref
 
   // --- Đồng bộ trang đang xem với địa chỉ web (nút Quay lại, chia sẻ link) ---
-  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, topic, added, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null, series: page === 'series' ? series : null }
+  const route: Route = { page, openId, editing, reading, scanMode, adding, q, group, cat, sort, fmt, filters: catalogFilters, table, topic, added, pg: pgState.pg, refList: page === 'refs' ? refView : null, person: page === 'people' ? person : null, series: page === 'series' ? series : null }
   const routeHash = formatRoute(route)
   const navMode = useRef<'push' | 'replace'>('replace')
   const lastRoute = useRef(route)
@@ -448,12 +459,14 @@ export default function App() {
       setCat(r.cat)
       setSort(r.sort)
       setFmt(r.fmt)
+      setCatalogFilters(r.filters)
+      setTable(r.table)
       setAdded(r.added)
       setTopic(r.topic)
       setRefView(r.refList)
       setPerson(r.person)
       setSeries(r.series)
-      setPgState({ pg: r.pg, key: `${r.q}|${r.group}|${r.cat}|${r.fmt}|${r.sort ?? (r.q.trim() ? 'phu-hop' : sortPrefRef.current)}` })
+      setPgState({ pg: r.pg, key: '' })
       setQueue(null)
       const y = savedScroll() ?? 0
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)))
@@ -475,6 +488,8 @@ export default function App() {
     setScanMode(null)
     setAdding(false)
     setPage('library')
+    setTable(false)
+    clearAdvanced()
   }
 
   /** Sửa danh mục tài liệu: cập nhật ngay trên màn hình, ghi lên repo sau 1,5 giây yên lặng. */
@@ -650,23 +665,28 @@ export default function App() {
     const base = 'Pochacco Library'
     document.title = openBook ? `${openBook.title} · ${base}` : page === 'stats' ? `Thống kê · ${base}` : page === 'settings' ? `Cài đặt · ${base}` : page === 'quotes' ? `Trích dẫn · ${base}` : page === 'games' ? `Trò chơi · ${base}` : page === 'refs' ? `Tài liệu tham khảo · ${base}` : page === 'people' ? `${person ?? 'Tác giả'} · ${base}` : page === 'series' ? `Bộ sách · ${base}` : page === 'suggest' ? `Gợi ý bổ sung · ${base}` : page === 'shelves' ? `Xếp kệ · ${base}` : base
   }, [openBook, page])
+  const facets = useMemo(() => catalogFacets(books), [books])
   const searching = q.trim().length > 0
-  const matched = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
-  const inGroup = (b: Book, g: number) =>
-    g < 0 || (b.categories ?? []).some((c) => CATEGORY_GROUPS[g].items.some((i) => i.id === c))
-  const groupCount = (g: number) => matched.filter((b) => inGroup(b, g)).length
-  const catCount = (id: string) => matched.filter((b) => b.categories?.includes(id)).length
-  const inCats = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
+  const queryResults = searching ? index.search(q).map((r) => byId.get(r.id as string)!).filter(Boolean) : books
+  const matched = metadataCount ? queryResults.filter(catalogMatcher(catalogFilters)) : queryResults
   const addedOk = addedMatcher(added)
+  const inAllCategories = added || fmt ? matched.filter((b) => addedOk(b) && matchFormat(b, fmt)) : matched
+  const inGroup = (b: Book, g: number) =>
+    g < 0 || (b.categories ?? []).some((c) => CATEGORY_GROUPS[g]?.items.some((i) => i.id === c))
+  const groupCount = (g: number) => inAllCategories.filter((b) => inGroup(b, g)).length
+  const catCount = (id: string) => inAllCategories.filter((b) => b.categories?.includes(id)).length
+  const inCats = matched.filter((b) => (cat ? b.categories?.includes(cat) : inGroup(b, group)))
   const inAdded = added ? inCats.filter(addedOk) : inCats
   const addedCount = (f: string) => inCats.filter(addedMatcher(f)).length
   const fmtCount = (k: FormatFilter) => (k ? inAdded.filter((b) => matchFormat(b, k)).length : inAdded.length)
   const filtered = fmt ? inAdded.filter((b) => matchFormat(b, fmt)) : inAdded
-  const filtering = searching || group >= 0 || fmt !== null || added !== null
+  const filtering = searching || group >= 0 || advCount > 0
   // Đang tìm thì mặc định xếp theo độ phù hợp; không tìm thì theo lựa chọn đã nhớ.
   const sortKey: SortKey = sort ?? (searching ? 'phu-hop' : sortPref)
   const sorted = sortBooks(filtered, sortKey === 'phu-hop' && !searching ? 'moi' : sortKey)
-  const listKey = `${q}|${group}|${cat}|${fmt}|${added}|${sortKey}`
+  const filterParams = new URLSearchParams()
+  writeCatalogFilters(filterParams, catalogFilters)
+  const listKey = JSON.stringify([q, group, cat, fmt, added, sortKey, filterParams.toString()])
   // Lần đầu (key rỗng) chấp nhận số trang từ địa chỉ web; sau đó chỉ giữ khi bộ lọc không đổi.
   const wantedPg = pgState.key === '' || pgState.key === listKey ? pgState.pg : 1
   const pages = pageSize === 0 ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize))
@@ -709,7 +729,7 @@ export default function App() {
         'library-session': '',
         onClick: onLibraryMenuClick,
       })}
-      <main>
+      <main className={cfg && table && page === 'library' && !openId && !adding && !scanMode ? 'catalog-table-mode' : undefined}>
         {!cfg ? (
           creating ? (
             <CreateAccount onBack={() => setCreating(false)} />
@@ -1292,8 +1312,18 @@ export default function App() {
                       Nhập: {addedLabel(added).toLowerCase()} ×
                     </button>
                   )}
+                  {!advOpen && CATALOG_FILTERS.map(({ key, label }) => {
+                    const value = catalogFilters[key]
+                    if (!value) return null
+                    const selected = facets.get(key)?.find((option) => option.value === value)
+                    return <button type="button" className="adv-chip" key={key} aria-label={`Bỏ lọc ${label.toLowerCase()}`} onClick={() => {
+                      const next = { ...catalogFilters }
+                      delete next[key]
+                      setCatalogFilters(next)
+                    }}>{selected?.label ?? value} ×</button>
+                  })}
                   {!advOpen && advCount > 1 && (
-                    <button className="link adv-clear" onClick={() => { setFmt(null); setAdded(null) }}>
+                    <button className="link adv-clear" onClick={clearAdvanced}>
                       Bỏ hết
                     </button>
                   )}
@@ -1389,8 +1419,26 @@ export default function App() {
                 )}
               </div>
                     </div>
+                    <MetadataFilters facets={facets} filters={catalogFilters} onChange={setCatalogFilters} />
+                    <SavedFilters
+                      key={`${cfg.owner}/${cfg.repo}/${cfg.branch ?? 'main'}`}
+                      scope={`${cfg.owner}/${cfg.repo}/${cfg.branch ?? 'main'}`}
+                      active={filtering}
+                      hash={formatRoute({ ...EMPTY_ROUTE, q, group, cat, fmt, added, filters: catalogFilters })}
+                      onApply={(hash) => {
+                        const saved = parseRoute(hash)
+                        setQ(saved.q)
+                        setGroup(saved.group)
+                        setCat(saved.cat)
+                        setFmt(saved.fmt)
+                        setAdded(saved.added)
+                        setCatalogFilters(saved.filters)
+                        setRangeOpen(false)
+                        setPgState({ pg: 1, key: '' })
+                      }}
+                    />
                     {advCount > 0 && (
-                      <button className="link adv-clear" onClick={() => { setFmt(null); setAdded(null); setRangeOpen(false) }}>
+                      <button className="link adv-clear" onClick={clearAdvanced}>
                         Bỏ hết bộ lọc nâng cao
                       </button>
                     )}
@@ -1409,7 +1457,7 @@ export default function App() {
                     onClick={() => { setGroup(-1); setCat(null) }}
                   >
                     Tất cả
-                    {matched.length > 0 && <span className="count">{matched.length}</span>}
+                    {inAllCategories.length > 0 && <span className="count">{inAllCategories.length}</span>}
                   </button>
                   {CATEGORY_GROUPS.map((g, i) => {
                     const n = groupCount(i)
@@ -1460,11 +1508,19 @@ export default function App() {
                 <div className="muted">Thêm cuốn sách đầu tiên để bắt đầu biên mục.</div>
               </div>
             )}
+            {!loading && !error && books.length > 0 && (
+              <div className="catalog-result-tools">
+                <div className="catalog-view" role="group" aria-label="Chế độ hiển thị">
+                  <button type="button" aria-pressed={!table} onClick={() => setTable(false)}>Danh sách</button>
+                  <button type="button" aria-pressed={table} onClick={() => setTable(true)}>Bảng</button>
+                </div>
+              </div>
+            )}
             {!loading && !error && books.length > 0 && filtering && sorted.length === 0 && (
               <State
                 img="sticker-magnifier.webp"
-                title={searching ? 'Chưa có cuốn này trong thư viện' : added ? `Không có sách nhập ${addedLabel(added).toLowerCase()}` : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : fmt ? 'Không có sách thuộc dạng này' : 'Mục này chưa có sách'}
-                text={searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : added ? 'Chọn “Mọi lúc” để xem toàn bộ.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
+                title={metadataCount ? 'Không có sách khớp bộ lọc hiện tại' : searching ? 'Chưa có cuốn này trong thư viện' : added ? `Không có sách nhập ${addedLabel(added).toLowerCase()}` : fmt === 'ebook' ? 'Không có cuốn nào chỉ có bản điện tử' : fmt ? 'Không có sách thuộc dạng này' : 'Mục này chưa có sách'}
+                text={metadataCount ? 'Thử bỏ một điều kiện hoặc chọn giá trị khác trong Tìm kiếm nâng cao.' : searching ? 'Thử gõ ít chữ hơn, hoặc tìm theo tác giả, ISBN.' : added ? 'Chọn “Mọi lúc” để xem toàn bộ.' : fmt ? 'Chọn “Mọi dạng” để xem toàn bộ.' : 'Gắn danh mục khi thêm sách để sách hiện ở đây.'}
               />
             )}
             {!loading && !error && books.length > 0 && !(filtering && sorted.length === 0) && (
@@ -1518,20 +1574,31 @@ export default function App() {
                 </div>
               </div>
             )}
-            <ul className="list">
-              {results.map((b, i) => (
-                <BookRow
-                  key={b.id}
-                  b={b}
-                  cfg={cfg}
-                  index={i}
-                  selecting={selecting}
-                  picked={workingIds.includes(b.id)}
-                  onPick={() => togglePick(b.id)}
-                  onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }}
+            {table ? (
+              results.length > 0 && (
+                <CatalogTable
+                  books={results}
+                  picked={selecting ? new Set(workingIds) : undefined}
+                  onPick={togglePick}
+                  onOpen={(book) => { setNotice(null); setOpenId(book.id); window.scrollTo(0, 0) }}
                 />
-              ))}
-            </ul>
+              )
+            ) : (
+              <ul className="list">
+                {results.map((b, i) => (
+                  <BookRow
+                    key={b.id}
+                    b={b}
+                    cfg={cfg}
+                    index={i}
+                    selecting={selecting}
+                    picked={workingIds.includes(b.id)}
+                    onPick={() => togglePick(b.id)}
+                    onOpen={() => { setNotice(null); setOpenId(b.id); window.scrollTo(0, 0) }}
+                  />
+                ))}
+              </ul>
+            )}
             {sorted.length > 0 && (
               <Pager
                 page={curPage}

@@ -13,6 +13,7 @@ import { isAddedFilter } from './search/added'
 import { CATEGORY_GROUPS } from './data/categories'
 import { isSortKey, type SortKey } from './search/sortBooks'
 import { FORMAT_OPTIONS, type FormatFilter } from './data/format'
+import { CATALOG_FILTERS, readCatalogFilters, writeCatalogFilters, type CatalogFilters } from './search/catalogFilters'
 
 export type ScanMode = 'one' | 'shelf' | 'ebooks'
 
@@ -29,6 +30,8 @@ export type Route = {
   sort: SortKey | null
   /** Lọc theo dạng: chỉ ebook, chỉ sách giấy, có cả hai */
   fmt: FormatFilter
+  filters: CatalogFilters
+  table: boolean
   /** Chủ đề đang xem ở trang Trích dẫn */
   topic: string | null
   /** Lọc theo ngày nhập (xem search/added.ts) */
@@ -54,6 +57,8 @@ export const EMPTY_ROUTE: Route = {
   cat: null,
   sort: null,
   fmt: null,
+  filters: {},
+  table: false,
   topic: null,
   added: null,
   pg: 1,
@@ -90,6 +95,8 @@ export function formatRoute(r: Route): string {
   if (r.sort) params.set('xep', r.sort)
   if (r.fmt) params.set('ban', FORMAT_OPTIONS.find((o) => o.key === r.fmt)!.slug)
   if (r.added) params.set('nhap', r.added)
+  if (r.table) params.set('xem', 'bang')
+  writeCatalogFilters(params, r.filters)
   if (r.pg > 1) params.set('trang', String(r.pg))
   const qs = params.toString()
   return qs ? `#/?${qs}` : '#/'
@@ -120,6 +127,8 @@ export function parseRoute(hash: string): Route {
   if (scan) return { ...r, scanMode: scan }
   const params = new URLSearchParams(qs)
   r.q = params.get('q') ?? ''
+  r.table = params.get('xem') === 'bang'
+  r.filters = readCatalogFilters(params)
   const xep = params.get('xep')
   if (isSortKey(xep)) r.sort = xep
   r.fmt = FORMAT_OPTIONS.find((o) => o.slug === params.get('ban'))?.key ?? null
@@ -144,7 +153,10 @@ export function parseRoute(hash: string): Route {
 /** Hai địa chỉ chỉ khác nhau ở từ khóa tìm kiếm hoặc cách sắp xếp: thay thế thay vì thêm mục lịch sử mới. */
 export function onlyQueryChanged(a: Route, b: Route): boolean {
   const list = (r: Route) => !r.openId && r.page === 'library' && !r.scanMode && !r.adding
-  return list(a) && list(b) && a.group === b.group && a.cat === b.cat && (a.q !== b.q || a.sort !== b.sort)
+  return list(a) && list(b) && a.group === b.group && a.cat === b.cat
+    && a.fmt === b.fmt && a.added === b.added && a.table === b.table
+    && CATALOG_FILTERS.every(({ key }) => a.filters[key] === b.filters[key])
+    && (a.q !== b.q || a.sort !== b.sort)
 }
 
 type HistState = { pochacco: true; depth: number; scrollY?: number }
